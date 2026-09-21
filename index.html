@@ -1,0 +1,1921 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Controle GLP</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f2f2f0;
+  --surface:#ffffff;
+  --surface-2:#e7e7e5;
+  --border:#d2d2cf;
+  --text:#161616;
+  --text-muted:#61615f;
+  --accent:#c00000;
+  --accent-ink:#ffffff;
+  --accent-2:#4a4a4a;
+  --good:#2f8f5b;
+  --good-bg:#e3f3ea;
+  --warn:#b8790f;
+  --warn-bg:#faf0dc;
+  --bad:#c00000;
+  --bad-bg:#fbe4e4;
+  --shadow:0 1px 2px rgba(10,10,10,.06),0 4px 14px rgba(10,10,10,.06);
+  --radius:10px;
+  --font-display:'Barlow Condensed',sans-serif;
+  --font-body:'IBM Plex Sans',sans-serif;
+  --font-mono:'IBM Plex Mono',monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#121212;
+    --surface:#1c1c1c;
+    --surface-2:#262626;
+    --border:#3a3a3a;
+    --text:#efefee;
+    --text-muted:#a3a3a1;
+    --accent:#e23a3a;
+    --accent-ink:#160404;
+    --accent-2:#a5a5a5;
+    --good:#57b586;
+    --good-bg:#1c2f26;
+    --warn:#e0af3f;
+    --warn-bg:#332a15;
+    --bad:#e26a6a;
+    --bad-bg:#332019;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.35);
+  }
+}
+*{box-sizing:border-box;}
+html,body{margin:0;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  padding-inline:16px;
+  padding-block:14px 40px;
+  max-width:1240px;
+  margin:0 auto;
+}
+h1,h2,h3,.disp{font-family:var(--font-display);text-transform:uppercase;letter-spacing:.02em;font-weight:700;text-wrap:balance;}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
+button{font-family:inherit;}
+a{color:var(--accent-2);}
+::selection{background:var(--accent);color:var(--accent-ink);}
+[hidden]{display:none!important;}
+
+/* ---------- Login gate ---------- */
+#auth-gate{
+  position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;
+  padding:16px;z-index:200;
+}
+.login-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:30px;width:100%;max-width:380px;
+  box-shadow:0 20px 60px rgba(0,0,0,.15);text-align:center;
+}
+.login-card img{height:30px;margin-bottom:6px;}
+.login-card h1{font-size:20px;margin:6px 0 18px;}
+.login-card .field{text-align:left;margin-bottom:12px;}
+.login-card input{width:100%;}
+.login-error{color:var(--bad);font-size:13px;margin-top:8px;min-height:16px;}
+.login-logos{display:flex;gap:14px;justify-content:center;align-items:center;margin-bottom:14px;}
+.login-logos img{height:26px;}
+
+/* ---------- Header ---------- */
+.topbar{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding-block:6px 16px;border-bottom:3px solid var(--accent);margin-bottom:18px;
+}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;z-index:1;}
+.brand-text h1{font-size:22px;margin:0;line-height:1;color:var(--text);}
+.brand-text span{font-size:11px;color:var(--text-muted);text-transform:none;letter-spacing:0;font-family:var(--font-body);}
+.brand-logos{display:flex;align-items:center;gap:12px;z-index:1;margin-right:6px;padding:6px 14px;border-right:1px solid var(--border);background:#fff;border-radius:8px;}
+.brand-logos img{height:24px;width:auto;display:block;}
+@media (max-width:640px){.brand-logos{display:none;}}
+nav.tabs{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:999px;flex-wrap:wrap;}
+nav.tabs button{
+  border:none;background:transparent;color:var(--text-muted);padding:8px 16px;border-radius:999px;
+  font-size:14px;font-weight:600;cursor:pointer;transition:background .15s,color .15s;
+}
+nav.tabs button.active{background:var(--accent);color:var(--accent-ink);}
+nav.tabs button:not(.active):hover{color:var(--text);}
+.sync-pill{
+  font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px;padding:6px 10px;
+  border:1px solid var(--border);border-radius:999px;white-space:nowrap;cursor:pointer;
+}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--good);flex:none;}
+.sync-dot.off{background:var(--bad);}
+
+/* ---------- Layout helpers ---------- */
+.view{display:none;}
+.view.active{display:block;animation:fade .25s ease;}
+@keyframes fade{from{opacity:0;transform:translateY(3px);}to{opacity:1;transform:none;}}
+.grid{display:grid;gap:14px;}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-bottom:18px;}
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;box-shadow:var(--shadow);
+}
+.kpi-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-weight:600;margin-bottom:8px;}
+.kpi-value{font-family:var(--font-mono);font-size:28px;font-weight:600;line-height:1;}
+.kpi-sub{margin-top:6px;font-size:12px;color:var(--text-muted);}
+.section-title{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:26px 0 12px;flex-wrap:wrap;}
+.section-title h2{font-size:20px;margin:0;}
+.charts-row{grid-template-columns:2fr 1fr;}
+@media (max-width:820px){.charts-row{grid-template-columns:1fr;}}
+.chart-card canvas{max-width:100%;}
+.chip-row{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{
+  border:1px solid var(--border);background:var(--surface);color:var(--text-muted);
+  padding:6px 12px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;
+}
+.chip.active{background:var(--accent-2);border-color:var(--accent-2);color:#fff;}
+
+/* ---------- Última troca ---------- */
+.ultima-troca-card{border-left:4px solid var(--accent);margin-bottom:18px;}
+.ultima-troca-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);font-weight:700;margin-bottom:10px;}
+.ultima-troca-body{display:flex;gap:26px;flex-wrap:wrap;}
+.ut-item{display:flex;flex-direction:column;gap:2px;min-width:110px;}
+.ut-item .ut-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;}
+.ut-item .ut-value{font-family:var(--font-mono);font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;}
+.ut-badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:var(--bad-bg);color:var(--bad);margin-left:6px;vertical-align:middle;}
+
+/* ---------- Alerts ---------- */
+.alert-box{border:1px solid var(--warn);background:var(--warn-bg);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;}
+.alert-box.critical{border-color:var(--bad);background:var(--bad-bg);}
+.alert-box h4{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--text);display:flex;align-items:center;gap:6px;}
+.alert-box ul{margin:0;padding-left:18px;font-size:13.5px;}
+.alert-box li{margin-bottom:3px;}
+
+/* ---------- Filters / toolbar ---------- */
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;}
+.field{display:flex;flex-direction:column;gap:4px;min-width:130px;}
+.field label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-weight:600;}
+select,input{
+  font-family:var(--font-body);font-size:14px;padding:8px 10px;border-radius:7px;
+  border:1px solid var(--border);background:var(--surface);color:var(--text);
+}
+select:focus,input:focus{outline:2px solid var(--accent-2);outline-offset:1px;}
+.btn{
+  border:none;border-radius:7px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer;
+  background:var(--surface-2);color:var(--text);border:1px solid var(--border);
+}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+.btn.danger{background:var(--bad-bg);color:var(--bad);border-color:transparent;}
+.btn:hover{filter:brightness(1.05);}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:6px;}
+.spacer{flex:1;}
+
+/* ---------- Table ---------- */
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:720px;}
+thead th{
+  text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);
+  padding:10px 12px;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;background:var(--surface);
+}
+tbody td{padding:9px 12px;border-bottom:1px solid var(--border);white-space:nowrap;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--surface-2);}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;text-align:right;}
+.badge{padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:600;display:inline-block;}
+.badge.pago{background:var(--good-bg);color:var(--good);}
+.badge.pendente{background:var(--warn-bg);color:var(--warn);}
+.row-actions{display:flex;gap:6px;}
+.iconbtn{
+  border:none;background:transparent;color:var(--text-muted);cursor:pointer;padding:4px 6px;border-radius:5px;font-size:13px;
+}
+.iconbtn:hover{background:var(--surface-2);color:var(--text);}
+.empty-row td{text-align:center;color:var(--text-muted);padding:26px;}
+
+/* ---------- Modal / form ---------- */
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(10,14,12,.5);display:none;align-items:center;justify-content:center;
+  padding:16px;z-index:50;
+}
+.modal-backdrop.open{display:flex;}
+.modal{
+  background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:22px;width:100%;max-width:560px;
+  max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);
+}
+.modal h3{margin:0 0 14px;font-size:20px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-grid .full{grid-column:1/-1;}
+.form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;}
+.hint{font-size:11.5px;color:var(--text-muted);margin-top:3px;}
+
+/* ---------- Toast ---------- */
+#toast-host{position:fixed;bottom:18px;right:18px;display:flex;flex-direction:column;gap:8px;z-index:80;}
+.toast{
+  background:var(--text);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:13.5px;box-shadow:var(--shadow);
+  animation:toastin .2s ease;
+}
+.toast.err{background:var(--bad);color:#fff;}
+@keyframes toastin{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+/* ---------- Config lists ---------- */
+.list-row{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border);}
+.list-row:last-child{border-bottom:none;}
+.list-row .grow{flex:1;}
+.small-input{width:74px;}
+.tag{background:var(--surface-2);border-radius:6px;padding:8px 10px;font-size:13px;display:flex;align-items:center;gap:8px;}
+
+footer.note{margin-top:34px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:14px;}
+.contact-card{position:relative;overflow:hidden;display:flex;gap:26px;flex-wrap:wrap;padding-right:110px;}
+.contact-card::after{
+  content:"";position:absolute;right:0;bottom:0;width:90px;height:90px;
+  background:var(--accent);clip-path:polygon(100% 100%, 0 100%, 100% 0);opacity:.85;pointer-events:none;
+}
+@media (max-width:520px){.contact-card{padding-right:16px;}.contact-card::after{display:none;}}
+.contact-col{display:flex;flex-direction:column;gap:4px;}
+.contact-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);font-weight:700;}
+.contact-col a{color:var(--text);font-weight:600;text-decoration:none;}
+.contact-col a:hover{color:var(--accent);}
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN GATE ===================== -->
+<div id="auth-gate">
+  <div class="login-card">
+    <div class="login-logos">
+      <img src="logo-mann.png" alt="MANN">
+      <img src="logo-exata.png" alt="EXATA">
+    </div>
+    <h1>Controle GLP</h1>
+    <form id="form-login">
+      <div class="field"><label>E-mail de acesso</label><input type="email" id="login-email" required autocomplete="username"></div>
+      <div class="field"><label>Senha da equipe</label><input type="password" id="login-senha" required autocomplete="current-password"></div>
+      <button type="submit" class="btn primary" style="width:100%;">Entrar</button>
+      <div class="login-error" id="login-error"></div>
+    </form>
+  </div>
+</div>
+
+<div id="app" hidden>
+
+<div class="topbar">
+  <div class="brand-logos">
+    <img src="logo-mann.png" alt="MANN Tratamentos Fitossanitários">
+    <img src="logo-exata.png" alt="EXATA Ambiental">
+  </div>
+  <div class="brand">
+    <div class="brand-text">
+      <h1>Controle GLP</h1>
+      <span>Compras · trocas · consumo — frota HT</span>
+    </div>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button data-view="dashboard" class="active">Painel</button>
+    <button data-view="compras">Compras</button>
+    <button data-view="trocas">Trocas</button>
+    <button data-view="tratamentos">Tratamentos</button>
+    <button data-view="ordemcompra">Ordem de Compra</button>
+    <button data-view="config">Configurações</button>
+  </nav>
+  <div class="sync-pill" id="btn-user" title="Clique para definir seu nome">👤 <span id="user-name-label">Definir nome</span></div>
+  <div class="sync-pill" id="btn-logout" title="Clique para sair"><span class="sync-dot off" id="sync-dot"></span><span id="sync-text">conectando…</span></div>
+</div>
+
+<!-- ===================== DASHBOARD ===================== -->
+<section class="view active" id="view-dashboard">
+  <div id="alerts-host"></div>
+
+  <div class="grid kpis">
+    <div class="card"><div class="kpi-label">Consumo total 2026 (kg)</div><div class="kpi-value" id="kpi-consumo">–</div><div class="kpi-sub" id="kpi-consumo-sub">&nbsp;</div></div>
+    <div class="card"><div class="kpi-label">Custo total compras (R$)</div><div class="kpi-value" id="kpi-custo">–</div><div class="kpi-sub" id="kpi-custo-sub">&nbsp;</div></div>
+    <div class="card"><div class="kpi-label">Tratamentos realizados</div><div class="kpi-value" id="kpi-trat">–</div><div class="kpi-sub" id="kpi-trat-sub">&nbsp;</div></div>
+    <div class="card"><div class="kpi-label">Custo médio / tratamento</div><div class="kpi-value" id="kpi-custotrat">–</div><div class="kpi-sub">gasto ÷ tratamentos</div></div>
+  </div>
+
+  <div class="section-title">
+    <h2>Consumo, custo e tratamentos por mês</h2>
+    <div class="chip-row" id="metric-chips">
+      <button class="chip active" data-metric="custo">Custo (R$)</button>
+      <button class="chip" data-metric="consumo">Consumo (kg)</button>
+      <button class="chip" data-metric="tratamentos">Tratamentos</button>
+    </div>
+  </div>
+  <div class="grid charts-row">
+    <div class="card chart-card"><canvas id="chart-monthly" height="260"></canvas></div>
+    <div class="card chart-card"><h3 style="margin:0 0 10px;font-size:15px;">Gasto por fornecedor</h3><canvas id="chart-suppliers" height="260"></canvas></div>
+  </div>
+
+  <div class="section-title"><h2>Custo de gás por tratamento — comparação entre caminhões</h2></div>
+  <div class="card chart-card" style="margin-bottom:26px;"><canvas id="chart-custotrat-caminhao" height="220"></canvas></div>
+
+  <div class="section-title"><h2>Últimas compras lançadas</h2></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Data</th><th>Fornecedor</th><th>Destino</th><th>Modelo</th><th class="num">Qtd</th><th class="num">Total (R$)</th><th>Status</th></tr></thead>
+      <tbody id="tbl-recentes"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===================== COMPRAS ===================== -->
+<section class="view" id="view-compras">
+  <div class="toolbar">
+    <div class="field"><label>Fornecedor</label><select id="f-fornecedor"><option value="">Todos</option></select></div>
+    <div class="field"><label>Ano</label><select id="f-ano"><option value="">Todos</option></select></div>
+    <div class="field"><label>Mês</label><select id="f-mes"><option value="">Todos</option></select></div>
+    <div class="field"><label>Destino</label><select id="f-caminhao"><option value="">Todos</option></select></div>
+    <div class="spacer"></div>
+    <button class="btn" id="btn-csv-compras">Exportar CSV</button>
+    <button class="btn primary" id="btn-nova-compra">+ Nova compra</button>
+  </div>
+
+  <div class="grid kpis" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));">
+    <div class="card"><div class="kpi-label">Total gasto (R$)</div><div class="kpi-value" id="cp-total">–</div></div>
+    <div class="card"><div class="kpi-label">Nº de compras</div><div class="kpi-value" id="cp-count">–</div></div>
+    <div class="card"><div class="kpi-label">Botijões comprados</div><div class="kpi-value" id="cp-botijoes">–</div></div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Data</th><th>Fornecedor</th><th>Destino</th><th>Modelo</th><th class="num">Qtd</th>
+        <th class="num">Preço unit.</th><th>NF</th><th>Status</th><th class="num">Total</th><th>Lançado por</th><th></th>
+      </tr></thead>
+      <tbody id="tbl-compras"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===================== TROCAS ===================== -->
+<section class="view" id="view-trocas">
+  <div class="toolbar">
+    <div class="chip-row" id="truck-chips"></div>
+    <div class="spacer"></div>
+    <button class="btn" id="btn-csv-trocas">Exportar CSV</button>
+    <button class="btn primary" id="btn-nova-troca">+ Nova troca</button>
+  </div>
+
+  <div class="card ultima-troca-card" id="ultima-troca">
+    <div class="ultima-troca-label">Última troca</div>
+    <div class="ultima-troca-body" id="ultima-troca-body">Sem registros para este caminhão.</div>
+  </div>
+
+  <div class="grid kpis" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));">
+    <div class="card"><div class="kpi-label">Peso instalado atual</div><div class="kpi-value" id="tr-instalado">–</div><div class="kpi-sub" id="tr-instalado-sub">&nbsp;</div></div>
+    <div class="card"><div class="kpi-label">Consumo médio diário</div><div class="kpi-value" id="tr-diario">–</div></div>
+    <div class="card"><div class="kpi-label">Tratamentos (histórico)</div><div class="kpi-value" id="tr-tratamentos">–</div></div>
+    <div class="card"><div class="kpi-label">Consumo médio / tratamento</div><div class="kpi-value" id="tr-portrat">–</div></div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Data</th><th>Horário</th><th>Fornecedor</th><th class="num">Cilindros</th><th class="num">Peso instalado</th>
+        <th class="num">Sobra pesada</th><th class="num">Consumo período</th><th class="num">Consumo/dia</th>
+        <th class="num">Tratamentos</th><th class="num">Kg/tratamento</th><th>Lançado por</th><th></th>
+      </tr></thead>
+      <tbody id="tbl-trocas"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===================== TRATAMENTOS ===================== -->
+<section class="view" id="view-tratamentos">
+  <div class="toolbar">
+    <div class="field"><label>Veículo</label><select id="ft2-filtro-veiculo"><option value="">Todos</option></select></div>
+    <div class="field"><label>Ano</label><select id="ft2-filtro-ano"><option value="">Todos</option></select></div>
+    <div class="field"><label>Mês</label><select id="ft2-filtro-mes"><option value="">Todos</option></select></div>
+    <div class="spacer"></div>
+    <button class="btn" id="btn-importar-planilha">📤 Importar planilha</button>
+    <input type="file" id="import-planilha-input" accept=".xlsx,.xls" hidden>
+    <button class="btn" id="btn-csv-tratamentos">Exportar CSV</button>
+    <button class="btn primary" id="btn-novo-tratamento">+ Novo tratamento</button>
+  </div>
+  <div class="hint" style="margin:-8px 0 14px;">Importe a planilha "Serviços Móvel HT" para atualizar os tratamentos automaticamente — registros já existentes não são duplicados.</div>
+
+  <div class="grid kpis" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));">
+    <div class="card"><div class="kpi-label">Tratamentos no filtro</div><div class="kpi-value" id="tt-count">–</div></div>
+    <div class="card"><div class="kpi-label">Custo de gás no período (R$)</div><div class="kpi-value" id="tt-custo">–</div><div class="kpi-sub">compras do mesmo filtro</div></div>
+    <div class="card"><div class="kpi-label">Custo por tratamento (R$)</div><div class="kpi-value" id="tt-custotrat">–</div></div>
+  </div>
+
+  <div class="section-title"><h2>Tratamentos por mês</h2></div>
+  <div class="card chart-card" style="margin-bottom:26px;"><canvas id="chart-tratamentos-mes" height="200"></canvas></div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Data</th><th>Horário</th><th>Veículo</th><th>Cliente</th><th>Operador</th><th>Lançado por</th><th></th></tr></thead>
+      <tbody id="tbl-tratamentos"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===================== CONFIGURAÇÕES ===================== -->
+<section class="view" id="view-config">
+  <div class="section-title"><h2>Caminhões / equipamentos</h2></div>
+  <div class="card" id="config-trucks"></div>
+
+  <div class="section-title"><h2>Fornecedores</h2></div>
+  <div class="card">
+    <div class="table-wrap" style="margin-bottom:12px;">
+      <table>
+        <thead><tr><th>Nome</th><th>CNPJ</th><th>Contato</th><th>E-mail</th><th>Modo de pagamento</th><th></th></tr></thead>
+        <tbody id="config-suppliers"></tbody>
+      </table>
+    </div>
+    <div class="toolbar" style="margin:0;">
+      <div class="field" style="flex:1;"><label>Novo fornecedor</label><input id="new-supplier" placeholder="Nome do fornecedor"></div>
+      <button class="btn" id="btn-add-supplier">Adicionar</button>
+    </div>
+  </div>
+
+  <div class="section-title"><h2>Preferências</h2></div>
+  <div class="card">
+    <div class="form-grid">
+      <div class="field"><label>E-mail do financeiro</label><input type="email" id="cfg-financeiro-email" placeholder="financeiro@empresa.com.br"></div>
+      <div class="field"><label>Alertar troca atrasada após (dias)</label><input type="number" min="1" id="cfg-alerta-dias"></div>
+    </div>
+  </div>
+
+  <div class="section-title"><h2>Contato</h2></div>
+  <div class="card contact-card">
+    <div class="contact-col">
+      <div class="contact-label">Unidade SC</div>
+      <a href="mailto:exataecoambiental@gmail.com">exataecoambiental@gmail.com</a>
+    </div>
+    <div class="contact-col">
+      <div class="contact-label">Unidade PR</div>
+      <a href="mailto:tratamentosmann@gmail.com">tratamentosmann@gmail.com</a>
+    </div>
+    <div class="contact-col">
+      <div class="contact-label">Telefones</div>
+      <span>(41) 3107-1515 · (41) 99176-0988</span>
+    </div>
+  </div>
+
+  <footer class="note">Dados salvos automaticamente e sincronizados para todos que abrirem este painel. Migrado da planilha Gás_2026_v10_FINAL.xlsx.</footer>
+</section>
+
+<!-- ===================== ORDEM DE COMPRA ===================== -->
+<section class="view" id="view-ordemcompra">
+  <div class="toolbar">
+    <div class="spacer"></div>
+    <button class="btn primary" id="btn-nova-ordem">+ Nova ordem de compra</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Nº</th><th>Data</th><th>Fornecedor</th><th class="num">Total (R$)</th><th>Solicitado por</th><th></th></tr></thead>
+      <tbody id="tbl-ordens"></tbody>
+    </table>
+  </div>
+</section>
+
+</div><!-- /#app -->
+
+<!-- ===================== MODALS ===================== -->
+<div class="modal-backdrop" id="modal-nome">
+  <div class="modal" style="max-width:380px;">
+    <h3>Quem é você?</h3>
+    <p class="hint" style="margin-top:-8px;margin-bottom:14px;">Como todos usam o mesmo login, isso ajuda a saber quem lançou cada registro.</p>
+    <form id="form-nome">
+      <div class="field"><label>Seu nome</label><input id="nome-input" required placeholder="Ex: João"></div>
+      <div class="form-actions">
+        <button type="button" class="btn" id="nome-cancel">Agora não</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-ordem">
+  <div class="modal" style="max-width:760px;">
+    <h3 id="modal-ordem-title">Nova ordem de compra</h3>
+    <form id="form-ordem">
+      <input type="hidden" id="oc-id">
+      <div class="form-grid">
+        <div class="field"><label>Nº</label><input id="oc-numero" placeholder="ex: 0001"></div>
+        <div class="field"><label>Data</label><input type="date" id="oc-data" required></div>
+        <div class="field full"><label>Solicitado por</label><input id="oc-solicitado"></div>
+      </div>
+
+      <div class="section-title" style="margin:18px 0 8px;"><h2 style="font-size:14px;">Dados do fornecedor</h2></div>
+      <div class="form-grid">
+        <div class="field full"><label>Fornecedor</label><input list="dl-fornecedores" id="oc-fornecedor"></div>
+        <div class="field"><label>CNPJ</label><input id="oc-cnpj"></div>
+        <div class="field"><label>Contato</label><input id="oc-contato"></div>
+        <div class="field"><label>E-mail</label><input type="email" id="oc-email"></div>
+        <div class="field"><label>Modo de pagamento</label><input id="oc-modo-pagamento"></div>
+      </div>
+
+      <div class="section-title" style="margin:18px 0 8px;"><h2 style="font-size:14px;">Produtos / Serviços</h2></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Descrição</th><th class="num">Qtd</th><th class="num">Valor unit. (R$)</th><th class="num">Total</th><th></th></tr></thead>
+          <tbody id="oc-itens"></tbody>
+        </table>
+      </div>
+      <div class="toolbar" style="margin-top:8px;">
+        <button type="button" class="btn btn-sm" id="btn-add-item">+ Item</button>
+        <div class="spacer"></div>
+        <div style="font-weight:700;">Total geral: <span class="mono" id="oc-total-geral">R$ 0,00</span></div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn danger" id="oc-delete" style="display:none;">Excluir</button>
+        <button type="button" class="btn" id="oc-cancel">Cancelar</button>
+        <button type="button" class="btn" id="oc-imprimir">Imprimir / PDF</button>
+        <button type="button" class="btn" id="oc-email-btn">Enviar por e-mail</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-compra">
+  <div class="modal">
+    <h3 id="modal-compra-title">Nova compra de GLP</h3>
+    <form id="form-compra">
+      <input type="hidden" id="fc-id">
+      <div class="form-grid">
+        <div class="field"><label>Data</label><input type="date" id="fc-date" required></div>
+        <div class="field"><label>Fornecedor</label><input list="dl-fornecedores" id="fc-fornecedor" required></div>
+        <div class="field"><label>Destino</label><select id="fc-caminhao" required></select></div>
+        <div class="field"><label>Modelo cilindro</label><select id="fc-modelo" required></select></div>
+        <div class="field"><label>Quantidade (botijões)</label><input type="number" step="0.01" min="0" id="fc-quantidade" required></div>
+        <div class="field"><label>Preço unitário (R$)</label><input type="number" step="0.01" min="0" id="fc-preco" required></div>
+        <div class="field"><label>NF</label><input id="fc-nf"></div>
+        <div class="field"><label>Status pagamento</label>
+          <select id="fc-status"><option>Pago</option><option>Pendente</option></select>
+        </div>
+        <div class="field full"><label>Total (R$)</label><input class="mono" id="fc-total" disabled></div>
+        <div class="field full">
+          <label>Foto da NF (opcional)</label>
+          <input type="file" id="fc-nf-foto" accept="image/*,.pdf">
+          <div class="hint" id="fc-nf-foto-status"></div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn danger" id="fc-delete" style="display:none;">Excluir</button>
+        <button type="button" class="btn" id="fc-cancel">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-troca">
+  <div class="modal">
+    <h3 id="modal-troca-title">Nova troca de gás</h3>
+    <form id="form-troca">
+      <input type="hidden" id="ft-id">
+      <div class="form-grid">
+        <div class="field"><label>Caminhão</label><select id="ft-caminhao" required></select></div>
+        <div class="field"><label>Data da troca</label><input type="date" id="ft-data" required></div>
+        <div class="field"><label>Horário (opcional)</label><input type="time" id="ft-horario"></div>
+        <div class="field"><label>Fornecedor</label><input list="dl-fornecedores" id="ft-fornecedor" required></div>
+        <div class="field"><label>Cilindros trocados</label><input type="number" min="0" id="ft-cilindros" required></div>
+        <div class="field"><label>Botijão extra (kg)</label><input type="number" step="0.01" min="0" id="ft-extra" value="0">
+          <div class="hint">Peso do(s) cilindro(s) NÃO trocados nesta troca (0 se trocou todos).</div>
+        </div>
+        <div class="field full"><label>Sobra pesada (kg)</label><input type="number" step="0.01" min="0" id="ft-sobra" required>
+          <div class="hint">Peso do(s) botijão(ões) retirado(s) nesta troca (o que sobrou de gás neles).</div>
+        </div>
+      </div>
+      <div class="hint" style="margin-top:10px;">O número de tratamentos do período é calculado automaticamente a partir da aba Tratamentos — não precisa digitar.</div>
+      <div class="form-actions">
+        <button type="button" class="btn danger" id="ft-delete" style="display:none;">Excluir</button>
+        <button type="button" class="btn" id="ft-cancel">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-tratamento">
+  <div class="modal">
+    <h3 id="modal-tratamento-title">Novo tratamento</h3>
+    <form id="form-tratamento">
+      <input type="hidden" id="tt-id">
+      <div class="form-grid">
+        <div class="field"><label>Data</label><input type="date" id="tt-data" required></div>
+        <div class="field"><label>Horário</label><input type="time" id="tt-horario"></div>
+        <div class="field"><label>Veículo</label><select id="tt-veiculo" required></select></div>
+        <div class="field"><label>Cliente</label><input list="dl-clientes" id="tt-cliente"></div>
+        <div class="field full"><label>Operador</label><input list="dl-operadores" id="tt-operador"></div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn danger" id="tt-delete" style="display:none;">Excluir</button>
+        <button type="button" class="btn" id="tt-cancel">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<datalist id="dl-fornecedores"></datalist>
+<datalist id="dl-clientes"></datalist>
+<datalist id="dl-operadores"></datalist>
+<div id="toast-host"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ================= CONFIGURE AQUI ================= */
+const SUPABASE_URL = "https://vjbyyjfmilmeyzeiinxf.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_HgnI-KSEvq1PJet6fmrV_g_MRf6HK4M";
+/* ==================================================== */
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const BRL = n => (n==null||isNaN(n)) ? "–" : n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const KG = n => (n==null||isNaN(n)) ? "–" : n.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
+const monthIdx = d => parseInt(d.slice(5,7),10)-1;
+const fmtDate = d => { if(!d) return "–"; const [y,m,day]=d.split('-'); return day+"/"+m+"/"+y; };
+const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+let CONFIG = {trucks:[], suppliers:[], cylinderTypes:[{code:"P13",weight:13},{code:"P45",weight:45}], supplierDetails:{}, financeiroEmail:'', alertaDiasTroca:20};
+let COMPRAS = [];
+let TROCAS = {};
+let TRATAMENTOS = [];
+let ORDENS = [];
+let currentTruck = null;
+let currentMetric = "custo";
+let charts = {};
+let USER_NAME = '';
+try{ USER_NAME = localStorage.getItem('glp_nome') || ''; }catch(e){}
+
+function toast(msg, isErr){
+  const host = document.getElementById('toast-host');
+  const el = document.createElement('div');
+  el.className = 'toast' + (isErr ? ' err' : '');
+  el.textContent = msg;
+  host.appendChild(el);
+  setTimeout(()=>el.remove(), 3400);
+}
+
+function destinations(){
+  return [...CONFIG.trucks.map(t=>t.code), "Estoque"];
+}
+
+/* ---------------- computed series ---------------- */
+function treatmentDT(t){ return new Date(t.data+"T"+(t.horario||"00:00")); }
+
+function calcTrocaSeries(list, pesoCilindro, treatments){
+  const sorted = [...list].sort((a,b)=> (a.dataTroca+"T"+(a.horario||"00:00")).localeCompare(b.dataTroca+"T"+(b.horario||"00:00")));
+  const trats = [...(treatments||[])].sort((a,b)=> treatmentDT(a)-treatmentDT(b));
+  let prevInstalled = null, prevDT = null;
+  return sorted.map(t=>{
+    const installed = (Number(t.cilindrosTrocados)||0)*pesoCilindro + (Number(t.botijaoExtra)||0);
+    const curDT = new Date(t.dataTroca+"T"+(t.horario||"00:00"));
+    const tratCount = trats.filter(x=>{ const dt = treatmentDT(x); return dt<=curDT && (prevDT==null || dt>prevDT); }).length;
+    let consumo=null, diario=null, porTrat=null;
+    if(prevInstalled!=null && t.sobraPesada!=null && t.sobraPesada!==""){
+      consumo = prevInstalled - Number(t.sobraPesada);
+      if(prevDT){
+        const days = (curDT-prevDT)/86400000;
+        if(days>0) diario = consumo/days;
+      }
+      if(tratCount) porTrat = consumo/tratCount;
+    }
+    const row = Object.assign({}, t, {pesoTotalInstalado:installed, consumoPeriodo:consumo, consumoDiario:diario, tratamentosRealizados:tratCount, consumoPorTratamento:porTrat});
+    prevInstalled = installed; prevDT = curDT;
+    return row;
+  });
+}
+
+function allTrocaSeries(){
+  const out = {};
+  CONFIG.trucks.forEach(t=>{ out[t.code] = calcTrocaSeries(TROCAS[t.code]||[], t.cylinderWeight, TRATAMENTOS.filter(x=>x.veiculo===t.code)); });
+  return out;
+}
+
+/* ---------------- rendering: dashboard ---------------- */
+function renderDashboard(){
+  const series = allTrocaSeries();
+  let totalConsumo=0, totalTrat=0;
+  CONFIG.trucks.forEach(t=>{
+    (series[t.code]||[]).forEach(r=>{
+      if(r.consumoPeriodo!=null) totalConsumo += r.consumoPeriodo;
+      totalTrat += Number(r.tratamentosRealizados)||0;
+    });
+  });
+  const totalCusto = COMPRAS.reduce((s,c)=>s+(Number(c.precoTotal)||0),0);
+  document.getElementById('kpi-consumo').textContent = KG(totalConsumo);
+  document.getElementById('kpi-custo').textContent = "R$ " + BRL(totalCusto);
+  document.getElementById('kpi-trat').textContent = totalTrat.toLocaleString('pt-BR');
+  document.getElementById('kpi-custotrat').textContent = totalTrat ? "R$ " + BRL(totalCusto/totalTrat) : "–";
+  document.getElementById('kpi-consumo-sub').textContent = COMPRAS.length + " compras · " + Object.values(TROCAS).reduce((s,a)=>s+a.length,0) + " trocas registradas";
+  document.getElementById('kpi-custo-sub').textContent = new Date().getFullYear() + " até hoje";
+  document.getElementById('kpi-trat-sub').textContent = "em todos os caminhões";
+
+  renderMonthlyChart(series);
+  renderSupplierChart();
+  renderComparisonChart(series);
+  renderRecentPurchases();
+  renderAlerts(series);
+}
+
+function renderAlerts(series){
+  const host = document.getElementById('alerts-host');
+  const blocks = [];
+
+  const pendentes = COMPRAS.filter(c=>c.statusPagamento==='Pendente');
+  if(pendentes.length){
+    const totalPendente = pendentes.reduce((s,c)=>s+(Number(c.precoTotal)||0),0);
+    blocks.push(`
+      <div class="alert-box critical">
+        <h4>⚠ ${pendentes.length} pagamento(s) pendente(s) — R$ ${BRL(totalPendente)}</h4>
+        <ul>${pendentes.sort((a,b)=>a.date.localeCompare(b.date)).map(c=>{
+          const dias = Math.floor((Date.now()-new Date(c.date+"T00:00:00"))/86400000);
+          return `<li><strong>${esc(c.fornecedor)}</strong> — R$ ${BRL(c.precoTotal)} — comprado em ${fmtDate(c.date)} (${dias} dia(s) em aberto) — destino ${esc(c.caminhao)}</li>`;
+        }).join('')}</ul>
+      </div>`);
+  }
+
+  const limite = CONFIG.alertaDiasTroca || 20;
+  const atrasados = CONFIG.trucks.map(t=>{
+    const s = series[t.code]||[];
+    const last = s[s.length-1];
+    if(!last) return null;
+    const dias = Math.floor((Date.now()-new Date(last.dataTroca+"T"+(last.horario||"00:00")))/86400000);
+    return dias>=limite ? {code:t.code, dias} : null;
+  }).filter(Boolean);
+  if(atrasados.length){
+    blocks.push(`
+      <div class="alert-box">
+        <h4>⏰ Caminhões sem troca há ${limite}+ dias</h4>
+        <ul>${atrasados.sort((a,b)=>b.dias-a.dias).map(a=>`<li><strong>${a.code}</strong> — ${a.dias} dias desde a última troca</li>`).join('')}</ul>
+      </div>`);
+  }
+
+  host.innerHTML = blocks.join('');
+}
+
+function renderComparisonChart(series){
+  const ctx = document.getElementById('chart-custotrat-caminhao');
+  const data = CONFIG.trucks.map(t=>{
+    const custo = COMPRAS.filter(c=>c.caminhao===t.code).reduce((s,c)=>s+(Number(c.precoTotal)||0),0);
+    const trat = (series[t.code]||[]).reduce((s,r)=>s+(Number(r.tratamentosRealizados)||0),0);
+    return trat ? custo/trat : 0;
+  });
+  const cssColor = getComputedStyle(document.body).getPropertyValue('--text-muted').trim();
+  const gridColor = getComputedStyle(document.body).getPropertyValue('--border').trim();
+  if(charts.comparison) charts.comparison.destroy();
+  charts.comparison = new Chart(ctx, {
+    type:'bar',
+    data:{labels:CONFIG.trucks.map(t=>t.code), datasets:[{data, backgroundColor:CONFIG.trucks.map((t,i)=>palette(i)), borderRadius:4, maxBarThickness:60}]},
+    options:{
+      responsive:true,
+      scales:{ x:{ticks:{color:cssColor}, grid:{display:false}}, y:{beginAtZero:true, ticks:{color:cssColor, callback:v=>'R$ '+v}, grid:{color:gridColor}} },
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>'R$ '+BRL(c.parsed.y)}}}
+    }
+  });
+}
+
+function palette(i){
+  const colors = ['#c00000','#2b2b2b','#8f8f8f','#7a1010','#c97a7a','#4a4a4a'];
+  return colors[i % colors.length];
+}
+
+function renderMonthlyChart(series){
+  const ctx = document.getElementById('chart-monthly');
+  const datasets = CONFIG.trucks.map((t,i)=>{
+    const data = new Array(12).fill(0);
+    if(currentMetric === 'custo'){
+      COMPRAS.filter(c=>c.caminhao===t.code).forEach(c=>{ data[monthIdx(c.date)] += Number(c.precoTotal)||0; });
+    } else {
+      (series[t.code]||[]).forEach(r=>{
+        const mi = monthIdx(r.dataTroca);
+        if(currentMetric === 'consumo'){ if(r.consumoPeriodo!=null) data[mi]+=r.consumoPeriodo; }
+        else { data[mi] += Number(r.tratamentosRealizados)||0; }
+      });
+    }
+    return {label:t.code, data, backgroundColor:palette(i), borderRadius:4, maxBarThickness:22};
+  });
+  const cssColor = getComputedStyle(document.body).getPropertyValue('--text-muted').trim();
+  const gridColor = getComputedStyle(document.body).getPropertyValue('--border').trim();
+  if(charts.monthly) charts.monthly.destroy();
+  charts.monthly = new Chart(ctx, {
+    type:'bar',
+    data:{labels:MESES.map(m=>m.slice(0,3)), datasets},
+    options:{
+      responsive:true,
+      scales:{
+        x:{stacked:false, ticks:{color:cssColor}, grid:{display:false}},
+        y:{beginAtZero:true, ticks:{color:cssColor}, grid:{color:gridColor}}
+      },
+      plugins:{legend:{position:'bottom', labels:{color:cssColor, boxWidth:12, font:{size:11}}}}
+    }
+  });
+}
+
+function renderSupplierChart(){
+  const ctx = document.getElementById('chart-suppliers');
+  const bySupplier = {};
+  COMPRAS.forEach(c=>{ bySupplier[c.fornecedor] = (bySupplier[c.fornecedor]||0) + (Number(c.precoTotal)||0); });
+  const sorted = Object.entries(bySupplier).sort((a,b)=>b[1]-a[1]).slice(0,7);
+  const cssColor = getComputedStyle(document.body).getPropertyValue('--text-muted').trim();
+  const gridColor = getComputedStyle(document.body).getPropertyValue('--border').trim();
+  if(charts.suppliers) charts.suppliers.destroy();
+  charts.suppliers = new Chart(ctx, {
+    type:'bar',
+    data:{labels:sorted.map(s=>s[0]), datasets:[{data:sorted.map(s=>s[1]), backgroundColor:'#c00000', borderRadius:4}]},
+    options:{
+      indexAxis:'y', responsive:true,
+      scales:{ x:{beginAtZero:true, ticks:{color:cssColor}, grid:{color:gridColor}}, y:{ticks:{color:cssColor, font:{size:11}}, grid:{display:false}} },
+      plugins:{legend:{display:false}}
+    }
+  });
+}
+
+function renderRecentPurchases(){
+  const tb = document.getElementById('tbl-recentes');
+  const recent = [...COMPRAS].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);
+  tb.innerHTML = recent.length ? recent.map(c=>`
+    <tr>
+      <td>${fmtDate(c.date)}</td><td>${esc(c.fornecedor)}</td><td>${esc(c.caminhao)}</td><td>${esc(c.modeloCilindro)}</td>
+      <td class="num">${c.quantidade}</td><td class="num mono">${BRL(c.precoTotal)}</td>
+      <td><span class="badge ${c.statusPagamento==='Pago'?'pago':'pendente'}">${esc(c.statusPagamento)}</span></td>
+    </tr>`).join('') : `<tr class="empty-row"><td colspan="7">Nenhuma compra lançada ainda.</td></tr>`;
+}
+
+function esc(s){ return (s==null?"":String(s)).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* ---------------- CSV export ---------------- */
+function csvCell(v){
+  const s = v==null ? '' : String(v);
+  return /[",;\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
+function exportCSV(filename, headers, rows){
+  const lines = [headers.map(csvCell).join(';'), ...rows.map(r=>r.map(csvCell).join(';'))];
+  const blob = new Blob(['﻿' + lines.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------------- rendering: compras ---------------- */
+function populateComprasFilters(){
+  const fs = document.getElementById('f-fornecedor');
+  const prevS = fs.value;
+  const suppliers = [...new Set([...CONFIG.suppliers, ...COMPRAS.map(c=>c.fornecedor)])].filter(Boolean).sort();
+  fs.innerHTML = '<option value="">Todos</option>' + suppliers.map(s=>`<option>${esc(s)}</option>`).join('');
+  fs.value = prevS;
+  const fa = document.getElementById('f-ano');
+  const prevA = fa.value;
+  const anosCompras = [...new Set(COMPRAS.map(c=>c.date.slice(0,4)))].sort().reverse();
+  fa.innerHTML = '<option value="">Todos</option>' + anosCompras.map(a=>`<option>${a}</option>`).join('');
+  fa.value = prevA;
+  const fm = document.getElementById('f-mes');
+  fm.innerHTML = '<option value="">Todos</option>' + MESES.map((m,i)=>`<option value="${i}">${m}</option>`).join('');
+  const fc = document.getElementById('f-caminhao');
+  const prevC = fc.value;
+  fc.innerHTML = '<option value="">Todos</option>' + destinations().map(d=>`<option>${esc(d)}</option>`).join('');
+  fc.value = prevC;
+}
+
+function filteredCompras(){
+  const fornecedor = document.getElementById('f-fornecedor').value;
+  const ano = document.getElementById('f-ano').value;
+  const mes = document.getElementById('f-mes').value;
+  const caminhao = document.getElementById('f-caminhao').value;
+  return COMPRAS.filter(c=>
+    (!fornecedor || c.fornecedor===fornecedor) &&
+    (!ano || c.date.slice(0,4)===ano) &&
+    (mes==="" || String(monthIdx(c.date))===mes) &&
+    (!caminhao || c.caminhao===caminhao)
+  ).sort((a,b)=>b.date.localeCompare(a.date));
+}
+
+function renderCompras(){
+  const list = filteredCompras();
+  document.getElementById('cp-total').textContent = "R$ " + BRL(list.reduce((s,c)=>s+(Number(c.precoTotal)||0),0));
+  document.getElementById('cp-count').textContent = list.length;
+  document.getElementById('cp-botijoes').textContent = list.reduce((s,c)=>s+(Number(c.quantidade)||0),0).toLocaleString('pt-BR');
+
+  const tb = document.getElementById('tbl-compras');
+  tb.innerHTML = list.length ? list.map(c=>`
+    <tr>
+      <td>${fmtDate(c.date)}</td><td>${esc(c.fornecedor)}</td><td>${esc(c.caminhao)}</td><td>${esc(c.modeloCilindro)}</td>
+      <td class="num">${c.quantidade}</td><td class="num mono">${BRL(c.precoUnitario)}</td>
+      <td>${esc(c.nf)}${c.nfFotoPath ? ` <button class="iconbtn" data-view-nf="${esc(c.nfFotoPath)}" title="Ver foto da NF">📎</button>` : ''}</td>
+      <td><span class="badge ${c.statusPagamento==='Pago'?'pago':'pendente'}">${esc(c.statusPagamento)}</span></td>
+      <td class="num mono">${BRL(c.precoTotal)}</td>
+      <td>${esc(c.lancadoPor)||'–'}</td>
+      <td><div class="row-actions"><button class="iconbtn" data-edit-compra="${c.id}">Editar</button></div></td>
+    </tr>`).join('') : `<tr class="empty-row"><td colspan="11">Nenhuma compra encontrada para este filtro.</td></tr>`;
+}
+
+document.getElementById('tbl-compras').addEventListener('click', async e=>{
+  const btn = e.target.closest('[data-view-nf]');
+  if(!btn) return;
+  const { data, error } = await sb.storage.from('nf-fotos').createSignedUrl(btn.dataset.viewNf, 3600);
+  if(error){ toast('Não foi possível abrir a foto.', true); return; }
+  window.open(data.signedUrl, '_blank');
+});
+
+document.getElementById('btn-csv-compras').onclick = ()=>{
+  const list = filteredCompras();
+  exportCSV('compras.csv',
+    ['Data','Fornecedor','Destino','Modelo','Quantidade','Preço unitário','NF','Status','Total','Lançado por'],
+    list.map(c=>[fmtDate(c.date), c.fornecedor, c.caminhao, c.modeloCilindro, c.quantidade, c.precoUnitario, c.nf, c.statusPagamento, c.precoTotal, c.lancadoPor||''])
+  );
+};
+
+/* ---------------- rendering: trocas ---------------- */
+function renderTruckChips(){
+  const host = document.getElementById('truck-chips');
+  host.innerHTML = CONFIG.trucks.map(t=>`<button class="chip ${t.code===currentTruck?'active':''}" data-truck="${t.code}">${t.code}</button>`).join('');
+}
+
+function renderUltimaTroca(truck, last){
+  const body = document.getElementById('ultima-troca-body');
+  if(!last){ body.textContent = 'Sem registros para este caminhão.'; return; }
+  const lastDT = new Date(last.dataTroca+"T"+(last.horario||"00:00"));
+  const diasDesde = Math.floor((Date.now()-lastDT)/86400000);
+  const tratamentosDesde = TRATAMENTOS.filter(x=>x.veiculo===truck.code && treatmentDT(x)>lastDT).length;
+  body.innerHTML = `
+    <div class="ut-item"><div class="ut-label">Data</div><div class="ut-value">${fmtDate(last.dataTroca)}${last.horario?' '+last.horario:''}</div></div>
+    <div class="ut-item"><div class="ut-label">Fornecedor</div><div class="ut-value" style="font-family:var(--font-body);font-weight:600;font-size:14px;">${esc(last.fornecedor)}</div></div>
+    <div class="ut-item"><div class="ut-label">Cilindros trocados</div><div class="ut-value">${last.cilindrosTrocados}</div></div>
+    <div class="ut-item"><div class="ut-label">Peso instalado</div><div class="ut-value">${KG(last.pesoTotalInstalado)} kg</div></div>
+    <div class="ut-item"><div class="ut-label">Dias desde a troca</div><div class="ut-value">${diasDesde}</div></div>
+    <div class="ut-item"><div class="ut-label">Tratamentos naquela troca</div><div class="ut-value">${last.tratamentosRealizados}</div></div>
+    <div class="ut-item"><div class="ut-label">Tratamentos desde então</div><div class="ut-value">${tratamentosDesde}</div></div>
+  `;
+}
+
+function renderTrocas(){
+  if(!currentTruck && CONFIG.trucks.length) currentTruck = CONFIG.trucks[0].code;
+  renderTruckChips();
+  const truck = CONFIG.trucks.find(t=>t.code===currentTruck);
+  if(!truck){
+    document.getElementById('tbl-trocas').innerHTML = `<tr class="empty-row"><td colspan="11">Cadastre um caminhão em Configurações.</td></tr>`;
+    renderUltimaTroca(null, null);
+    return;
+  }
+  const series = calcTrocaSeries(TROCAS[truck.code]||[], truck.cylinderWeight, TRATAMENTOS.filter(x=>x.veiculo===truck.code));
+  const last = series[series.length-1];
+  renderUltimaTroca(truck, last);
+  document.getElementById('tr-instalado').textContent = last ? KG(last.pesoTotalInstalado)+" kg" : "–";
+  document.getElementById('tr-instalado-sub').textContent = last ? "última troca em " + fmtDate(last.dataTroca) : "sem registros";
+  const withDiario = series.filter(r=>r.consumoDiario!=null);
+  const mediaDiaria = withDiario.length ? withDiario.reduce((s,r)=>s+r.consumoDiario,0)/withDiario.length : null;
+  document.getElementById('tr-diario').textContent = mediaDiaria!=null ? KG(mediaDiaria)+" kg/dia" : "–";
+  document.getElementById('tr-tratamentos').textContent = series.reduce((s,r)=>s+(Number(r.tratamentosRealizados)||0),0).toLocaleString('pt-BR');
+  const withTrat = series.filter(r=>r.consumoPorTratamento!=null);
+  const mediaTrat = withTrat.length ? withTrat.reduce((s,r)=>s+r.consumoPorTratamento,0)/withTrat.length : null;
+  document.getElementById('tr-portrat').textContent = mediaTrat!=null ? KG(mediaTrat)+" kg" : "–";
+
+  const tb = document.getElementById('tbl-trocas');
+  const rev = [...series].reverse();
+  tb.innerHTML = rev.length ? rev.map(r=>`
+    <tr>
+      <td>${fmtDate(r.dataTroca)}</td><td>${r.horario||'–'}</td><td>${esc(r.fornecedor)}</td>
+      <td class="num">${r.cilindrosTrocados}</td><td class="num mono">${KG(r.pesoTotalInstalado)}</td>
+      <td class="num mono">${r.sobraPesada!=null && r.sobraPesada!=="" ? KG(Number(r.sobraPesada)) : '–'}</td>
+      <td class="num mono">${r.consumoPeriodo!=null ? KG(r.consumoPeriodo) : '–'}</td>
+      <td class="num mono">${r.consumoDiario!=null ? KG(r.consumoDiario) : '–'}</td>
+      <td class="num">${r.tratamentosRealizados ?? '–'}</td>
+      <td class="num mono">${r.consumoPorTratamento!=null ? KG(r.consumoPorTratamento) : '–'}</td>
+      <td>${esc(r.lancadoPor)||'–'}</td>
+      <td><button class="iconbtn" data-edit-troca="${r.id}">Editar</button></td>
+    </tr>`).join('') : `<tr class="empty-row"><td colspan="12">Nenhuma troca registrada para ${truck.code}.</td></tr>`;
+}
+
+document.getElementById('btn-csv-trocas').onclick = ()=>{
+  const truck = CONFIG.trucks.find(t=>t.code===currentTruck);
+  if(!truck) return;
+  const series = calcTrocaSeries(TROCAS[truck.code]||[], truck.cylinderWeight, TRATAMENTOS.filter(x=>x.veiculo===truck.code));
+  exportCSV(`trocas_${truck.code}.csv`,
+    ['Data','Horário','Fornecedor','Cilindros','Peso instalado','Sobra pesada','Consumo período','Consumo/dia','Tratamentos','Kg/tratamento','Lançado por'],
+    [...series].reverse().map(r=>[fmtDate(r.dataTroca), r.horario||'', r.fornecedor, r.cilindrosTrocados, r.pesoTotalInstalado, r.sobraPesada, r.consumoPeriodo, r.consumoDiario, r.tratamentosRealizados, r.consumoPorTratamento, r.lancadoPor||''])
+  );
+};
+
+/* ---------------- rendering: config ---------------- */
+function renderConfig(){
+  const host = document.getElementById('config-trucks');
+  host.innerHTML = CONFIG.trucks.map((t,i)=>`
+    <div class="list-row">
+      <div class="tag mono">${esc(t.code)}</div>
+      <div class="grow">Cilindro <select class="cfg-type" data-i="${i}">${CONFIG.cylinderTypes.map(ct=>`<option value="${ct.code}" ${ct.code===t.cylinderType?'selected':''}>${ct.code} (${ct.weight}kg)</option>`).join('')}</select></div>
+      <div>Capacidade <input type="number" min="1" class="small-input cfg-cap" data-i="${i}" value="${t.capacity}"></div>
+    </div>`).join('') + `
+    <div class="toolbar" style="margin-top:12px;">
+      <div class="field"><label>Novo código</label><input id="new-truck-code" placeholder="ex: XYZ" style="width:100px;text-transform:uppercase;"></div>
+      <div class="field"><label>Cilindro</label><select id="new-truck-type">${CONFIG.cylinderTypes.map(ct=>`<option value="${ct.code}">${ct.code} (${ct.weight}kg)</option>`).join('')}</select></div>
+      <div class="field"><label>Capacidade</label><input type="number" min="1" id="new-truck-cap" value="3" class="small-input"></div>
+      <button class="btn" id="btn-add-truck">Adicionar caminhão</button>
+    </div>`;
+
+  host.querySelectorAll('.cfg-type').forEach(sel=>sel.addEventListener('change', e=>{
+    CONFIG.trucks[+e.target.dataset.i].cylinderType = e.target.value;
+    const ct = CONFIG.cylinderTypes.find(c=>c.code===e.target.value);
+    CONFIG.trucks[+e.target.dataset.i].cylinderWeight = ct ? ct.weight : 0;
+    saveConfig();
+  }));
+  host.querySelectorAll('.cfg-cap').forEach(inp=>inp.addEventListener('change', e=>{
+    CONFIG.trucks[+e.target.dataset.i].capacity = Number(e.target.value);
+    saveConfig();
+  }));
+  document.getElementById('btn-add-truck').onclick = ()=>{
+    const code = document.getElementById('new-truck-code').value.trim().toUpperCase();
+    if(!code) return toast('Informe um código para o caminhão', true);
+    if(CONFIG.trucks.some(t=>t.code===code)) return toast('Já existe um caminhão com esse código', true);
+    const typeCode = document.getElementById('new-truck-type').value;
+    const ct = CONFIG.cylinderTypes.find(c=>c.code===typeCode);
+    CONFIG.trucks.push({code, cylinderType:typeCode, cylinderWeight:ct?ct.weight:0, capacity:Number(document.getElementById('new-truck-cap').value)||1});
+    saveConfig(); renderAll();
+  };
+
+  const sHost = document.getElementById('config-suppliers');
+  sHost.innerHTML = CONFIG.suppliers.length ? CONFIG.suppliers.map((s,i)=>{
+    const d = CONFIG.supplierDetails[s] || {};
+    return `<tr>
+      <td>${esc(s)}</td>
+      <td><input class="sd-field" data-supplier="${esc(s)}" data-field="cnpj" value="${esc(d.cnpj||'')}" placeholder="CNPJ"></td>
+      <td><input class="sd-field" data-supplier="${esc(s)}" data-field="contato" value="${esc(d.contato||'')}" placeholder="Contato"></td>
+      <td><input class="sd-field" data-supplier="${esc(s)}" data-field="email" value="${esc(d.email||'')}" placeholder="E-mail"></td>
+      <td><input class="sd-field" data-supplier="${esc(s)}" data-field="modoPagamento" value="${esc(d.modoPagamento||'')}" placeholder="Modo de pagamento"></td>
+      <td><button class="iconbtn" data-rm-supplier="${i}">✕</button></td>
+    </tr>`;
+  }).join('') : `<tr class="empty-row"><td colspan="6">Nenhum fornecedor cadastrado.</td></tr>`;
+  sHost.querySelectorAll('.sd-field').forEach(inp=>inp.addEventListener('change', e=>{
+    const s = e.target.dataset.supplier, f = e.target.dataset.field;
+    if(!CONFIG.supplierDetails[s]) CONFIG.supplierDetails[s] = {};
+    CONFIG.supplierDetails[s][f] = e.target.value.trim();
+    saveConfig();
+  }));
+  sHost.querySelectorAll('[data-rm-supplier]').forEach(b=>b.addEventListener('click', e=>{
+    CONFIG.suppliers.splice(+e.target.dataset.rmSupplier,1); saveConfig(); renderAll();
+  }));
+
+  document.getElementById('cfg-financeiro-email').value = CONFIG.financeiroEmail || '';
+  document.getElementById('cfg-alerta-dias').value = CONFIG.alertaDiasTroca || 20;
+}
+
+/* ---------------- rendering: ordens de compra ---------------- */
+function renderOrdens(){
+  const tb = document.getElementById('tbl-ordens');
+  const list = [...ORDENS].sort((a,b)=> (b.data||'').localeCompare(a.data||''));
+  tb.innerHTML = list.length ? list.map(o=>`
+    <tr>
+      <td>${esc(o.numero)||'–'}</td><td>${fmtDate(o.data)}</td><td>${esc(o.fornecedorNome)||'–'}</td>
+      <td class="num mono">${BRL(o.totalGeral)}</td><td>${esc(o.solicitadoPor)||'–'}</td>
+      <td><button class="iconbtn" data-edit-ordem="${o.id}">Abrir</button></td>
+    </tr>`).join('') : `<tr class="empty-row"><td colspan="6">Nenhuma ordem de compra gerada ainda.</td></tr>`;
+}
+
+/* ---------------- rendering: tratamentos ---------------- */
+function populateTratamentosFilters(){
+  const fv = document.getElementById('ft2-filtro-veiculo');
+  const prevV = fv.value;
+  fv.innerHTML = '<option value="">Todos</option>' + CONFIG.trucks.map(t=>`<option>${esc(t.code)}</option>`).join('');
+  fv.value = prevV;
+  const fa = document.getElementById('ft2-filtro-ano');
+  const prevA = fa.value;
+  const anos = [...new Set([...TRATAMENTOS.map(t=>t.data.slice(0,4)), ...COMPRAS.map(c=>c.date.slice(0,4))])].sort().reverse();
+  fa.innerHTML = '<option value="">Todos</option>' + anos.map(a=>`<option>${a}</option>`).join('');
+  fa.value = prevA;
+  const fm = document.getElementById('ft2-filtro-mes');
+  fm.innerHTML = '<option value="">Todos</option>' + MESES.map((m,i)=>`<option value="${i}">${m}</option>`).join('');
+}
+
+function filteredTratamentos(){
+  const veiculo = document.getElementById('ft2-filtro-veiculo').value;
+  const ano = document.getElementById('ft2-filtro-ano').value;
+  const mes = document.getElementById('ft2-filtro-mes').value;
+  return TRATAMENTOS.filter(t=>
+    (!veiculo || t.veiculo===veiculo) &&
+    (!ano || t.data.slice(0,4)===ano) &&
+    (mes==="" || String(monthIdx(t.data))===mes)
+  ).sort((a,b)=> (b.data+"T"+(b.horario||"00:00")).localeCompare(a.data+"T"+(a.horario||"00:00")));
+}
+
+function renderTratamentosChart(list){
+  const ctx = document.getElementById('chart-tratamentos-mes');
+  const data = new Array(12).fill(0);
+  list.forEach(t=>{ data[monthIdx(t.data)]++; });
+  const cssColor = getComputedStyle(document.body).getPropertyValue('--text-muted').trim();
+  const gridColor = getComputedStyle(document.body).getPropertyValue('--border').trim();
+  if(charts.tratamentosMes) charts.tratamentosMes.destroy();
+  charts.tratamentosMes = new Chart(ctx, {
+    type:'bar',
+    data:{labels:MESES.map(m=>m.slice(0,3)), datasets:[{data, backgroundColor:'#c00000', borderRadius:4, maxBarThickness:28}]},
+    options:{
+      responsive:true,
+      scales:{ x:{ticks:{color:cssColor}, grid:{display:false}}, y:{beginAtZero:true, ticks:{color:cssColor, precision:0}, grid:{color:gridColor}} },
+      plugins:{legend:{display:false}}
+    }
+  });
+}
+
+function renderTratamentos(){
+  const list = filteredTratamentos();
+  document.getElementById('tt-count').textContent = list.length.toLocaleString('pt-BR');
+
+  const veiculo = document.getElementById('ft2-filtro-veiculo').value;
+  const ano = document.getElementById('ft2-filtro-ano').value;
+  const mes = document.getElementById('ft2-filtro-mes').value;
+  const custoPeriodo = COMPRAS.filter(c=>
+    (!veiculo || c.caminhao===veiculo) &&
+    (!ano || c.date.slice(0,4)===ano) &&
+    (mes==="" || String(monthIdx(c.date))===mes)
+  ).reduce((s,c)=>s+(Number(c.precoTotal)||0),0);
+  document.getElementById('tt-custo').textContent = "R$ " + BRL(custoPeriodo);
+  document.getElementById('tt-custotrat').textContent = list.length ? "R$ " + BRL(custoPeriodo/list.length) : "–";
+
+  renderTratamentosChart(list);
+
+  const tb = document.getElementById('tbl-tratamentos');
+  tb.innerHTML = list.length ? list.map(t=>`
+    <tr>
+      <td>${fmtDate(t.data)}</td><td>${t.horario||'–'}</td><td>${esc(t.veiculo)}</td>
+      <td>${esc(t.cliente)}</td><td>${esc(t.operador)}</td>
+      <td>${esc(t.lancadoPor)||'–'}</td>
+      <td><button class="iconbtn" data-edit-tratamento="${t.id}">Editar</button></td>
+    </tr>`).join('') : `<tr class="empty-row"><td colspan="7">Nenhum tratamento encontrado para este filtro.</td></tr>`;
+}
+
+document.getElementById('btn-csv-tratamentos').onclick = ()=>{
+  const list = filteredTratamentos();
+  exportCSV('tratamentos.csv',
+    ['Data','Horário','Veículo','Cliente','Operador','Lançado por'],
+    list.map(t=>[fmtDate(t.data), t.horario||'', t.veiculo, t.cliente, t.operador, t.lancadoPor||''])
+  );
+};
+
+/* ---------------- shared re-render ---------------- */
+function renderAll(){
+  populateComprasFilters();
+  populateTratamentosFilters();
+  document.getElementById('dl-fornecedores').innerHTML = CONFIG.suppliers.map(s=>`<option value="${esc(s)}">`).join('');
+  const clientes = [...new Set(TRATAMENTOS.map(t=>t.cliente))].filter(Boolean).sort();
+  const operadores = [...new Set(TRATAMENTOS.map(t=>t.operador))].filter(Boolean).sort();
+  document.getElementById('dl-clientes').innerHTML = clientes.map(c=>`<option value="${esc(c)}">`).join('');
+  document.getElementById('dl-operadores').innerHTML = operadores.map(o=>`<option value="${esc(o)}">`).join('');
+  renderDashboard();
+  renderCompras();
+  renderTrocas();
+  renderTratamentos();
+  renderConfig();
+  renderOrdens();
+}
+
+/* ---------------- supabase data mapping ---------------- */
+function compraFromRow(r){
+  return {id:r.id, date:r.date, fornecedor:r.fornecedor, caminhao:r.caminhao, modeloCilindro:r.modelo_cilindro,
+    quantidade:r.quantidade, precoUnitario:r.preco_unitario, precoTotal:r.preco_total, nf:r.nf, statusPagamento:r.status_pagamento,
+    lancadoPor:r.lancado_por, nfFotoPath:r.nf_foto_path};
+}
+function compraToRow(c){
+  return {date:c.date, fornecedor:c.fornecedor, caminhao:c.caminhao, modelo_cilindro:c.modeloCilindro,
+    quantidade:c.quantidade, preco_unitario:c.precoUnitario, preco_total:c.precoTotal, nf:c.nf, status_pagamento:c.statusPagamento,
+    lancado_por:c.lancadoPor, nf_foto_path:c.nfFotoPath};
+}
+function trocaFromRow(r){
+  return {id:r.id, caminhao:r.caminhao, dataTroca:r.data_troca, horario:r.horario, fornecedor:r.fornecedor,
+    cilindrosTrocados:r.cilindros_trocados, sobraPesada:r.sobra_pesada, botijaoExtra:r.botijao_extra, tratamentosRealizados:r.tratamentos_realizados,
+    lancadoPor:r.lancado_por};
+}
+function trocaToRow(t){
+  return {caminhao:t.caminhao, data_troca:t.dataTroca, horario:t.horario, fornecedor:t.fornecedor,
+    cilindros_trocados:t.cilindrosTrocados, sobra_pesada:t.sobraPesada, botijao_extra:t.botijaoExtra, lancado_por:t.lancadoPor};
+}
+function tratamentoFromRow(r){
+  return {id:r.id, data:r.data, horario:r.horario, veiculo:r.veiculo, cliente:r.cliente, operador:r.operador, lancadoPor:r.lancado_por, aviso:r.aviso};
+}
+function tratamentoToRow(t){
+  return {data:t.data, horario:t.horario, veiculo:t.veiculo, cliente:t.cliente, operador:t.operador, lancado_por:t.lancadoPor, aviso:t.aviso};
+}
+function ordemFromRow(r){
+  return {id:r.id, numero:r.numero, data:r.data, solicitadoPor:r.solicitado_por, fornecedorNome:r.fornecedor_nome,
+    fornecedorCnpj:r.fornecedor_cnpj, fornecedorContato:r.fornecedor_contato, fornecedorEmail:r.fornecedor_email,
+    modoPagamento:r.modo_pagamento, itens:r.itens||[], totalGeral:r.total_geral, lancadoPor:r.lancado_por};
+}
+function ordemToRow(o){
+  return {numero:o.numero, data:o.data, solicitado_por:o.solicitadoPor, fornecedor_nome:o.fornecedorNome,
+    fornecedor_cnpj:o.fornecedorCnpj, fornecedor_contato:o.fornecedorContato, fornecedor_email:o.fornecedorEmail,
+    modo_pagamento:o.modoPagamento, itens:o.itens, total_geral:o.totalGeral, lancado_por:o.lancadoPor};
+}
+
+/* ---------------- data loading + realtime ---------------- */
+function setSync(ok, label){
+  document.getElementById('sync-dot').classList.toggle('off', !ok);
+  document.getElementById('sync-text').textContent = label;
+}
+
+async function loadConfig(){
+  const { data, error } = await sb.from('config').select('*').eq('id','main').maybeSingle();
+  if(error){ console.error('loadConfig', error); throw new Error('config: ' + error.message); }
+  if(data){
+    CONFIG.trucks = data.trucks || [];
+    CONFIG.suppliers = data.suppliers || [];
+    CONFIG.cylinderTypes = data.cylinder_types || CONFIG.cylinderTypes;
+    CONFIG.supplierDetails = data.supplier_details || {};
+    CONFIG.financeiroEmail = data.financeiro_email || '';
+    CONFIG.alertaDiasTroca = data.alerta_dias_troca || 20;
+  }
+}
+/* Supabase/PostgREST caps a single select at ~1000 rows by default, so
+   any table that can grow past that (tratamentos especially) must be
+   paged through with .range() or rows silently go missing. */
+async function fetchAllRows(table){
+  const pageSize = 1000;
+  let all = [];
+  let from = 0;
+  while(true){
+    const { data, error } = await sb.from(table).select('*').range(from, from+pageSize-1);
+    if(error){ console.error('fetchAllRows', table, error); throw new Error(table + ': ' + error.message); }
+    all = all.concat(data||[]);
+    if(!data || data.length < pageSize) break;
+    from += pageSize;
+  }
+  return all;
+}
+
+async function loadCompras(){
+  const data = await fetchAllRows('compras');
+  COMPRAS = data.map(compraFromRow);
+}
+async function loadTrocas(){
+  const data = await fetchAllRows('trocas');
+  const byTruck = {};
+  data.forEach(r=>{
+    const t = trocaFromRow(r);
+    if(!byTruck[t.caminhao]) byTruck[t.caminhao] = [];
+    byTruck[t.caminhao].push(t);
+  });
+  TROCAS = byTruck;
+}
+
+async function loadTratamentos(){
+  const data = await fetchAllRows('tratamentos');
+  TRATAMENTOS = data.map(tratamentoFromRow);
+}
+
+async function loadOrdens(){
+  const data = await fetchAllRows('ordens_compra');
+  ORDENS = data.map(ordemFromRow);
+}
+
+async function loadAllAndRender(){
+  await Promise.all([loadConfig(), loadCompras(), loadTrocas(), loadTratamentos(), loadOrdens()]);
+  renderAll();
+}
+
+let channelsSetup = false;
+function setupRealtime(){
+  if(channelsSetup) return;
+  channelsSetup = true;
+  sb.channel('public:config').on('postgres_changes',{event:'*',schema:'public',table:'config'}, ()=>{ loadConfig().then(renderAll); }).subscribe();
+  sb.channel('public:compras').on('postgres_changes',{event:'*',schema:'public',table:'compras'}, ()=>{ loadCompras().then(renderAll); }).subscribe();
+  sb.channel('public:trocas').on('postgres_changes',{event:'*',schema:'public',table:'trocas'}, ()=>{ loadTrocas().then(renderAll); }).subscribe();
+  sb.channel('public:tratamentos').on('postgres_changes',{event:'*',schema:'public',table:'tratamentos'}, ()=>{ loadTratamentos().then(renderAll); }).subscribe();
+  sb.channel('public:ordens_compra').on('postgres_changes',{event:'*',schema:'public',table:'ordens_compra'}, ()=>{ loadOrdens().then(renderAll); }).subscribe();
+}
+
+async function saveConfig(){
+  try{
+    await sb.from('config').update({
+      trucks:CONFIG.trucks, suppliers:CONFIG.suppliers, cylinder_types:CONFIG.cylinderTypes,
+      supplier_details:CONFIG.supplierDetails, financeiro_email:CONFIG.financeiroEmail, alerta_dias_troca:CONFIG.alertaDiasTroca
+    }).eq('id','main');
+  }catch(e){ toast('Não foi possível salvar a configuração.', true); }
+}
+
+/* ---------------- auth gate ---------------- */
+const authGate = document.getElementById('auth-gate');
+const appRoot = document.getElementById('app');
+
+function updateUserLabel(){
+  document.getElementById('user-name-label').textContent = USER_NAME || 'Definir nome';
+}
+
+async function startApp(){
+  authGate.hidden = true;
+  appRoot.hidden = false;
+  setSync(true, 'sincronizado');
+  updateUserLabel();
+  try{
+    await loadAllAndRender();
+    setupRealtime();
+  }catch(e){
+    console.error('startApp', e);
+    setSync(false, 'erro: ' + (e && e.message ? e.message : String(e)));
+    toast('Erro ao carregar dados: ' + (e && e.message ? e.message : String(e)), true);
+  }
+  if(!USER_NAME) openNomeModal();
+}
+
+/* ---------------- nome do usuário ---------------- */
+const modalNome = document.getElementById('modal-nome');
+function openNomeModal(){
+  document.getElementById('nome-input').value = USER_NAME;
+  modalNome.classList.add('open');
+}
+document.getElementById('btn-user').addEventListener('click', openNomeModal);
+document.getElementById('nome-cancel').onclick = ()=>modalNome.classList.remove('open');
+document.getElementById('form-nome').addEventListener('submit', e=>{
+  e.preventDefault();
+  USER_NAME = document.getElementById('nome-input').value.trim();
+  try{ localStorage.setItem('glp_nome', USER_NAME); }catch(err){}
+  updateUserLabel();
+  modalNome.classList.remove('open');
+  toast('Nome salvo. Seus próximos lançamentos serão identificados como ' + USER_NAME + '.');
+});
+
+document.getElementById('form-login').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  const senha = document.getElementById('login-senha').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+  if(error){ errEl.textContent = 'E-mail ou senha incorretos.'; return; }
+  startApp();
+});
+
+document.getElementById('btn-logout').addEventListener('click', async ()=>{
+  if(!confirm('Sair do painel?')) return;
+  await sb.auth.signOut();
+  location.reload();
+});
+
+(async function initAuth(){
+  const { data } = await sb.auth.getSession();
+  if(data && data.session){ startApp(); }
+})();
+
+/* ---------------- nav ---------------- */
+document.getElementById('tabs').addEventListener('click', e=>{
+  const btn = e.target.closest('button[data-view]');
+  if(!btn) return;
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active', b===btn));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id === 'view-'+btn.dataset.view));
+});
+
+document.getElementById('metric-chips').addEventListener('click', e=>{
+  const btn = e.target.closest('button[data-metric]');
+  if(!btn) return;
+  currentMetric = btn.dataset.metric;
+  document.querySelectorAll('#metric-chips .chip').forEach(c=>c.classList.toggle('active', c===btn));
+  renderMonthlyChart(allTrocaSeries());
+});
+
+document.getElementById('truck-chips').addEventListener('click', e=>{
+  const btn = e.target.closest('button[data-truck]');
+  if(!btn) return;
+  currentTruck = btn.dataset.truck;
+  renderTrocas();
+});
+
+['f-fornecedor','f-ano','f-mes','f-caminhao'].forEach(id=>document.getElementById(id).addEventListener('change', renderCompras));
+['ft2-filtro-veiculo','ft2-filtro-ano','ft2-filtro-mes'].forEach(id=>document.getElementById(id).addEventListener('change', renderTratamentos));
+
+document.getElementById('cfg-financeiro-email').addEventListener('change', e=>{
+  CONFIG.financeiroEmail = e.target.value.trim(); saveConfig();
+});
+document.getElementById('cfg-alerta-dias').addEventListener('change', e=>{
+  CONFIG.alertaDiasTroca = Number(e.target.value)||20; saveConfig(); renderDashboard();
+});
+
+/* ---------------- compra modal ---------------- */
+const modalCompra = document.getElementById('modal-compra');
+function openCompraModal(existing){
+  document.getElementById('fc-modelo').innerHTML = CONFIG.cylinderTypes.map(ct=>`<option value="${ct.code}">${ct.code} (${ct.weight}kg)</option>`).join('');
+  document.getElementById('fc-caminhao').innerHTML = destinations().map(d=>`<option>${esc(d)}</option>`).join('');
+  document.getElementById('modal-compra-title').textContent = existing ? 'Editar compra' : 'Nova compra de GLP';
+  document.getElementById('fc-delete').style.display = existing ? '' : 'none';
+  const f = existing || {date:new Date().toISOString().slice(0,10), fornecedor:'', caminhao:destinations()[0], modeloCilindro:CONFIG.cylinderTypes[0]?.code||'', quantidade:'', precoUnitario:'', nf:'', statusPagamento:'Pago'};
+  document.getElementById('fc-id').value = existing ? existing.id : '';
+  document.getElementById('fc-date').value = f.date;
+  document.getElementById('fc-fornecedor').value = f.fornecedor;
+  document.getElementById('fc-caminhao').value = f.caminhao;
+  document.getElementById('fc-modelo').value = f.modeloCilindro;
+  document.getElementById('fc-quantidade').value = f.quantidade;
+  document.getElementById('fc-preco').value = f.precoUnitario;
+  document.getElementById('fc-nf').value = f.nf;
+  document.getElementById('fc-status').value = f.statusPagamento;
+  document.getElementById('fc-nf-foto').value = '';
+  document.getElementById('fc-nf-foto-status').textContent = f.nfFotoPath ? '📎 Já tem uma foto anexada — escolha outra para substituir.' : '';
+  updateCompraTotal();
+  modalCompra.classList.add('open');
+}
+function updateCompraTotal(){
+  const q = Number(document.getElementById('fc-quantidade').value)||0;
+  const p = Number(document.getElementById('fc-preco').value)||0;
+  document.getElementById('fc-total').value = 'R$ ' + BRL(q*p);
+}
+['fc-quantidade','fc-preco'].forEach(id=>document.getElementById(id).addEventListener('input', updateCompraTotal));
+document.getElementById('btn-nova-compra').onclick = ()=>openCompraModal(null);
+document.getElementById('fc-cancel').onclick = ()=>modalCompra.classList.remove('open');
+document.getElementById('tbl-compras').addEventListener('click', e=>{
+  const btn = e.target.closest('[data-edit-compra]');
+  if(!btn) return;
+  openCompraModal(COMPRAS.find(c=>c.id===btn.dataset.editCompra));
+});
+document.getElementById('form-compra').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const id = document.getElementById('fc-id').value || uid('c');
+  const isNew = !document.getElementById('fc-id').value;
+  const existing = isNew ? null : COMPRAS.find(c=>c.id===id);
+  const q = Number(document.getElementById('fc-quantidade').value)||0;
+  const p = Number(document.getElementById('fc-preco').value)||0;
+  const data = {
+    date: document.getElementById('fc-date').value,
+    fornecedor: document.getElementById('fc-fornecedor').value.trim(),
+    caminhao: document.getElementById('fc-caminhao').value,
+    modeloCilindro: document.getElementById('fc-modelo').value,
+    quantidade: q,
+    precoUnitario: p,
+    precoTotal: q*p,
+    nf: document.getElementById('fc-nf').value.trim(),
+    statusPagamento: document.getElementById('fc-status').value,
+    lancadoPor: isNew ? (USER_NAME||null) : (existing ? existing.lancadoPor : null),
+    nfFotoPath: existing ? existing.nfFotoPath : null,
+  };
+  const fotoInput = document.getElementById('fc-nf-foto');
+  const fotoFile = fotoInput.files[0];
+  try{
+    if(fotoFile){
+      const statusEl = document.getElementById('fc-nf-foto-status');
+      statusEl.textContent = 'Enviando foto...';
+      const path = id + '-' + Date.now() + '-' + fotoFile.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+      const { error: upErr } = await sb.storage.from('nf-fotos').upload(path, fotoFile, {upsert:true});
+      if(upErr){ statusEl.textContent = ''; toast('Erro ao enviar a foto: ' + upErr.message, true); return; }
+      data.nfFotoPath = path;
+      statusEl.textContent = '';
+    }
+    const row = compraToRow(data);
+    if(isNew){ await sb.from('compras').insert(Object.assign({id}, row)); }
+    else{ await sb.from('compras').update(row).eq('id', id); }
+    if(data.fornecedor && !CONFIG.suppliers.includes(data.fornecedor)){ CONFIG.suppliers.push(data.fornecedor); saveConfig(); }
+    fotoInput.value = '';
+    modalCompra.classList.remove('open');
+    toast('Compra salva.');
+    loadCompras().then(renderAll);
+  }catch(err){ toast('Erro ao salvar compra.', true); }
+});
+document.getElementById('fc-delete').onclick = async ()=>{
+  const id = document.getElementById('fc-id').value;
+  if(!id || !confirm('Excluir esta compra?')) return;
+  try{
+    await sb.from('compras').delete().eq('id', id);
+    modalCompra.classList.remove('open'); toast('Compra excluída.');
+    loadCompras().then(renderAll);
+  }catch(e){ toast('Erro ao excluir.', true); }
+};
+
+/* ---------------- troca modal ---------------- */
+const modalTroca = document.getElementById('modal-troca');
+function openTrocaModal(existing){
+  document.getElementById('ft-caminhao').innerHTML = CONFIG.trucks.map(t=>`<option value="${t.code}">${t.code}</option>`).join('');
+  document.getElementById('modal-troca-title').textContent = existing ? 'Editar troca' : 'Nova troca de gás';
+  document.getElementById('ft-delete').style.display = existing ? '' : 'none';
+  const f = existing || {caminhao:currentTruck||CONFIG.trucks[0]?.code, dataTroca:new Date().toISOString().slice(0,10), horario:'', fornecedor:'', cilindrosTrocados:'', botijaoExtra:0, sobraPesada:''};
+  document.getElementById('ft-id').value = existing ? existing.id : '';
+  document.getElementById('ft-caminhao').value = f.caminhao;
+  document.getElementById('ft-data').value = f.dataTroca;
+  document.getElementById('ft-horario').value = f.horario || '';
+  document.getElementById('ft-fornecedor').value = f.fornecedor;
+  document.getElementById('ft-cilindros').value = f.cilindrosTrocados;
+  document.getElementById('ft-extra').value = f.botijaoExtra ?? 0;
+  document.getElementById('ft-sobra').value = f.sobraPesada ?? '';
+  modalTroca.classList.add('open');
+}
+document.getElementById('btn-nova-troca').onclick = ()=>openTrocaModal(null);
+document.getElementById('ft-cancel').onclick = ()=>modalTroca.classList.remove('open');
+document.getElementById('tbl-trocas').addEventListener('click', e=>{
+  const btn = e.target.closest('[data-edit-troca]');
+  if(!btn) return;
+  openTrocaModal((TROCAS[currentTruck]||[]).find(t=>t.id===btn.dataset.editTroca));
+});
+document.getElementById('form-troca').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const id = document.getElementById('ft-id').value || uid('t');
+  const isNew = !document.getElementById('ft-id').value;
+  const existingTroca = isNew ? null : (TROCAS[currentTruck]||[]).find(t=>t.id===id);
+  const data = {
+    caminhao: document.getElementById('ft-caminhao').value,
+    dataTroca: document.getElementById('ft-data').value,
+    horario: document.getElementById('ft-horario').value || null,
+    fornecedor: document.getElementById('ft-fornecedor').value.trim(),
+    cilindrosTrocados: Number(document.getElementById('ft-cilindros').value)||0,
+    botijaoExtra: Number(document.getElementById('ft-extra').value)||0,
+    sobraPesada: Number(document.getElementById('ft-sobra').value)||0,
+    lancadoPor: isNew ? (USER_NAME||null) : (existingTroca ? existingTroca.lancadoPor : null),
+  };
+  try{
+    const row = trocaToRow(data);
+    if(isNew){ await sb.from('trocas').insert(Object.assign({id}, row)); }
+    else{ await sb.from('trocas').update(row).eq('id', id); }
+    if(data.fornecedor && !CONFIG.suppliers.includes(data.fornecedor)){ CONFIG.suppliers.push(data.fornecedor); saveConfig(); }
+    modalTroca.classList.remove('open');
+    toast('Troca salva.');
+    loadTrocas().then(renderAll);
+  }catch(err){ toast('Erro ao salvar troca.', true); }
+});
+document.getElementById('ft-delete').onclick = async ()=>{
+  const id = document.getElementById('ft-id').value;
+  if(!id || !confirm('Excluir esta troca?')) return;
+  try{
+    await sb.from('trocas').delete().eq('id', id);
+    modalTroca.classList.remove('open'); toast('Troca excluída.');
+    loadTrocas().then(renderAll);
+  }catch(e){ toast('Erro ao excluir.', true); }
+};
+
+/* ---------------- tratamento modal ---------------- */
+const modalTratamento = document.getElementById('modal-tratamento');
+function openTratamentoModal(existing){
+  document.getElementById('tt-veiculo').innerHTML = CONFIG.trucks.map(t=>`<option value="${t.code}">${t.code}</option>`).join('');
+  document.getElementById('modal-tratamento-title').textContent = existing ? 'Editar tratamento' : 'Novo tratamento';
+  document.getElementById('tt-delete').style.display = existing ? '' : 'none';
+  const f = existing || {data:new Date().toISOString().slice(0,10), horario:'', veiculo:currentTruck||CONFIG.trucks[0]?.code, cliente:'', operador:''};
+  document.getElementById('tt-id').value = existing ? existing.id : '';
+  document.getElementById('tt-data').value = f.data;
+  document.getElementById('tt-horario').value = f.horario || '';
+  document.getElementById('tt-veiculo').value = f.veiculo;
+  document.getElementById('tt-cliente').value = f.cliente || '';
+  document.getElementById('tt-operador').value = f.operador || '';
+  modalTratamento.classList.add('open');
+}
+document.getElementById('btn-novo-tratamento').onclick = ()=>openTratamentoModal(null);
+document.getElementById('tt-cancel').onclick = ()=>modalTratamento.classList.remove('open');
+document.getElementById('tbl-tratamentos').addEventListener('click', e=>{
+  const btn = e.target.closest('[data-edit-tratamento]');
+  if(!btn) return;
+  openTratamentoModal(TRATAMENTOS.find(t=>t.id===btn.dataset.editTratamento));
+});
+document.getElementById('form-tratamento').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const id = document.getElementById('tt-id').value || uid('r');
+  const isNew = !document.getElementById('tt-id').value;
+  const existingTrat = isNew ? null : TRATAMENTOS.find(t=>t.id===id);
+  const data = {
+    data: document.getElementById('tt-data').value,
+    horario: document.getElementById('tt-horario').value || null,
+    veiculo: document.getElementById('tt-veiculo').value,
+    cliente: document.getElementById('tt-cliente').value.trim(),
+    operador: document.getElementById('tt-operador').value.trim(),
+    lancadoPor: isNew ? (USER_NAME||null) : (existingTrat ? existingTrat.lancadoPor : null),
+  };
+  try{
+    const row = tratamentoToRow(data);
+    if(isNew){ await sb.from('tratamentos').insert(Object.assign({id}, row)); }
+    else{ await sb.from('tratamentos').update(row).eq('id', id); }
+    modalTratamento.classList.remove('open');
+    toast('Tratamento salvo.');
+    loadTratamentos().then(renderAll);
+  }catch(err){ toast('Erro ao salvar tratamento.', true); }
+});
+document.getElementById('tt-delete').onclick = async ()=>{
+  const id = document.getElementById('tt-id').value;
+  if(!id || !confirm('Excluir este tratamento?')) return;
+  try{
+    await sb.from('tratamentos').delete().eq('id', id);
+    modalTratamento.classList.remove('open'); toast('Tratamento excluído.');
+    loadTratamentos().then(renderAll);
+  }catch(e){ toast('Erro ao excluir.', true); }
+};
+
+/* ---------------- importar planilha de agendamentos ---------------- */
+function normalizeVehicleImport(v){
+  if(!v) return null;
+  const vv = String(v).trim().toUpperCase();
+  for(const t of CONFIG.trucks){ if(vv.startsWith(t.code)) return t.code; }
+  return vv;
+}
+function importDateStr(v){
+  if(v instanceof Date && !isNaN(v)){
+    const y=v.getUTCFullYear(), m=String(v.getUTCMonth()+1).padStart(2,'0'), d=String(v.getUTCDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
+  if(typeof v === 'number' && isFinite(v)){
+    const d = new Date(Date.UTC(1899,11,30) + Math.round(v)*86400000);
+    if(!isNaN(d)) return importDateStr(d);
+  }
+  if(typeof v === 'string'){
+    const s = v.trim();
+    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return s.slice(0,10);
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  }
+  return null;
+}
+function importTimeStr(v){
+  if(v instanceof Date && !isNaN(v)) return String(v.getUTCHours()).padStart(2,'0')+':'+String(v.getUTCMinutes()).padStart(2,'0');
+  if(typeof v === 'number' && isFinite(v)){
+    const totalMin = Math.round((v % 1) * 24 * 60);
+    return String(Math.floor(totalMin/60)).padStart(2,'0')+':'+String(totalMin%60).padStart(2,'0');
+  }
+  if(typeof v === 'string'){
+    const m = v.trim().match(/^(\d{1,2}):(\d{2})/);
+    if(m) return m[1].padStart(2,'0')+':'+m[2];
+  }
+  return null;
+}
+function tratamentoKey(t){
+  return `${t.data}|${t.horario||''}|${t.veiculo}|${(t.cliente||'').trim().toLowerCase()}`;
+}
+
+document.getElementById('btn-importar-planilha').onclick = ()=>{
+  document.getElementById('import-planilha-input').click();
+};
+document.getElementById('import-planilha-input').addEventListener('change', async e=>{
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  if(typeof XLSX === 'undefined'){
+    toast('A biblioteca de leitura de planilhas não carregou (verifique sua conexão e recarregue a página com Ctrl+F5).', true);
+    return;
+  }
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    console.log('importar planilha: abas encontradas =', wb.SheetNames);
+    const sheetName = wb.SheetNames.find(n=>n.trim().toLowerCase()==='serviços') || wb.SheetNames.find(n=>n.trim().toLowerCase().startsWith('servi')) || wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
+    console.log('importar planilha: usando aba =', sheetName, '- linhas brutas =', rows.length);
+    if(rows.length) console.log('importar planilha: cabeçalho =', rows[0]);
+    if(rows.length > 1) console.log('importar planilha: exemplo linha 2 =', rows[1]);
+
+    const ANO_MINIMO_IMPORT = 2026; // o controle de gás só tem dados a partir daqui
+    const parsedAll = [];
+    let semData = 0, semVeiculo = 0, foraDoAno = 0;
+    for(let i=1;i<rows.length;i++){
+      const row = rows[i];
+      if(!row) continue;
+      const dataStr = importDateStr(row[1]);
+      if(!dataStr){ semData++; continue; }
+      const veiculo = normalizeVehicleImport(row[9]);
+      if(!veiculo){ semVeiculo++; continue; }
+      if(Number(dataStr.slice(0,4)) < ANO_MINIMO_IMPORT){ foraDoAno++; continue; }
+      parsedAll.push({
+        aviso: row[0]!=null ? String(row[0]).trim() : null,
+        data: dataStr,
+        horario: importTimeStr(row[2]),
+        cliente: row[3]!=null ? String(row[3]).trim() : null,
+        operador: row[8]!=null ? String(row[8]).trim() : null,
+        veiculo,
+      });
+    }
+    console.log('importar planilha: linhas válidas =', parsedAll.length, '- sem data:', semData, '- sem veículo:', semVeiculo, '- fora do ano '+ANO_MINIMO_IMPORT+'+:', foraDoAno);
+    if(!parsedAll.length){
+      toast(`Li a aba "${sheetName}" (${rows.length-1} linhas) mas não achei nenhum tratamento válido de ${ANO_MINIMO_IMPORT} em diante com veículo reconhecido. Veja o Console (F12) para detalhes.`, true);
+      return;
+    }
+
+    const existingKeys = new Set(TRATAMENTOS.map(tratamentoKey));
+    const existingAvisos = new Set(TRATAMENTOS.map(t=>t.aviso).filter(Boolean));
+    const novos = parsedAll.filter(p=> !existingKeys.has(tratamentoKey(p)) && !(p.aviso && existingAvisos.has(p.aviso)));
+
+    if(!novos.length){ toast(`Planilha lida (${parsedAll.length} tratamentos de ${ANO_MINIMO_IMPORT}+) — nenhum novo, tudo já estava importado.`); return; }
+    if(!confirm(`Planilha lida: ${parsedAll.length} tratamentos de ${ANO_MINIMO_IMPORT} em diante, sendo ${novos.length} novos (o restante já existe no sistema).\n\nImportar os ${novos.length} novos agora?`)) return;
+
+    toast('Importando ' + novos.length + ' tratamentos...');
+    const chunkSize = 200;
+    for(let i=0;i<novos.length;i+=chunkSize){
+      const chunk = novos.slice(i,i+chunkSize).map(p=>({
+        id: uid('imp'), data:p.data, horario:p.horario, veiculo:p.veiculo,
+        cliente:p.cliente, operador:p.operador, aviso:p.aviso, lancado_por: USER_NAME||null
+      }));
+      const { error } = await sb.from('tratamentos').insert(chunk);
+      if(error) throw error;
+    }
+    toast(novos.length + ' tratamentos importados com sucesso.');
+    loadTratamentos().then(renderAll);
+  }catch(err){
+    console.error('importar planilha', err);
+    toast('Erro ao importar planilha: ' + (err && err.message ? err.message : String(err)), true);
+  }
+});
+
+/* ---------------- config: supplier add ---------------- */
+document.getElementById('btn-add-supplier').onclick = ()=>{
+  const inp = document.getElementById('new-supplier');
+  const v = inp.value.trim();
+  if(!v) return;
+  if(CONFIG.suppliers.includes(v)) return toast('Fornecedor já cadastrado.', true);
+  CONFIG.suppliers.push(v); inp.value=''; saveConfig(); renderAll();
+};
+
+/* ---------------- ordem de compra ---------------- */
+const modalOrdem = document.getElementById('modal-ordem');
+let currentOrdemItens = [];
+
+function recalcOrdemTotal(){
+  const total = currentOrdemItens.reduce((s,it)=>s+(Number(it.qtd)||0)*(Number(it.valorUnit)||0),0);
+  document.getElementById('oc-total-geral').textContent = 'R$ ' + BRL(total);
+  return total;
+}
+
+function renderOrdemItens(){
+  const tb = document.getElementById('oc-itens');
+  tb.innerHTML = currentOrdemItens.map((it,i)=>`
+    <tr>
+      <td><input data-i="${i}" data-f="descricao" value="${esc(it.descricao)}" placeholder="Descrição"></td>
+      <td><input type="number" step="0.01" min="0" data-i="${i}" data-f="qtd" value="${it.qtd}" style="width:70px;text-align:right;"></td>
+      <td><input type="number" step="0.01" min="0" data-i="${i}" data-f="valorUnit" value="${it.valorUnit}" style="width:100px;text-align:right;"></td>
+      <td class="num mono" data-row-total="${i}">${BRL((Number(it.qtd)||0)*(Number(it.valorUnit)||0))}</td>
+      <td><button type="button" class="iconbtn" data-rm-item="${i}">✕</button></td>
+    </tr>`).join('');
+  tb.querySelectorAll('input').forEach(inp=>inp.addEventListener('input', e=>{
+    const i = +e.target.dataset.i, f = e.target.dataset.f;
+    currentOrdemItens[i][f] = f==='descricao' ? e.target.value : (Number(e.target.value)||0);
+    if(f!=='descricao'){
+      const cell = tb.querySelector(`[data-row-total="${i}"]`);
+      if(cell) cell.textContent = BRL((Number(currentOrdemItens[i].qtd)||0)*(Number(currentOrdemItens[i].valorUnit)||0));
+      recalcOrdemTotal();
+    }
+  }));
+  tb.querySelectorAll('[data-rm-item]').forEach(b=>b.addEventListener('click', e=>{
+    currentOrdemItens.splice(+e.target.dataset.rmItem,1);
+    if(!currentOrdemItens.length) currentOrdemItens.push({descricao:'',qtd:1,valorUnit:0});
+    renderOrdemItens();
+  }));
+  recalcOrdemTotal();
+}
+
+document.getElementById('btn-add-item').onclick = ()=>{
+  currentOrdemItens.push({descricao:'', qtd:1, valorUnit:0});
+  renderOrdemItens();
+};
+
+function nextOrdemNumero(){
+  const nums = ORDENS.map(o=>parseInt(o.numero,10)).filter(n=>!isNaN(n));
+  const next = nums.length ? Math.max(...nums)+1 : 1;
+  return String(next).padStart(4,'0');
+}
+
+function openOrdemModal(existing){
+  document.getElementById('modal-ordem-title').textContent = existing ? 'Ordem de compra' : 'Nova ordem de compra';
+  document.getElementById('oc-delete').style.display = existing ? '' : 'none';
+  const f = existing || {numero:nextOrdemNumero(), data:new Date().toISOString().slice(0,10), solicitadoPor:USER_NAME||'', fornecedorNome:'', fornecedorCnpj:'', fornecedorContato:'', fornecedorEmail:'', modoPagamento:''};
+  document.getElementById('oc-id').value = existing ? existing.id : '';
+  document.getElementById('oc-numero').value = f.numero || '';
+  document.getElementById('oc-data').value = f.data;
+  document.getElementById('oc-solicitado').value = f.solicitadoPor || '';
+  document.getElementById('oc-fornecedor').value = f.fornecedorNome || '';
+  document.getElementById('oc-cnpj').value = f.fornecedorCnpj || '';
+  document.getElementById('oc-contato').value = f.fornecedorContato || '';
+  document.getElementById('oc-email').value = f.fornecedorEmail || '';
+  document.getElementById('oc-modo-pagamento').value = f.modoPagamento || '';
+  currentOrdemItens = (existing && existing.itens && existing.itens.length) ? existing.itens.map(it=>Object.assign({}, it)) : [{descricao:'',qtd:1,valorUnit:0}];
+  renderOrdemItens();
+  modalOrdem.classList.add('open');
+}
+document.getElementById('btn-nova-ordem').onclick = ()=>openOrdemModal(null);
+document.getElementById('oc-cancel').onclick = ()=>modalOrdem.classList.remove('open');
+document.getElementById('tbl-ordens').addEventListener('click', e=>{
+  const btn = e.target.closest('[data-edit-ordem]');
+  if(!btn) return;
+  openOrdemModal(ORDENS.find(o=>o.id===btn.dataset.editOrdem));
+});
+document.getElementById('oc-fornecedor').addEventListener('change', e=>{
+  const d = CONFIG.supplierDetails[e.target.value.trim()];
+  if(d){
+    document.getElementById('oc-cnpj').value = d.cnpj||'';
+    document.getElementById('oc-contato').value = d.contato||'';
+    document.getElementById('oc-email').value = d.email||'';
+    document.getElementById('oc-modo-pagamento').value = d.modoPagamento||'';
+  }
+});
+
+function readOrdemForm(){
+  return {
+    numero: document.getElementById('oc-numero').value.trim(),
+    data: document.getElementById('oc-data').value,
+    solicitadoPor: document.getElementById('oc-solicitado').value.trim(),
+    fornecedorNome: document.getElementById('oc-fornecedor').value.trim(),
+    fornecedorCnpj: document.getElementById('oc-cnpj').value.trim(),
+    fornecedorContato: document.getElementById('oc-contato').value.trim(),
+    fornecedorEmail: document.getElementById('oc-email').value.trim(),
+    modoPagamento: document.getElementById('oc-modo-pagamento').value.trim(),
+    itens: currentOrdemItens.filter(it=>it.descricao.trim()!==''),
+    totalGeral: recalcOrdemTotal(),
+  };
+}
+
+document.getElementById('form-ordem').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const id = document.getElementById('oc-id').value || uid('o');
+  const isNew = !document.getElementById('oc-id').value;
+  const existingOrdem = isNew ? null : ORDENS.find(o=>o.id===id);
+  const data = readOrdemForm();
+  data.lancadoPor = isNew ? (USER_NAME||null) : (existingOrdem ? existingOrdem.lancadoPor : null);
+  try{
+    const row = ordemToRow(data);
+    if(isNew){ await sb.from('ordens_compra').insert(Object.assign({id}, row)); }
+    else{ await sb.from('ordens_compra').update(row).eq('id', id); }
+    if(data.fornecedorNome && !CONFIG.suppliers.includes(data.fornecedorNome)){ CONFIG.suppliers.push(data.fornecedorNome); saveConfig(); }
+    modalOrdem.classList.remove('open');
+    toast('Ordem de compra salva.');
+    loadOrdens().then(renderAll);
+  }catch(err){ toast('Erro ao salvar ordem de compra.', true); }
+});
+document.getElementById('oc-delete').onclick = async ()=>{
+  const id = document.getElementById('oc-id').value;
+  if(!id || !confirm('Excluir esta ordem de compra?')) return;
+  try{
+    await sb.from('ordens_compra').delete().eq('id', id);
+    modalOrdem.classList.remove('open'); toast('Ordem excluída.');
+    loadOrdens().then(renderAll);
+  }catch(e){ toast('Erro ao excluir.', true); }
+};
+
+function buildOrdemPrintHtml(o){
+  const rows = o.itens.map(it=>`
+    <tr>
+      <td>${esc(it.descricao)}</td>
+      <td style="text-align:center;">${it.qtd}</td>
+      <td style="text-align:right;">R$ ${BRL(it.valorUnit)}</td>
+      <td style="text-align:right;">R$ ${BRL((Number(it.qtd)||0)*(Number(it.valorUnit)||0))}</td>
+    </tr>`).join('');
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Ordem de Compra ${esc(o.numero||'')}</title>
+<style>
+  body{font-family:Calibri,Arial,sans-serif;color:#111;padding:32px;max-width:720px;margin:0 auto;}
+  h1{font-size:20px;margin:0;}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #333;padding-bottom:10px;margin-bottom:14px;}
+  .meta{display:flex;gap:16px;font-size:12px;font-weight:bold;margin-bottom:14px;}
+  .meta div{border:1px solid #bbb;padding:6px 10px;flex:1;}
+  table{width:100%;border-collapse:collapse;margin-top:6px;font-size:13px;}
+  th,td{border:1px solid #bbb;padding:6px 8px;}
+  th{background:#f2f2f2;text-align:left;}
+  .section-title{font-weight:bold;font-size:13px;margin:16px 0 6px;}
+  .total-row td{font-weight:bold;}
+  .sign{display:flex;gap:24px;margin-top:40px;font-size:11px;color:#555;}
+  .sign div{flex:1;border-top:1px solid #999;padding-top:4px;}
+  @media print{ body{padding:0;} }
+</style></head><body>
+  <div class="header">
+    <h1>ORDEM DE COMPRA</h1>
+    <div style="text-align:right;font-size:12px;"><strong>Mann &amp; Cia Ltda</strong><br>(41) 3107-1515</div>
+  </div>
+  <div class="meta">
+    <div>Nº: ${esc(o.numero)||'–'}</div>
+    <div>DATA: ${fmtDate(o.data)}</div>
+    <div>SOLICITADO POR: ${esc(o.solicitadoPor)||'–'}</div>
+  </div>
+  <div class="section-title">DADOS DO FORNECEDOR</div>
+  <table>
+    <tr><th style="width:180px;">NOME / RAZÃO SOCIAL</th><td>${esc(o.fornecedorNome)||''}</td></tr>
+    <tr><th>CNPJ</th><td>${esc(o.fornecedorCnpj)||''}</td></tr>
+    <tr><th>CONTATO</th><td>${esc(o.fornecedorContato)||''}</td></tr>
+    <tr><th>E-MAIL</th><td>${esc(o.fornecedorEmail)||''}</td></tr>
+    <tr><th>MODO DE PAGAMENTO</th><td>${esc(o.modoPagamento)||''}</td></tr>
+  </table>
+  <div class="section-title">PRODUTOS / SERVIÇOS</div>
+  <table>
+    <thead><tr><th>DESCRIÇÃO</th><th>QTD.</th><th>VALOR UNIT.</th><th>TOTAL</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tr class="total-row"><td colspan="3" style="text-align:right;border-top:2px solid #333;">TOTAL GERAL</td><td style="text-align:right;border-top:2px solid #333;">R$ ${BRL(o.totalGeral)}</td></tr>
+  </table>
+  <div class="sign">
+    <div>ORDEM APROVADA POR</div>
+    <div>DATA</div>
+  </div>
+</body></html>`;
+}
+
+document.getElementById('oc-imprimir').onclick = ()=>{
+  const o = readOrdemForm();
+  const w = window.open('', '_blank');
+  if(!w){ toast('Não foi possível abrir a janela de impressão (bloqueador de pop-up?).', true); return; }
+  w.document.write(buildOrdemPrintHtml(o));
+  w.document.close();
+  setTimeout(()=>{ try{ w.focus(); w.print(); }catch(err){} }, 350);
+};
+
+document.getElementById('oc-email-btn').onclick = ()=>{
+  if(!CONFIG.financeiroEmail){ toast('Cadastre o e-mail do financeiro em Configurações primeiro.', true); return; }
+  const o = readOrdemForm();
+  const bodyLines = [
+    `Ordem de Compra Nº ${o.numero||''}`,
+    `Data: ${fmtDate(o.data)}`,
+    `Fornecedor: ${o.fornecedorNome}`,
+    `Modo de pagamento: ${o.modoPagamento}`,
+    '',
+    'Itens:',
+    ...o.itens.map(it=>`- ${it.descricao} | Qtd: ${it.qtd} | Unit: R$ ${BRL(it.valorUnit)} | Total: R$ ${BRL((Number(it.qtd)||0)*(Number(it.valorUnit)||0))}`),
+    '',
+    `TOTAL GERAL: R$ ${BRL(o.totalGeral)}`,
+    '',
+    '(Se precisar, imprima/salve o PDF da ordem e anexe antes de enviar.)'
+  ];
+  const subject = encodeURIComponent(`Ordem de Compra ${o.numero||''} - ${o.fornecedorNome}`);
+  const body = encodeURIComponent(bodyLines.join('\n'));
+  window.location.href = `mailto:${encodeURIComponent(CONFIG.financeiroEmail)}?subject=${subject}&body=${body}`;
+};
+
+})();
+</script>
+</body>
+</html>
