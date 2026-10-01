@@ -240,7 +240,7 @@ function renderFaltando() {
   $("conteudo").innerHTML = grupos.size ? `<div class="caixa"><table>
     <tr><th>Empresa</th><th>Responsável</th><th>Estufa</th><th>Ciclos faltando</th></tr>
     ${[...grupos.values()].map(g => `<tr><td><b>${esc(g.empresa)}</b></td><td>${esc(g.responsavel) || "—"}</td><td>${g.estufa ?? "—"}</td><td class="atraso">${g.ciclos.join(", ")}</td></tr>`).join("")}</table></div>
-    <div class="legenda">Ciclos que pularam na sequência nos últimos 90 dias. Para resolver: cole a curva na pasta da empresa, ou o arquivo de marcação — CM 3-297 (cancelado Marrari), CE 3-297 (cancelado Exata), R 3-297 (ressecagem), MI 3-297 (mercado interno).</div>`
+    <div class="legenda">Ciclos que pularam na sequência, contando a partir de 01/10/2026. Para resolver: cole a curva na pasta da empresa, ou o arquivo de marcação — CM 3-297 (cancelado Marrari), CE 3-297 (cancelado Exata), R 3-297 (ressecagem), MI 3-297 (mercado interno).</div>`
     : `<div class="caixa vazio">Nenhuma curva faltando.</div>`;
 }
 
