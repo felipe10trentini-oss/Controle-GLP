@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Controle de Curvas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  /* Mesma identidade visual do Controle GLP */
+  :root {
+    --bg: #f2f2f0; --surface: #ffffff; --surface-2: #e7e7e5; --border: #d2d2cf; --text: #161616; --text-muted: #61615f;
+    --accent: #c00000; --accent-ink: #ffffff; --good: #2f8f5b; --good-bg: #e3f3ea; --warn: #b8790f; --warn-bg: #faf0dc;
+    --bad: #c00000; --bad-bg: #fbe4e4; --info: #1f5ea8; --info-bg: #e6f0fb;
+    --shadow: 0 1px 2px rgba(10,10,10,.06), 0 4px 14px rgba(10,10,10,.06); --radius: 10px;
+    --font-display: 'Barlow Condensed', sans-serif; --font-body: 'IBM Plex Sans', sans-serif; --font-mono: 'IBM Plex Mono', monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #121212; --surface: #1c1c1c; --surface-2: #262626; --border: #3a3a3a; --text: #efefee; --text-muted: #a3a3a1;
+      --accent: #e23a3a; --accent-ink: #160404; --good: #57b586; --good-bg: #1d3328; --warn: #e0a64a; --warn-bg: #3a2e17;
+      --bad: #e23a3a; --bad-bg: #3a1c1c; --info: #7fb2f0; --info-bg: #172b45; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--font-body); }
+  .oculto { display: none !important; }
+  /* login */
+  .login { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px; width: 100%; max-width: 360px; }
+  .logos { display: flex; justify-content: center; align-items: center; gap: 14px; margin-bottom: 10px; }
+  .logos img { height: 26px; }
+  h1 { font: 700 22px var(--font-display); letter-spacing: .04em; text-transform: uppercase; text-align: center; margin: 6px 0 18px; }
+  label { display: block; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); margin: 10px 0 4px; }
+  input, select { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text); font: inherit; }
+  button { padding: 9px 14px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: 600 14px var(--font-body); cursor: pointer; }
+  button.prim { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); width: 100%; margin-top: 16px; }
+  .erro { color: var(--bad); font-size: 13px; margin-top: 10px; min-height: 18px; }
+  /* app */
+  header { background: var(--surface); box-shadow: var(--shadow); padding: 10px 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; position: sticky; top: 0; z-index: 20; }
+  header .logos { margin: 0; }
+  header h2 { font: 700 20px var(--font-display); letter-spacing: .04em; text-transform: uppercase; margin: 0; }
+  .upd { color: var(--text-muted); font-size: 12px; }
+  .upd.velho { color: var(--bad); font-weight: 600; }
+  header .dir { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  header a { color: var(--text-muted); font-size: 13px; text-decoration: none; }
+  main { padding: 16px; max-width: 1500px; margin: 0 auto; }
+  .barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .abas { display: flex; flex-wrap: wrap; gap: 6px; }
+  .abas button.on { background: var(--text); color: var(--surface); border-color: var(--text); }
+  .barra .filtros { margin-left: auto; display: flex; gap: 8px; }
+  .barra .filtros input { width: 200px; } .barra .filtros select { width: 150px; }
+  .caixa { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { padding: 9px 12px; border-bottom: 1px solid var(--surface-2); text-align: left; white-space: nowrap; }
+  th { font: 600 11px var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); background: var(--surface); position: sticky; top: 0; z-index: 2; }
+  td.n { text-align: center; font: 600 15px var(--font-mono); }
+  td.n.ren { background: var(--warn-bg); color: var(--warn); }
+  td.n.cer { background: var(--info-bg); color: var(--info); }
+  td.n.sal { background: var(--good-bg); color: var(--good); }
+  td.atraso { color: var(--bad); font-weight: 600; }
+  .vazio { padding: 28px; text-align: center; color: var(--text-muted); }
+  .legenda { font-size: 12px; color: var(--text-muted); margin: 10px 2px; }
+  /* grade (controle de curvas) */
+  .grade { max-height: 75vh; }
+  .grade table { width: auto; }
+  .grade th, .grade td { padding: 5px 8px; font-size: 12.5px; border-left: 1px solid var(--surface-2); text-align: center; }
+  .grade .fx { position: sticky; background: var(--surface); text-align: left; z-index: 1; }
+  .grade th.fx { z-index: 3; }
+  .grade .c1 { left: 0; min-width: 190px; } .grade .c2 { left: 190px; min-width: 92px; } .grade .c3 { left: 282px; min-width: 52px; } .grade .c4 { left: 334px; min-width: 70px; border-right: 2px solid var(--border); }
+  .grade td.v { background: var(--warn-bg); color: var(--warn); font-weight: 600; }
+  .grade td.m { background: var(--surface-2); color: var(--text-muted); }
+  .grade td.x { color: var(--border); }
+  .grade tr.prim td { border-top: 2px solid var(--border); }
+  /* empresas */
+  .emp td { padding: 4px 6px; }
+  .emp input, .emp select { padding: 6px 8px; font-size: 13px; min-width: 110px; }
+  .emp .nome { font-weight: 600; padding: 4px 10px; }
+  .senha { display: flex; gap: 4px; } .senha button { padding: 4px 8px; font-size: 12px; }
+  .toast { position: fixed; bottom: 18px; right: 18px; background: var(--text); color: var(--surface); padding: 10px 16px; border-radius: 8px; font-weight: 600; opacity: 0; transition: opacity .2s; z-index: 50; }
+  .toast.on { opacity: 1; }
+  .novo { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; padding: 12px; border-bottom: 1px solid var(--surface-2); }
+  .novo div { min-width: 180px; }
+  @media (max-width: 700px) { .barra .filtros { margin-left: 0; width: 100%; } .barra .filtros input, .barra .filtros select { width: 100%; } }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN (mesmo login do Controle GLP) ============ -->
+<div id="telaLogin" class="login oculto">
+  <form class="card" id="formLogin">
+    <div class="logos"><img src="logo-mann.png" alt="MANN"><img src="logo-exata.png" alt="EXATA"></div>
+    <h1>Controle de Curvas</h1>
+    <label for="email">E-mail de acesso</label><input id="email" type="email" autocomplete="username" required>
+    <label for="senha">Senha da equipe</label><input id="senha" type="password" autocomplete="current-password" required>
+    <button class="prim" type="submit">Entrar</button>
+    <div class="erro" id="erroLogin"></div>
+  </form>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="telaApp" class="oculto">
+  <header>
+    <div class="logos"><img src="logo-mann.png" alt="MANN"><img src="logo-exata.png" alt="EXATA"></div>
+    <h2>Controle de Curvas</h2>
+    <span class="upd" id="upd"></span>
+    <div class="dir"><a href="/">← Controle GLP</a><button id="sair">Sair</button></div>
+  </header>
+  <main>
+    <div class="barra">
+      <div class="abas" id="abas">
+        <button data-aba="fazer" class="on">O que fazer</button>
+        <button data-aba="grade">Controle de curvas</button>
+        <button data-aba="faltando">Curvas faltando</button>
+        <button data-aba="empresas">Empresas</button>
+      </div>
+      <div class="filtros">
+        <input id="busca" type="search" placeholder="Buscar empresa">
+        <select id="resp"><option value="">Todos</option></select>
+      </div>
+    </div>
+    <div id="conteudo"></div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = "https://vjbyyjfmilmeyzeiinxf.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_HgnI-KSEvq1PJet6fmrV_g_MRf6HK4M";   // mesma chave publica do Controle GLP
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const ANO = new Date().getFullYear();
+let aba = "fazer";
+const dados = { fazer: [], faltando: [], empresas: [], curvas: null, sync: null };
+
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("on"), 1800); }
+const passaFiltro = (emp, resp) => {
+  const q = $("busca").value.trim().toLowerCase(), r = $("resp").value;
+  return (!q || emp.toLowerCase().includes(q)) && (!r || (r === "-" ? !resp : resp === r));
+};
+const respDe = emp => (dados.empresas.find(e => e.nome === emp) || {}).responsavel || "";
+
+/* ---------------- login ---------------- */
+async function iniciar() {
+  const { data } = await sb.auth.getSession();
+  if (!data.session) { $("telaLogin").classList.remove("oculto"); $("telaApp").classList.add("oculto"); return; }
+  $("telaLogin").classList.add("oculto"); $("telaApp").classList.remove("oculto");
+  await carregar(); setInterval(carregar, 120000);   // atualiza a cada 2 minutos
+}
+$("formLogin").onsubmit = async ev => {
+  ev.preventDefault(); $("erroLogin").textContent = "";
+  const { error } = await sb.auth.signInWithPassword({ email: $("email").value.trim(), password: $("senha").value });
+  if (error) { $("erroLogin").textContent = "E-mail ou senha incorretos."; return; }
+  iniciar();
+};
+$("sair").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+
+/* ---------------- dados ---------------- */
+async function carregar() {
+  const [s, f, fa, e] = await Promise.all([
+    sb.from("curvas_sync").select("*").eq("id", 1).maybeSingle(),
+    sb.from("curvas_o_que_fazer").select("*"),
+    sb.from("curvas_faltando").select("*").limit(2000),
+    sb.from("curvas_empresas").select("*").order("nome"),
+  ]);
+  const erro = [s, f, fa, e].find(x => x.error);
+  if (erro) { $("conteudo").innerHTML = `<div class="caixa vazio">Não foi possível carregar os dados: ${esc(erro.error.message)}</div>`; return; }
+  dados.sync = s.data; dados.fazer = f.data || []; dados.faltando = fa.data || []; dados.empresas = e.data || [];
+  if (aba === "grade") dados.curvas = null;   // recarrega a grade tambem
+  montarFiltroResp(); mostrarAtualizacao(); render();
+}
+async function carregarCurvas() {   // todas as curvas do ano (pagina de 1000 em 1000)
+  const lista = [];
+  for (let de = 0; ; de += 1000) {
+    const { data, error } = await sb.from("curvas").select("empresa,estufa,ciclo,sigla,coletada_em")
+      .gte("coletada_em", `${ANO}-01-01`).order("coletada_em").range(de, de + 999);
+    if (error) throw error;
+    lista.push(...data); if (data.length < 1000) break;
+  }
+  dados.curvas = lista;
+}
+function montarFiltroResp() {
+  const sel = $("resp"), atual = sel.value;
+  const nomes = [...new Set(dados.empresas.map(e => e.responsavel).filter(Boolean))].sort();
+  sel.innerHTML = `<option value="">Todos</option>` + nomes.map(n => `<option>${esc(n)}</option>`).join("") + `<option value="-">Sem responsável</option>`;
+  sel.value = atual;
+}
+function mostrarAtualizacao() {
+  const el = $("upd"); if (!dados.sync) { el.textContent = ""; return; }
+  const min = Math.round((Date.now() - new Date(dados.sync.atualizado_em)) / 60000);
+  el.textContent = min < 1 ? "Atualizado agora" : `Atualizado há ${min} min`;
+  el.classList.toggle("velho", min > 20);
+  if (min > 20) el.textContent += " — o computador que envia os dados pode estar desligado";
+}
+
+/* ---------------- abas ---------------- */
+$("abas").onclick = ev => { const b = ev.target.closest("button"); if (!b) return; aba = b.dataset.aba; document.querySelectorAll("#abas button").forEach(x => x.classList.toggle("on", x === b)); render(); };
+$("busca").oninput = () => render();
+$("resp").onchange = () => render();
+
+async function render() {
+  if (aba === "fazer") renderFazer();
+  else if (aba === "faltando") renderFaltando();
+  else if (aba === "empresas") renderEmpresas();
+  else if (aba === "grade") {
+    if (!dados.curvas) { $("conteudo").innerHTML = `<div class="caixa vazio">Carregando o controle de curvas…</div>`; try { await carregarCurvas(); } catch (e) { $("conteudo").innerHTML = `<div class="caixa vazio">Erro: ${esc(e.message)}</div>`; return; } }
+    if (aba === "grade") renderGrade();
+  }
+}
+
+function renderFazer() {
+  const rows = dados.fazer.filter(r => passaFiltro(r.empresa, r.responsavel));
+  const horas = r => (Date.now() - new Date(r.esperando_desde)) / 36e5;
+  const n = (v, cls) => v ? `<td class="n ${cls}">${v}</td>` : `<td></td>`;
+  $("conteudo").innerHTML = rows.length ? `<div class="caixa"><table>
+    <tr><th>Empresa</th><th>Responsável</th><th>1. Renomear a curva</th><th>2. Fazer o certificado</th><th>3. Salvar na pasta do mês</th><th>Esperando há</th></tr>
+    ${rows.map(r => `<tr><td><b>${esc(r.empresa)}</b></td><td>${esc(r.responsavel) || "—"}</td>
+      ${n(r.renomear, "ren")}${n(r.fazer_certificado, "cer")}${n(r.salvar_no_mes, "sal")}
+      <td class="${horas(r) >= 24 ? "atraso" : ""}">${esc(r.esperando_ha)}</td></tr>`).join("")}</table></div>
+    <div class="legenda">Números = quantidade de curvas esperando cada tarefa. Em vermelho: esperando há mais de 24 horas.</div>`
+    : `<div class="caixa vazio">Nada pendente. Tudo em dia!</div>`;
+}
+
+function renderFaltando() {
+  const rows = dados.faltando.filter(r => passaFiltro(r.empresa, r.responsavel));
+  const grupos = new Map();
+  for (const r of rows) { const k = r.empresa + "|" + (r.estufa ?? ""); if (!grupos.has(k)) grupos.set(k, { ...r, ciclos: [] }); grupos.get(k).ciclos.push(r.ciclo_faltando); }
+  $("conteudo").innerHTML = grupos.size ? `<div class="caixa"><table>
+    <tr><th>Empresa</th><th>Responsável</th><th>Estufa</th><th>Ciclos faltando</th></tr>
+    ${[...grupos.values()].map(g => `<tr><td><b>${esc(g.empresa)}</b></td><td>${esc(g.responsavel) || "—"}</td><td>${g.estufa ?? "—"}</td><td class="atraso">${g.ciclos.join(", ")}</td></tr>`).join("")}</table></div>
+    <div class="legenda">Ciclos que pularam na sequência nos últimos 90 dias. Para resolver: cole a curva na pasta da empresa, ou o arquivo de marcação — CM 3-297 (cancelado Marrari), CE 3-297 (cancelado Exata), R 3-297 (ressecagem), MI 3-297 (mercado interno).</div>`
+    : `<div class="caixa vazio">Nenhuma curva faltando.</div>`;
+}
+
+function renderGrade() {
+  const cs = dados.curvas.filter(c => passaFiltro(c.empresa, respDe(c.empresa)));
+  const dia = c => c.coletada_em.slice(0, 10);
+  const dias = [...new Set(cs.map(dia))].sort();
+  const linhas = new Map();
+  for (const c of cs) {
+    const k = c.empresa + "|" + (c.estufa ?? "");
+    if (!linhas.has(k)) linhas.set(k, { emp: c.empresa, e: c.estufa, cel: {}, ult: null });
+    const L = linhas.get(k); (L.cel[dia(c)] = L.cel[dia(c)] || []).push(c);
+    if (!c.sigla) L.ult = c.ciclo;
+  }
+  const ord = [...linhas.values()].sort((a, b) => a.emp.localeCompare(b.emp, "pt-BR") || (a.e ?? 0) - (b.e ?? 0));
+  const cab = d => { const [y, m, dd] = d.split("-"); return `${dd}/${m}`; };
+  let ant = null;
+  $("conteudo").innerHTML = ord.length ? `<div class="caixa grade" id="gradeBox"><table>
+    <tr><th class="fx c1">Empresa</th><th class="fx c2">Resp.</th><th class="fx c3">Estufa</th><th class="fx c4">Última</th>${dias.map(d => `<th>${cab(d)}</th>`).join("")}</tr>
+    ${ord.map(L => { const prim = L.emp !== ant; ant = L.emp;
+      return `<tr class="${prim ? "prim" : ""}"><td class="fx c1">${prim ? `<b>${esc(L.emp)}</b>` : ""}</td><td class="fx c2">${prim ? esc(respDe(L.emp)) : ""}</td><td class="fx c3">${L.e ?? "—"}</td><td class="fx c4"><b>${L.ult ?? "—"}</b></td>` +
+        dias.map(d => { const v = L.cel[d]; if (!v) return `<td class="x">-</td>`;
+          const so = v.every(x => x.sigla); return `<td class="${so ? "m" : "v"}">${v.map(x => x.sigla ? `${x.ciclo} ${x.sigla}` : x.ciclo).join("; ")}</td>`; }).join("") + `</tr>`; }).join("")}
+    </table></div><div class="legenda">Cada célula = ciclo(s) da curva baixada naquele dia. Cinza = marcação (CM/CE cancelado, R ressecagem, MI mercado interno).</div>`
+    : `<div class="caixa vazio">Nenhuma curva em ${ANO}.</div>`;
+  const box = $("gradeBox"); if (box) box.scrollLeft = box.scrollWidth;   // abre nos dias mais recentes
+}
+
+/* ---------------- empresas (cadastro editavel) ---------------- */
+const CAMPOS = [["responsavel", "Responsável"], ["sistema", "Sistema"], ["acesso_id", "ID"], ["acesso_senha", "Senha"], ["contato", "Contato"], ["telefone", "Telefone"], ["email", "E-mail"], ["avisos", "Avisos"], ["observacao", "Observação"]];
+function renderEmpresas() {
+  const rows = dados.empresas.filter(e => passaFiltro(e.nome, e.responsavel));
+  const resps = [...new Set(dados.empresas.map(e => e.responsavel).filter(Boolean))].sort();
+  const campo = (e, [k]) => {
+    if (k === "responsavel") return `<select data-nome="${esc(e.nome)}" data-campo="${k}"><option value=""></option>${resps.map(r => `<option ${r === e.responsavel ? "selected" : ""}>${esc(r)}</option>`).join("")}</select>`;
+    if (k === "acesso_senha") return `<div class="senha"><input type="password" value="${esc(e[k])}" data-nome="${esc(e.nome)}" data-campo="${k}" autocomplete="off"><button type="button" class="ver">ver</button></div>`;
+    return `<input value="${esc(e[k])}" data-nome="${esc(e.nome)}" data-campo="${k}">`;
+  };
+  $("conteudo").innerHTML = `<div class="caixa emp">
+    <form class="novo" id="formNovo">
+      <div><label>Nova empresa (nome igual ao da pasta no OneDrive)</label><input id="novoNome" required></div>
+      <div><label>Responsável</label><select id="novoResp"><option value=""></option>${resps.map(r => `<option>${esc(r)}</option>`).join("")}</select></div>
+      <button type="submit">Adicionar</button>
+    </form>
+    <table><tr><th>Empresa</th>${CAMPOS.map(c => `<th>${c[1]}</th>`).join("")}<th>Ativa</th></tr>
+    ${rows.map(e => `<tr><td class="nome">${esc(e.nome)}</td>${CAMPOS.map(c => `<td>${campo(e, c)}</td>`).join("")}
+      <td><input type="checkbox" ${e.ativa ? "checked" : ""} data-nome="${esc(e.nome)}" data-campo="ativa" style="width:auto"></td></tr>`).join("")}
+    </table></div>
+    <div class="legenda">As alterações são salvas sozinhas ao sair do campo. "Ativa" desmarcada = a empresa some do controle.</div>`;
+  document.querySelectorAll(".emp [data-campo]").forEach(el => el.onchange = salvarCampo);
+  document.querySelectorAll(".emp .ver").forEach(b => b.onclick = () => { const i = b.previousElementSibling; i.type = i.type === "password" ? "text" : "password"; b.textContent = i.type === "password" ? "ver" : "ocultar"; });
+  $("formNovo").onsubmit = async ev => {
+    ev.preventDefault();
+    const nome = $("novoNome").value.trim(); if (!nome) return;
+    const { error } = await sb.from("curvas_empresas").insert({ nome, responsavel: $("novoResp").value || null });
+    if (error) { toast(error.code === "23505" ? "Essa empresa já existe" : "Erro: " + error.message); return; }
+    toast("Empresa adicionada"); await carregar();
+  };
+}
+async function salvarCampo(ev) {
+  const el = ev.target, nome = el.dataset.nome, campo = el.dataset.campo;
+  const valor = el.type === "checkbox" ? el.checked : (el.value.trim() || null);
+  const { error } = await sb.from("curvas_empresas").update({ [campo]: valor, atualizado_em: new Date().toISOString() }).eq("nome", nome);
+  if (error) { toast("Erro ao salvar: " + error.message); return; }
+  const e = dados.empresas.find(x => x.nome === nome); if (e) e[campo] = valor;
+  toast("Salvo");
+  if (campo === "responsavel") montarFiltroResp();
+}
+
+iniciar();
+</script>
+</body>
+</html>
