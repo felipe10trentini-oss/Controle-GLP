@@ -105,6 +105,7 @@ nav.tabs button{
 }
 nav.tabs button.active{background:var(--accent);color:var(--accent-ink);}
 nav.tabs button:not(.active):hover{color:var(--text);}
+nav.tabs a.tab-link{color:var(--text-muted);padding:8px 16px;border-radius:999px;font-size:14px;font-weight:600;text-decoration:none;transition:color .15s;} nav.tabs a.tab-link:hover{color:var(--text);}
 .sync-pill{
   font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px;padding:6px 10px;
   border:1px solid var(--border);border-radius:999px;white-space:nowrap;cursor:pointer;
@@ -277,6 +278,7 @@ footer.note{margin-top:34px;font-size:12px;color:var(--text-muted);border-top:1p
     <button data-view="tratamentos">Tratamentos</button>
     <button data-view="ordemcompra">Ordem de Compra</button>
     <button data-view="config">Configurações</button>
+    <a class="tab-link" href="curvas.html" title="Controle de Curvas">Curvas</a>
   </nav>
   <div class="sync-pill" id="btn-user" title="Clique para definir seu nome">👤 <span id="user-name-label">Definir nome</span></div>
   <div class="sync-pill" id="btn-logout" title="Clique para sair"><span class="sync-dot off" id="sync-dot"></span><span id="sync-text">conectando…</span></div>
