@@ -221,14 +221,17 @@ function renderFazer() {
   const horas = r => r.esperando_desde ? (Date.now() - new Date(r.esperando_desde)) / 36e5 : 0;
   const n = (v, cls) => v ? `<td class="n ${cls}">${v}</td>` : `<td></td>`;
   const dia = s => new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-  const aviso = r => r.aviso_comunicado
-    ? `<td class="aviso"><b>Baixar ciclo</b><small>Comunicado ${esc(r.aviso_comunicado)} · ${dia(r.aviso_em)}</small></td>` : `<td></td>`;
+  const aviso = r => {
+    if (!r.aviso_comunicado) return `<td></td>`;
+    const qtd = r.aviso_qtd || 1;
+    return `<td class="aviso"><b>Baixar ciclo${qtd > 1 ? ` (${qtd})` : ""}</b><small>Comunicado${qtd > 1 ? "s" : ""} ${esc(r.aviso_comunicado)} · desde ${dia(r.aviso_em)}</small></td>`;
+  };
   $("conteudo").innerHTML = rows.length ? `<div class="caixa"><table>
     <tr><th>Empresa</th><th>Responsável</th><th>Aviso</th><th>1. Renomear a curva</th><th>2. Fazer o certificado</th><th>3. Salvar na pasta do mês</th><th>Esperando há</th></tr>
     ${rows.map(r => `<tr class="${r.aviso_comunicado ? "com-aviso" : ""}"><td><b>${esc(r.empresa)}</b></td><td>${esc(r.responsavel) || "—"}</td>${aviso(r)}
       ${n(r.renomear, "ren")}${n(r.fazer_certificado, "cer")}${n(r.salvar_no_mes, "sal")}
       <td class="${horas(r) >= 24 ? "atraso" : ""}">${esc(r.esperando_ha) || "—"}</td></tr>`).join("")}</table></div>
-    <div class="legenda">Aviso = comunicado criado na pasta da empresa: baixar o ciclo. O aviso some sozinho quando chega uma curva da empresa em um dia depois do comunicado.<br>
+    <div class="legenda">Aviso = comunicado criado na pasta da empresa: baixar o ciclo. Cada comunicado é um aviso; cada curva que chega num dia depois do comunicado resolve um aviso (o mais antigo primeiro).<br>
     Números = quantidade de curvas esperando cada tarefa. Em vermelho: esperando há mais de 24 horas.</div>`
     : `<div class="caixa vazio">Nada pendente. Tudo em dia!</div>`;
 }
