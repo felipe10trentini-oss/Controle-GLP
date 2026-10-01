@@ -170,8 +170,10 @@ async function carregar() {
   const erro = [s, f, fa, e].find(x => x.error);
   if (erro) { $("conteudo").innerHTML = `<div class="caixa vazio">Não foi possível carregar os dados: ${esc(erro.error.message)}</div>`; return; }
   dados.sync = s.data; dados.fazer = f.data || []; dados.faltando = fa.data || []; dados.empresas = e.data || [];
-  if (aba === "grade") dados.curvas = null;   // recarrega a grade tambem
-  montarFiltroResp(); mostrarAtualizacao(); render();
+  montarFiltroResp(); mostrarAtualizacao();
+  // recarga automatica so redesenha as abas de consulta (nas abas editaveis apagaria o que esta sendo digitado)
+  if (aba === "fazer" || aba === "faltando" || !carregar.feito) render();
+  carregar.feito = true;
 }
 async function carregarCurvas() {   // todas as curvas do ano (pagina de 1000 em 1000)
   const lista = [];
@@ -268,13 +270,12 @@ function renderGrade() {
 }
 
 /* ---------------- empresas (cadastro editavel) ---------------- */
-const CAMPOS = [["responsavel", "Responsável"], ["sistema", "Sistema"], ["acesso_id", "ID"], ["acesso_senha", "Senha"], ["contato", "Contato"], ["telefone", "Telefone"], ["email", "E-mail"], ["avisos", "Avisos"], ["observacao", "Observação"]];
+const CAMPOS = [["responsavel", "Responsável"], ["sistema", "Sistema"], ["acesso_id", "ID"], ["acesso_senha", "Senha"], ["contato", "Contato"], ["telefone", "Telefone"], ["email", "E-mail"]];
 function renderEmpresas() {
   const rows = dados.empresas.filter(e => passaFiltro(e.nome, e.responsavel));
   const resps = [...new Set(dados.empresas.map(e => e.responsavel).filter(Boolean))].sort();
   const campo = (e, [k]) => {
     if (k === "responsavel") return `<select data-nome="${esc(e.nome)}" data-campo="${k}"><option value=""></option>${resps.map(r => `<option ${r === e.responsavel ? "selected" : ""}>${esc(r)}</option>`).join("")}</select>`;
-    if (k === "acesso_senha") return `<div class="senha"><input type="password" value="${esc(e[k])}" data-nome="${esc(e.nome)}" data-campo="${k}" autocomplete="off"><button type="button" class="ver">ver</button></div>`;
     return `<input value="${esc(e[k])}" data-nome="${esc(e.nome)}" data-campo="${k}">`;
   };
   $("conteudo").innerHTML = `<div class="caixa emp">
@@ -289,7 +290,6 @@ function renderEmpresas() {
     </table></div>
     <div class="legenda">As alterações são salvas sozinhas ao sair do campo. "Ativa" desmarcada = a empresa some do controle.</div>`;
   document.querySelectorAll(".emp [data-campo]").forEach(el => el.onchange = salvarCampo);
-  document.querySelectorAll(".emp .ver").forEach(b => b.onclick = () => { const i = b.previousElementSibling; i.type = i.type === "password" ? "text" : "password"; b.textContent = i.type === "password" ? "ver" : "ocultar"; });
   $("formNovo").onsubmit = async ev => {
     ev.preventDefault();
     const nome = $("novoNome").value.trim(); if (!nome) return;
