@@ -60,6 +60,7 @@
   td.atraso { color: var(--bad); font-weight: 600; }
   td.aviso { background: var(--bad-bg); color: var(--bad); line-height: 1.25; }
   td.aviso small { display: block; font-size: 11.5px; color: var(--text-muted); font-weight: 500; }
+  small.agenda { display: block; font-size: 11.5px; color: var(--text-muted); font-style: italic; }
   tr.com-aviso td:first-child { border-left: 4px solid var(--accent); }
   .vazio { padding: 28px; text-align: center; color: var(--text-muted); }
   .legenda { font-size: 12px; color: var(--text-muted); margin: 10px 2px; }
@@ -222,16 +223,18 @@ function renderFazer() {
   const n = (v, cls) => v ? `<td class="n ${cls}">${v}</td>` : `<td></td>`;
   const dia = s => new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
   const aviso = r => {
-    if (!r.aviso_comunicado) return `<td></td>`;
+    const agenda = r.agendado_comunicado
+      ? `<small class="agenda">Agendado: ${esc(r.agendado_comunicado)}</small>` : "";
+    if (!r.aviso_comunicado) return agenda ? `<td>${agenda}</td>` : `<td></td>`;
     const qtd = r.aviso_qtd || 1;
-    return `<td class="aviso"><b>Baixar ciclo${qtd > 1 ? ` (${qtd})` : ""}</b><small>Comunicado${qtd > 1 ? "s" : ""} ${esc(r.aviso_comunicado)} · desde ${dia(r.aviso_em)}</small></td>`;
+    return `<td class="aviso"><b>Baixar ciclo${qtd > 1 ? ` (${qtd})` : ""}</b><small>Comunicado${qtd > 1 ? "s" : ""} ${esc(r.aviso_comunicado)} · tratamento desde ${dia(r.aviso_em)}</small>${agenda}</td>`;
   };
   $("conteudo").innerHTML = rows.length ? `<div class="caixa"><table>
     <tr><th>Empresa</th><th>Responsável</th><th>Aviso</th><th>1. Renomear a curva</th><th>2. Fazer o certificado</th><th>3. Salvar na pasta do mês</th><th>Esperando há</th></tr>
     ${rows.map(r => `<tr class="${r.aviso_comunicado ? "com-aviso" : ""}"><td><b>${esc(r.empresa)}</b></td><td>${esc(r.responsavel) || "—"}</td>${aviso(r)}
       ${n(r.renomear, "ren")}${n(r.fazer_certificado, "cer")}${n(r.salvar_no_mes, "sal")}
       <td class="${horas(r) >= 24 ? "atraso" : ""}">${esc(r.esperando_ha) || "—"}</td></tr>`).join("")}</table></div>
-    <div class="legenda">Aviso = comunicado criado na pasta da empresa: baixar o ciclo. Cada comunicado é um aviso; cada curva que chega num dia depois do comunicado resolve um aviso (o mais antigo primeiro).<br>
+    <div class="legenda">Aviso = comunicado na pasta da empresa. O sistema lê a data e o horário do tratamento no PDF: antes do horário aparece como "Agendado"; depois, "Baixar ciclo". Cada curva colada depois do início do tratamento resolve um comunicado (o mais antigo primeiro).<br>
     Números = quantidade de curvas esperando cada tarefa. Em vermelho: esperando há mais de 24 horas.</div>`
     : `<div class="caixa vazio">Nada pendente. Tudo em dia!</div>`;
 }
