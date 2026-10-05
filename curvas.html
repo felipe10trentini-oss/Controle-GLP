@@ -61,6 +61,21 @@
   td.aviso { background: var(--bad-bg); color: var(--bad); line-height: 1.25; }
   td.aviso small { display: block; font-size: 11.5px; color: var(--text-muted); font-weight: 500; }
   small.agenda { display: block; font-size: 11.5px; color: var(--text-muted); font-style: italic; }
+  /* O que fazer: cabe na largura da tela (sem rolagem para o lado); textos quebram em linhas */
+  .caixa.fazer { overflow-x: hidden; }
+  .fazer table { table-layout: fixed; width: 100%; }
+  .fazer th, .fazer td { white-space: normal; overflow-wrap: anywhere; padding: 8px 8px; vertical-align: top; }
+  .fazer th { font-size: 10.5px; letter-spacing: .03em; }
+  .fazer col.c-emp { width: 22%; } .fazer col.c-resp { width: 10%; } .fazer col.c-aviso { width: 26%; }
+  .fazer col.c-n { width: 10%; } .fazer col.c-esp { width: 12%; }
+  .fazer td.n { font-size: 14px; }
+  @media (max-width: 700px) {
+    .fazer th, .fazer td { padding: 6px 4px; font-size: 12px; }
+    .fazer th { font-size: 9.5px; }
+    .fazer col.c-emp { width: 24%; } .fazer col.c-aviso { width: 31%; }
+    .fazer col.c-n { width: 11%; } .fazer col.c-esp { width: 12%; }
+    .fazer td.aviso small, .fazer small.agenda { font-size: 10.5px; }
+  }
   tr.com-aviso td:first-child { border-left: 4px solid var(--accent); }
   .vazio { padding: 28px; text-align: center; color: var(--text-muted); }
   .legenda { font-size: 12px; color: var(--text-muted); margin: 10px 2px; }
@@ -203,6 +218,7 @@ function mostrarAtualizacao() {
 /* ---------------- abas ---------------- */
 $("abas").onclick = ev => { const b = ev.target.closest("button"); if (!b) return; aba = b.dataset.aba; document.querySelectorAll("#abas button").forEach(x => x.classList.toggle("on", x === b)); render(); };
 $("busca").oninput = () => render();
+window.matchMedia("(max-width: 700px)").addEventListener("change", () => { if (aba === "fazer") renderFazer(); });   // girou o celular / mudou a janela
 $("resp").onchange = () => render();
 
 async function render() {
@@ -222,16 +238,28 @@ function renderFazer() {
   const horas = r => r.esperando_desde ? (Date.now() - new Date(r.esperando_desde)) / 36e5 : 0;
   const n = (v, cls) => v ? `<td class="n ${cls}">${v}</td>` : `<td></td>`;
   const dia = s => new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  // "1626, 1627, ..., 1639" -> "1626 a 1639" (numeros em sequencia viram intervalo)
+  const intervalos = txt => {
+    const ns = String(txt).split(",").map(s => s.trim()).filter(Boolean);
+    if (ns.some(s => !/^\d+$/.test(s))) return ns.join(", ");
+    const v = ns.map(Number).sort((a, b) => a - b), out = [];
+    for (let i = 0; i < v.length; i++) { let j = i; while (j + 1 < v.length && v[j + 1] === v[j] + 1) j++; out.push(j - i >= 2 ? `${v[i]} a ${v[j]}` : v.slice(i, j + 1).join(", ")); i = j; }
+    return out.join(", ");
+  };
   const aviso = r => {
-    const agenda = r.agendado_comunicado
-      ? `<small class="agenda">Agendado: ${esc(r.agendado_comunicado)}</small>` : "";
+    // agendados resumidos: quantidade + o proximo; a lista completa aparece ao passar o mouse
+    const ag = r.agendado_comunicado ? r.agendado_comunicado.split(", ") : [];
+    const agenda = ag.length
+      ? `<small class="agenda" title="${esc(r.agendado_comunicado)}">Agendado${ag.length > 1 ? `s (${ag.length})` : ""} · ${ag.length > 1 ? "próximo " : ""}${esc(ag[0].split(" · ")[1] || ag[0])}</small>` : "";
     if (!r.aviso_comunicado) return agenda ? `<td>${agenda}</td>` : `<td></td>`;
     const qtd = r.aviso_qtd || 1;
-    return `<td class="aviso"><b>Baixar ciclo${qtd > 1 ? ` (${qtd})` : ""}</b><small>Comunicado${qtd > 1 ? "s" : ""} ${esc(r.aviso_comunicado)} · tratamento desde ${dia(r.aviso_em)}</small>${agenda}</td>`;
+    return `<td class="aviso"><b>Baixar ciclo${qtd > 1 ? ` (${qtd})` : ""}</b><small>Comunicado${qtd > 1 ? "s" : ""} ${esc(intervalos(r.aviso_comunicado))} · desde ${dia(r.aviso_em)}</small>${agenda}</td>`;
   };
-  $("conteudo").innerHTML = rows.length ? `<div class="caixa"><table>
-    <tr><th>Empresa</th><th>Responsável</th><th>Aviso</th><th>1. Renomear a curva</th><th>2. Fazer o certificado</th><th>3. Salvar na pasta do mês</th><th>Esperando há</th></tr>
-    ${rows.map(r => `<tr class="${r.aviso_comunicado ? "com-aviso" : ""}"><td><b>${esc(r.empresa)}</b></td><td>${esc(r.responsavel) || "—"}</td>${aviso(r)}
+  const celular = window.matchMedia("(max-width: 700px)").matches;   // no celular nao mostra a coluna Responsavel
+  $("conteudo").innerHTML = rows.length ? `<div class="caixa fazer"><table>
+    <colgroup><col class="c-emp">${celular ? "" : `<col class="c-resp">`}<col class="c-aviso"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-esp"></colgroup>
+    <tr><th>Empresa</th>${celular ? "" : "<th>Resp.</th>"}<th>Aviso</th><th>1. Renomear</th><th>2. Certificado</th><th>3. Salvar no mês</th><th>Esperando</th></tr>
+    ${rows.map(r => `<tr class="${r.aviso_comunicado ? "com-aviso" : ""}"><td><b>${esc(r.empresa)}</b></td>${celular ? "" : `<td>${esc(r.responsavel) || "—"}</td>`}${aviso(r)}
       ${n(r.renomear, "ren")}${n(r.fazer_certificado, "cer")}${n(r.salvar_no_mes, "sal")}
       <td class="${horas(r) >= 24 ? "atraso" : ""}">${esc(r.esperando_ha) || "—"}</td></tr>`).join("")}</table></div>
     <div class="legenda">Aviso = comunicado na pasta da empresa. O sistema lê a data e o horário do tratamento no PDF: antes do horário aparece como "Agendado"; depois, "Baixar ciclo". Cada curva colada depois do início do tratamento resolve um comunicado (o mais antigo primeiro).<br>
