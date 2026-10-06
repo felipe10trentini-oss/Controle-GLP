@@ -73,12 +73,14 @@
   .emp.prog input.mes { text-align: center; padding: 6px 2px; font-size: 12px; font-weight: 600; }
   .emp.prog input.v-ok { background: var(--good-bg); color: var(--good); } .emp.prog input.v-nd { background: var(--surface-2); color: var(--text-muted); }
   .emp .del { padding: 2px 6px; font-size: 16px; line-height: 1; color: var(--text-muted); }
-  .caixa.rel { overflow-x: auto; } .rel table { table-layout: fixed; width: 100%; min-width: 900px; }
-  .rel th, .rel td { padding: 6px 4px; text-align: center; white-space: nowrap; }
-  .rel th:first-child, .rel td:first-child { text-align: left; padding-left: 10px; white-space: normal; }
+  .caixa.rel { overflow-x: auto; } .rel table { table-layout: fixed; width: 100%; min-width: 1050px; }
+  .rel th, .rel td { padding: 5px 3px; text-align: center; white-space: nowrap; }
+  .rel td.emp-nome, .rel th:nth-child(2), .rel th:nth-child(1), .rel th:nth-child(3) { text-align: left; }
+  .rel td.emp-nome { padding-left: 8px; white-space: normal; font-size: 13px; }
   .rel th { font-size: 10.5px; } .rel th.atual { color: var(--accent); }
-  .rel col.c-emp { width: 17%; } .rel col.c-rt { width: 10%; } .rel col.c-m { width: 6.1%; }
-  .rel input.rt { min-width: 0; width: 100%; padding: 4px 6px; font-size: 12.5px; }
+  .rel col.c-rt { width: 8%; } .rel col.c-emp { width: 15%; } .rel col.c-sei { width: 14%; } .rel col.c-m { width: 5.25%; }
+  .rel input.rt, .rel input.sei { min-width: 0; width: 100%; padding: 4px 5px; font-size: 12px; }
+  .rel input.sei { font-family: var(--font-mono); font-size: 11px; }
   .rel td.rm { font-size: 11px; font-weight: 600; }
   .rel td.rm.ok { background: var(--good-bg); color: var(--good); }
   .rel td.rm.rel { background: var(--info-bg); color: var(--info); }
@@ -376,10 +378,10 @@ async function salvarCampo(ev) {
 /* ---------------- Peticionamento SEI e Programacoes (tabelas editaveis) ---------------- */
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 const TABELAS = {
-  peticionamento: { tabela: "curvas_peticionamento", ordem: "empresa", classe: "pet",
+  peticionamento: { tabela: "curvas_peticionamento", ordem: "id", classe: "pet",
     colunas: [["empresa", "Empresa"], ["credenciamento", "SEI - Credenciamento"], ["relatorios", "SEI - Relatórios"]],
     nova: { empresa: "Nova empresa" }, nome: r => r.empresa, texto: "Números dos processos SEI de cada empresa." },
-  programacoes: { tabela: "curvas_programacoes", ordem: "empresa", classe: "prog",
+  programacoes: { tabela: "curvas_programacoes", ordem: "id", classe: "prog",
     colunas: [["rt", "RT"], ["empresa", "Empresa"], ["assinado", "OK / Assinado"], ["sei_peticionamento", "SEI - Peticionamento"], ["m00", "Conferência"],
       ...MESES.map((m, i) => ["m" + String(i + 1).padStart(2, "0"), m])],
     nova: { empresa: "Nova empresa" }, nome: r => r.empresa, texto: "Programações mensais. Conferência: OK quando ela é realizada. OK em verde, \"-\" em cinza." },
@@ -424,7 +426,8 @@ async function renderTabela(chave) {
   $("addLinha").onclick = async () => {
     const { data, error } = await sb.from(cfg.tabela).insert({ ...cfg.nova }).select().single();
     if (error) { toast("Erro: " + error.message); return; }
-    cacheTab[chave].unshift(data); $("busca").value = ""; renderTabela(chave); toast("Linha criada no topo — preencha os campos");
+    cacheTab[chave].push(data); $("busca").value = ""; renderTabela(chave); toast("Linha criada no final — preencha os campos");   // mesma ordem da planilha: novas linhas no fim
+    setTimeout(() => { const inp = [...document.querySelectorAll(".emp tr")].pop()?.querySelector("input"); if (inp) { inp.scrollIntoView({ block: "center" }); inp.focus(); inp.select(); } }, 50);
   };
 }
 
@@ -433,11 +436,14 @@ let soPendencia = false;
 async function renderRelatorios() {
   if (!cacheTab.relatorios) {
     $("conteudo").innerHTML = `<div class="caixa vazio">Carregando…</div>`;
-    const { data, error } = await sb.from("curvas_relatorios").select("*").eq("ano", ANO);
-    if (error) { $("conteudo").innerHTML = `<div class="caixa vazio">Erro: ${esc(error.message)}</div>`; return; }
-    cacheTab.relatorios = data;
+    const [rel, pet] = await Promise.all([sb.from("curvas_relatorios").select("*").eq("ano", ANO), sb.from("curvas_peticionamento").select("*")]);
+    if (rel.error) { $("conteudo").innerHTML = `<div class="caixa vazio">Erro: ${esc(rel.error.message)}</div>`; return; }
+    cacheTab.relatorios = rel.data; cacheTab.relatoriosPet = pet.data || [];
     if (aba !== "relatorios") return;
   }
+  // SEI - Relatorio de cada empresa = o mesmo numero da aba Peticionamento SEI (ligado por empresa_pasta, ou pelo nome igual)
+  const norm = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const petDe = nome => cacheTab.relatoriosPet.find(p => p.empresa_pasta === nome) || cacheTab.relatoriosPet.find(p => !p.empresa_pasta && norm(p.empresa) === norm(nome));
   const porEmp = new Map();
   for (const r of cacheTab.relatorios) { if (!porEmp.has(r.empresa)) porEmp.set(r.empresa, {}); porEmp.get(r.empresa)[r.mes] = r; }
   const hoje = new Date(), mesAtual = hoje.getFullYear() > ANO ? 12 : hoje.getMonth() + 1;
@@ -448,6 +454,8 @@ async function renderRelatorios() {
   const q = $("busca").value.trim().toLowerCase();
   let rows = dados.empresas.filter(e => e.ativa && (!q || e.nome.toLowerCase().includes(q) || (e.rt || "").toLowerCase().includes(q)));
   if (soPendencia) rows = rows.filter(pendente);
+  // mesma ordem da aba RELATORIOS 2026 da Planilha Geral (ordem_rel); empresas fora dela vao para o fim, em ordem alfabetica
+  rows = [...rows].sort((a, b) => (a.ordem_rel ?? 1e9) - (b.ordem_rel ?? 1e9) || a.nome.localeCompare(b.nome, "pt-BR"));
   const rts = [...new Set(dados.empresas.map(e => e.rt).filter(Boolean))].sort();
   const TXT = { ok: "OK", rel: "Rel. OK", fec: "FECHADA" };
   const celula = (emp, mes) => {
@@ -457,20 +465,33 @@ async function renderRelatorios() {
     return `<td class="rm ${st}" title="${esc(dicas)}">${TXT[st]}</td>`;
   };
   $("conteudo").innerHTML = `<div class="caixa rel"><table>
-    <colgroup><col class="c-emp"><col class="c-rt">${MESES.map(() => `<col class="c-m">`).join("")}</colgroup>
-    <tr><th>Empresa</th><th>RT</th>${MESES.map((m, i) => `<th class="${i + 1 === mesAtual ? "atual" : ""}">${m}</th>`).join("")}</tr>
-    ${rows.map(e => `<tr><td><b>${esc(e.nome)}</b></td><td><input list="listaRt" class="rt" value="${esc(e.rt)}" data-nome="${esc(e.nome)}"></td>${MESES.map((m, i) => celula(e, i + 1)).join("")}</tr>`).join("")}
+    <colgroup><col class="c-rt"><col class="c-emp"><col class="c-sei">${MESES.map(() => `<col class="c-m">`).join("")}</colgroup>
+    <tr><th>RT</th><th>Empresa</th><th>SEI - Relatório</th>${MESES.map((m, i) => `<th class="${i + 1 === mesAtual ? "atual" : ""}">${m}</th>`).join("")}</tr>
+    ${rows.map(e => `<tr><td><input list="listaRt" class="rt" value="${esc(e.rt)}" data-nome="${esc(e.nome)}"></td><td class="emp-nome"><b>${esc(e.nome)}</b></td>
+      <td><input class="sei" value="${esc((petDe(e.nome) || {}).relatorios)}" data-nome="${esc(e.nome)}"></td>${MESES.map((m, i) => celula(e, i + 1)).join("")}</tr>`).join("")}
     </table><datalist id="listaRt">${rts.map(r => `<option value="${esc(r)}">`).join("")}</datalist></div>
     <label class="so-pend"><input type="checkbox" id="soPend" ${soPendencia ? "checked" : ""}> mostrar só empresas com pendência</label>
-    <div class="legenda"><b>FECHADA</b> = a empresa já emitiu o primeiro certificado do mês seguinte (hora de fazer o relatório) ·
+    <div class="legenda"><b>FECHADA</b> = já existe um certificado do mês seguinte (o sistema lê a "Data do início do tratamento" escrita dentro do certificado), hora de fazer o relatório ·
     <b>Rel. OK</b> = o relatório do mês apareceu na pasta Relatórios · <b>OK</b> = o recibo do peticionamento apareceu na mesma pasta.
-    Preenchido sozinho pelo sistema, lendo as pastas. Passe o mouse sobre a célula para ver as datas. Só o RT é editável aqui.</div>`;
+    Os meses são preenchidos sozinhos pelo sistema; passe o mouse sobre a célula para ver as datas. RT e SEI - Relatório são editáveis aqui (o SEI é o mesmo número da aba Peticionamento SEI).</div>`;
   $("soPend").onchange = ev => { soPendencia = ev.target.checked; renderRelatorios(); };
   document.querySelectorAll("input.rt").forEach(el => el.onchange = async () => {
     const valor = el.value.trim() || null;
     const { error } = await sb.from("curvas_empresas").update({ rt: valor, atualizado_em: new Date().toISOString() }).eq("nome", el.dataset.nome);
     if (error) { toast("Erro ao salvar: " + error.message); return; }
     const e = dados.empresas.find(x => x.nome === el.dataset.nome); if (e) e.rt = valor; toast("Salvo");
+  });
+  // SEI - Relatorio: grava na linha do Peticionamento SEI (cria a linha se a empresa ainda nao tiver)
+  document.querySelectorAll("input.sei").forEach(el => el.onchange = async () => {
+    const valor = el.value.trim() || null, nome = el.dataset.nome, atual = petDe(nome);
+    let error;
+    if (atual) ({ error } = await sb.from("curvas_peticionamento").update({ relatorios: valor, atualizado_em: new Date().toISOString() }).eq("id", atual.id));
+    else {
+      const nova = { empresa: nome, relatorios: valor }; if (cacheTab.relatoriosPet.length && "empresa_pasta" in cacheTab.relatoriosPet[0]) nova.empresa_pasta = nome;
+      const r = await sb.from("curvas_peticionamento").insert(nova).select().single(); error = r.error; if (!error) cacheTab.relatoriosPet.push(r.data);
+    }
+    if (error) { toast("Erro ao salvar: " + error.message); return; }
+    if (atual) atual.relatorios = valor; delete cacheTab.peticionamento; toast("Salvo");
   });
 }
 
