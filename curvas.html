@@ -61,6 +61,30 @@
   td.aviso { background: var(--bad-bg); color: var(--bad); line-height: 1.25; }
   td.aviso small { display: block; font-size: 11.5px; color: var(--text-muted); font-weight: 500; }
   small.agenda { display: block; font-size: 11.5px; color: var(--text-muted); font-style: italic; }
+  /* Peticionamento / Programacoes / Relatorios */
+  .emp.pet table, .emp.prog table { table-layout: fixed; width: 100%; }
+  .emp.pet th, .emp.pet td, .emp.prog th, .emp.prog td { white-space: normal; padding: 4px 5px; }
+  .emp.pet input, .emp.prog input { min-width: 0; width: 100%; }
+  .emp.prog { overflow-x: auto; } .emp.prog table { min-width: 1150px; }
+  .emp.prog th { font-size: 10px; padding: 8px 3px; text-align: center; }
+  .emp.prog th:nth-child(1) { width: 6%; } .emp.prog th:nth-child(2) { width: 12%; } .emp.prog th:nth-child(3) { width: 11%; } .emp.prog th:nth-child(4) { width: 16%; }
+  .emp.prog td:nth-child(3) input, .emp.prog td:nth-child(4) input { font-size: 12px; padding: 6px 4px; }
+  .emp.prog th:last-child { width: 34px; }
+  .emp.prog input.mes { text-align: center; padding: 6px 2px; font-size: 12px; font-weight: 600; }
+  .emp.prog input.v-ok { background: var(--good-bg); color: var(--good); } .emp.prog input.v-nd { background: var(--surface-2); color: var(--text-muted); }
+  .emp .del { padding: 2px 6px; font-size: 16px; line-height: 1; color: var(--text-muted); }
+  .caixa.rel { overflow-x: auto; } .rel table { table-layout: fixed; width: 100%; min-width: 900px; }
+  .rel th, .rel td { padding: 6px 4px; text-align: center; white-space: nowrap; }
+  .rel th:first-child, .rel td:first-child { text-align: left; padding-left: 10px; white-space: normal; }
+  .rel th { font-size: 10.5px; } .rel th.atual { color: var(--accent); }
+  .rel col.c-emp { width: 17%; } .rel col.c-rt { width: 10%; } .rel col.c-m { width: 6.1%; }
+  .rel input.rt { min-width: 0; width: 100%; padding: 4px 6px; font-size: 12.5px; }
+  .rel td.rm { font-size: 11px; font-weight: 600; }
+  .rel td.rm.ok { background: var(--good-bg); color: var(--good); }
+  .rel td.rm.rel { background: var(--info-bg); color: var(--info); }
+  .rel td.rm.fec { background: var(--warn-bg); color: var(--warn); }
+  label.so-pend { display: flex; gap: 6px; align-items: center; margin: 10px 2px 0; text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--text); }
+  label.so-pend input { width: auto; }
   /* O que fazer: cabe na largura da tela (sem rolagem para o lado); textos quebram em linhas */
   .caixa.fazer { overflow-x: hidden; }
   .fazer table { table-layout: fixed; width: 100%; }
@@ -131,6 +155,9 @@
         <button data-aba="grade">Controle de curvas</button>
         <button data-aba="faltando">Curvas faltando</button>
         <button data-aba="empresas">Empresas</button>
+        <button data-aba="peticionamento">Peticionamento SEI</button>
+        <button data-aba="relatorios">Relatórios 2026</button>
+        <button data-aba="programacoes">Programações</button>
       </div>
       <div class="filtros">
         <input id="busca" type="search" placeholder="Buscar empresa">
@@ -216,15 +243,19 @@ function mostrarAtualizacao() {
 }
 
 /* ---------------- abas ---------------- */
-$("abas").onclick = ev => { const b = ev.target.closest("button"); if (!b) return; aba = b.dataset.aba; document.querySelectorAll("#abas button").forEach(x => x.classList.toggle("on", x === b)); render(); };
+$("abas").onclick = ev => { const b = ev.target.closest("button"); if (!b) return; aba = b.dataset.aba; document.querySelectorAll("#abas button").forEach(x => x.classList.toggle("on", x === b)); delete cacheTab[aba]; render(); };   // ao abrir uma aba editavel, le de novo do banco
 $("busca").oninput = () => render();
 window.matchMedia("(max-width: 700px)").addEventListener("change", () => { if (aba === "fazer") renderFazer(); });   // girou o celular / mudou a janela
 $("resp").onchange = () => render();
 
 async function render() {
+  $("resp").style.display = ["peticionamento", "relatorios", "programacoes"].includes(aba) ? "none" : "";   // essas abas nao usam o filtro de responsavel
   if (aba === "fazer") renderFazer();
   else if (aba === "faltando") renderFaltando();
   else if (aba === "empresas") renderEmpresas();
+  else if (aba === "peticionamento") renderTabela("peticionamento");
+  else if (aba === "programacoes") renderTabela("programacoes");
+  else if (aba === "relatorios") renderRelatorios();
   else if (aba === "grade") {
     if (!dados.curvas) { $("conteudo").innerHTML = `<div class="caixa vazio">Carregando o controle de curvas…</div>`; try { await carregarCurvas(); } catch (e) { $("conteudo").innerHTML = `<div class="caixa vazio">Erro: ${esc(e.message)}</div>`; return; } }
     if (aba === "grade") renderGrade();
@@ -340,6 +371,107 @@ async function salvarCampo(ev) {
   const e = dados.empresas.find(x => x.nome === nome); if (e) e[campo] = valor;
   toast("Salvo");
   if (campo === "responsavel") montarFiltroResp();
+}
+
+/* ---------------- Peticionamento SEI e Programacoes (tabelas editaveis) ---------------- */
+const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+const TABELAS = {
+  peticionamento: { tabela: "curvas_peticionamento", ordem: "empresa", classe: "pet",
+    colunas: [["empresa", "Empresa"], ["credenciamento", "SEI - Credenciamento"], ["relatorios", "SEI - Relatórios"]],
+    nova: { empresa: "Nova empresa" }, nome: r => r.empresa, texto: "Números dos processos SEI de cada empresa." },
+  programacoes: { tabela: "curvas_programacoes", ordem: "empresa", classe: "prog",
+    colunas: [["rt", "RT"], ["empresa", "Empresa"], ["assinado", "OK / Assinado"], ["sei_peticionamento", "SEI - Peticionamento"], ["m00", "Conferência"],
+      ...MESES.map((m, i) => ["m" + String(i + 1).padStart(2, "0"), m])],
+    nova: { empresa: "Nova empresa" }, nome: r => r.empresa, texto: "Programações mensais. Conferência: OK quando ela é realizada. OK em verde, \"-\" em cinza." },
+};
+const cacheTab = {};
+async function renderTabela(chave) {
+  const cfg = TABELAS[chave];
+  if (!cacheTab[chave]) {
+    $("conteudo").innerHTML = `<div class="caixa vazio">Carregando…</div>`;
+    const { data, error } = await sb.from(cfg.tabela).select("*").order(cfg.ordem, { ascending: true }).order("id");
+    if (error) { $("conteudo").innerHTML = `<div class="caixa vazio">Erro: ${esc(error.message)}</div>`; return; }
+    cacheTab[chave] = data;
+    if (aba !== chave) return;
+  }
+  const q = $("busca").value.trim().toLowerCase();
+  const rows = cacheTab[chave].filter(r => !q || cfg.colunas.slice(0, 4).some(([k]) => String(r[k] ?? "").toLowerCase().includes(q)));
+  const cel = (r, [k]) => {
+    const v = r[k] ?? "", mes = /^m\d\d$/.test(k);
+    return `<td><input class="${mes ? "mes " + (v === "OK" ? "v-ok" : v === "-" ? "v-nd" : "") : ""}" value="${esc(v)}" data-id="${r.id}" data-campo="${k}"></td>`;
+  };
+  $("conteudo").innerHTML = `<div class="caixa emp ${cfg.classe}">
+    <div class="novo"><button type="button" id="addLinha">+ Nova linha</button></div>
+    <table><tr>${cfg.colunas.map(c => `<th>${c[1]}</th>`).join("")}<th></th></tr>
+    ${rows.map(r => `<tr>${cfg.colunas.map(c => cel(r, c)).join("")}<td><button type="button" class="del" data-id="${r.id}" title="Excluir linha">×</button></td></tr>`).join("")}
+    </table></div>
+    <div class="legenda">${rows.length} linhas. ${cfg.texto} As alterações são salvas sozinhas ao sair do campo. A busca procura na empresa e nas primeiras colunas.</div>`;
+  document.querySelectorAll(".emp input[data-id]").forEach(el => el.onchange = async () => {
+    const valor = el.value.trim() || null;
+    const { error } = await sb.from(cfg.tabela).update({ [el.dataset.campo]: valor, atualizado_em: new Date().toISOString() }).eq("id", el.dataset.id);
+    if (error) { toast("Erro ao salvar: " + error.message); return; }
+    const r = cacheTab[chave].find(x => String(x.id) === el.dataset.id); if (r) r[el.dataset.campo] = valor;
+    if (el.classList.contains("mes")) { el.classList.toggle("v-ok", valor === "OK"); el.classList.toggle("v-nd", valor === "-"); }
+    toast("Salvo");
+  });
+  document.querySelectorAll(".emp .del").forEach(b => b.onclick = async () => {
+    const r = cacheTab[chave].find(x => String(x.id) === b.dataset.id);
+    if (!confirm(`Excluir a linha "${cfg.nome(r) || ""}"?`)) return;
+    const { error } = await sb.from(cfg.tabela).delete().eq("id", b.dataset.id);
+    if (error) { toast("Erro ao excluir: " + error.message); return; }
+    cacheTab[chave] = cacheTab[chave].filter(x => x !== r); toast("Excluída"); renderTabela(chave);
+  });
+  $("addLinha").onclick = async () => {
+    const { data, error } = await sb.from(cfg.tabela).insert({ ...cfg.nova }).select().single();
+    if (error) { toast("Erro: " + error.message); return; }
+    cacheTab[chave].unshift(data); $("busca").value = ""; renderTabela(chave); toast("Linha criada no topo — preencha os campos");
+  };
+}
+
+/* ---------------- Relatorios 2026 (fechamento, relatorio e recibo de cada mes) ---------------- */
+let soPendencia = false;
+async function renderRelatorios() {
+  if (!cacheTab.relatorios) {
+    $("conteudo").innerHTML = `<div class="caixa vazio">Carregando…</div>`;
+    const { data, error } = await sb.from("curvas_relatorios").select("*").eq("ano", ANO);
+    if (error) { $("conteudo").innerHTML = `<div class="caixa vazio">Erro: ${esc(error.message)}</div>`; return; }
+    cacheTab.relatorios = data;
+    if (aba !== "relatorios") return;
+  }
+  const porEmp = new Map();
+  for (const r of cacheTab.relatorios) { if (!porEmp.has(r.empresa)) porEmp.set(r.empresa, {}); porEmp.get(r.empresa)[r.mes] = r; }
+  const hoje = new Date(), mesAtual = hoje.getFullYear() > ANO ? 12 : hoje.getMonth() + 1;
+  const d = s => s ? new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "";
+  // estado do mes: OK (recibo) > Rel. OK (relatorio) > FECHADA (primeiro certificado do mes seguinte) > vazio
+  const estado = r => !r ? null : r.recibo_em ? "ok" : r.relatorio_em ? "rel" : r.fechada_em ? "fec" : null;
+  const pendente = (emp) => { const m = porEmp.get(emp.nome) || {}; return Object.keys(m).some(k => +k <= mesAtual && estado(m[k]) && estado(m[k]) !== "ok"); };
+  const q = $("busca").value.trim().toLowerCase();
+  let rows = dados.empresas.filter(e => e.ativa && (!q || e.nome.toLowerCase().includes(q) || (e.rt || "").toLowerCase().includes(q)));
+  if (soPendencia) rows = rows.filter(pendente);
+  const rts = [...new Set(dados.empresas.map(e => e.rt).filter(Boolean))].sort();
+  const TXT = { ok: "OK", rel: "Rel. OK", fec: "FECHADA" };
+  const celula = (emp, mes) => {
+    const r = (porEmp.get(emp.nome) || {})[mes], st = estado(r);
+    if (!st) return `<td class="rm"></td>`;
+    const dicas = [r.fechada_em && `Fechada em ${d(r.fechada_em)}`, r.relatorio_em && `Relatório em ${d(r.relatorio_em)}`, r.recibo_em && `Recibo em ${d(r.recibo_em)}`].filter(Boolean).join(" · ");
+    return `<td class="rm ${st}" title="${esc(dicas)}">${TXT[st]}</td>`;
+  };
+  $("conteudo").innerHTML = `<div class="caixa rel"><table>
+    <colgroup><col class="c-emp"><col class="c-rt">${MESES.map(() => `<col class="c-m">`).join("")}</colgroup>
+    <tr><th>Empresa</th><th>RT</th>${MESES.map((m, i) => `<th class="${i + 1 === mesAtual ? "atual" : ""}">${m}</th>`).join("")}</tr>
+    ${rows.map(e => `<tr><td><b>${esc(e.nome)}</b></td><td><input list="listaRt" class="rt" value="${esc(e.rt)}" data-nome="${esc(e.nome)}"></td>${MESES.map((m, i) => celula(e, i + 1)).join("")}</tr>`).join("")}
+    </table><datalist id="listaRt">${rts.map(r => `<option value="${esc(r)}">`).join("")}</datalist></div>
+    <label class="so-pend"><input type="checkbox" id="soPend" ${soPendencia ? "checked" : ""}> mostrar só empresas com pendência</label>
+    <div class="legenda"><b>FECHADA</b> = a empresa já emitiu o primeiro certificado do mês seguinte (hora de fazer o relatório) ·
+    <b>Rel. OK</b> = o relatório do mês apareceu na pasta Relatórios · <b>OK</b> = o recibo do peticionamento apareceu na mesma pasta.
+    Preenchido sozinho pelo sistema, lendo as pastas. Passe o mouse sobre a célula para ver as datas. Só o RT é editável aqui.</div>`;
+  $("soPend").onchange = ev => { soPendencia = ev.target.checked; renderRelatorios(); };
+  document.querySelectorAll("input.rt").forEach(el => el.onchange = async () => {
+    const valor = el.value.trim() || null;
+    const { error } = await sb.from("curvas_empresas").update({ rt: valor, atualizado_em: new Date().toISOString() }).eq("nome", el.dataset.nome);
+    if (error) { toast("Erro ao salvar: " + error.message); return; }
+    const e = dados.empresas.find(x => x.nome === el.dataset.nome); if (e) e.rt = valor; toast("Salvo");
+  });
 }
 
 iniciar();
