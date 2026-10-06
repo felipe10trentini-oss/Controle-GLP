@@ -49,7 +49,8 @@
   .abas button.on { background: var(--text); color: var(--surface); border-color: var(--text); }
   .barra .filtros { margin-left: auto; display: flex; gap: 8px; }
   .barra .filtros input { width: 200px; } .barra .filtros select { width: 150px; }
-  .caixa { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: auto; }
+  .caixa { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: auto; max-height: calc(100vh - 150px); }   /* rola dentro da caixa: o cabecalho da tabela fica fixo */
+  .caixa.vazio { max-height: none; }
   table { border-collapse: collapse; width: 100%; }
   th, td { padding: 9px 12px; border-bottom: 1px solid var(--surface-2); text-align: left; white-space: nowrap; }
   th { font: 600 11px var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); background: var(--surface); position: sticky; top: 0; z-index: 2; }
@@ -305,7 +306,7 @@ function renderFazer() {
   const celular = window.matchMedia("(max-width: 700px)").matches;   // no celular nao mostra a coluna Responsavel
   $("conteudo").innerHTML = rows.length ? `<div class="caixa fazer">${prioridadeHtml()}<table>
     <colgroup><col class="c-emp">${celular ? "" : `<col class="c-resp">`}<col class="c-aviso"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-esp"></colgroup>
-    <tr><th>Empresa</th>${celular ? "" : "<th>Resp.</th>"}<th>Aviso</th><th>1. Renomear</th><th>2. Certificado</th><th>Salvo na empresa</th><th>Esperando</th></tr>
+    <tr><th>Empresa</th>${celular ? "" : "<th>Responsável</th>"}<th>Aviso</th><th>Renomear</th><th>Certificar</th><th>Salvar</th><th>Aguardando salvamento</th></tr>
     ${rows.map(r => `<tr class="${r.aviso_comunicado ? "com-aviso" : ""}"><td><b>${esc(r.empresa)}</b></td>${celular ? "" : `<td>${esc(r.responsavel) || "—"}</td>`}${aviso(r)}
       ${n(r.renomear, "ren")}${n(r.fazer_certificado, "cer")}${n(r.salvar_no_mes, "sal")}
       <td class="${horas(r) >= 24 ? "atraso" : ""}">${esc(r.esperando_ha) || "—"}</td></tr>`).join("")}</table></div>
