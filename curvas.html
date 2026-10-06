@@ -78,8 +78,13 @@
   .rel td.emp-nome, .rel th:nth-child(2), .rel th:nth-child(1), .rel th:nth-child(3) { text-align: left; }
   .rel td.emp-nome { padding-left: 8px; white-space: normal; font-size: 13px; }
   .rel th { font-size: 10.5px; } .rel th.atual { color: var(--accent); }
-  .rel col.c-rt { width: 8%; } .rel col.c-emp { width: 15%; } .rel col.c-sei { width: 14%; } .rel col.c-m { width: 5.25%; }
+  .rel col.c-rt { width: 6.5%; } .rel col.c-emp { width: 13%; } .rel col.c-st { width: 6%; } .rel col.c-sei { width: 12.5%; } .rel col.c-m { width: 4.7%; }
   .rel input.rt, .rel input.sei { min-width: 0; width: 100%; padding: 4px 5px; font-size: 12px; }
+  .rel select.st { width: 100%; min-width: 0; padding: 4px 2px; font-size: 12px; font-weight: 700; text-align: center; text-align-last: center; cursor: pointer; }
+  .rel select.st.st-ok { background: var(--good-bg); color: var(--good); border-color: var(--good); }
+  .rel select.st.st-sa { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
+  .rel select.st.st-x { background: var(--bad-bg); color: var(--bad); border-color: var(--bad); font-size: 10.5px; }
+  .rel th:nth-child(3), .rel th:nth-child(4) { text-align: center; white-space: normal; }
   .rel input.sei { font-family: var(--font-mono); font-size: 11px; }
   .rel td.rm { font-size: 11px; font-weight: 600; }
   .rel td.rm.ok { background: var(--good-bg); color: var(--good); }
@@ -87,6 +92,12 @@
   .rel td.rm.fec { background: var(--warn-bg); color: var(--warn); }
   label.so-pend { display: flex; gap: 6px; align-items: center; margin: 10px 2px 0; text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--text); }
   label.so-pend input { width: auto; }
+  /* PRIORIDADE: campo vermelho em cima do cabecalho do "O que fazer" */
+  .prioridade { display: flex; align-items: stretch; background: var(--accent); }
+  .prioridade label { display: flex; align-items: center; margin: 0; padding: 0 16px; color: var(--accent-ink); font: 700 15px var(--font-display); letter-spacing: .14em; text-transform: none; }
+  .prioridade textarea { flex: 1; min-height: 40px; max-height: 40vh; border: 0; border-radius: 0; background: var(--bad-bg); color: var(--bad); font: 600 14px/1.4 var(--font-body); padding: 10px 14px; resize: none; overflow: auto; }
+  .prioridade textarea::placeholder { color: var(--bad); opacity: .5; font-weight: 500; }
+  .prioridade textarea:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
   /* O que fazer: cabe na largura da tela (sem rolagem para o lado); textos quebram em linhas */
   .caixa.fazer { overflow-x: hidden; }
   .fazer table { table-layout: fixed; width: 100%; }
@@ -206,18 +217,21 @@ $("sair").onclick = async () => { await sb.auth.signOut(); location.reload(); };
 
 /* ---------------- dados ---------------- */
 async function carregar() {
-  const [s, f, fa, e] = await Promise.all([
+  const [s, f, fa, e, pr] = await Promise.all([
     sb.from("curvas_sync").select("*").eq("id", 1).maybeSingle(),
     sb.from("curvas_o_que_fazer").select("*"),
     sb.from("curvas_faltando").select("*").limit(2000),
     sb.from("curvas_empresas").select("*").order("nome"),
+    sb.from("curvas_prioridade").select("*").eq("id", 1).maybeSingle(),   // fora da checagem de erro: sem a tabela a pagina continua funcionando
   ]);
   const erro = [s, f, fa, e].find(x => x.error);
   if (erro) { $("conteudo").innerHTML = `<div class="caixa vazio">Não foi possível carregar os dados: ${esc(erro.error.message)}</div>`; return; }
   dados.sync = s.data; dados.fazer = f.data || []; dados.faltando = fa.data || []; dados.empresas = e.data || [];
+  if (pr && !pr.error) dados.prioridade = (pr.data && pr.data.texto) || "";
   montarFiltroResp(); mostrarAtualizacao();
-  // recarga automatica so redesenha as abas de consulta (nas abas editaveis apagaria o que esta sendo digitado)
-  if (aba === "fazer" || aba === "faltando" || !carregar.feito) render();
+  // recarga automatica so redesenha as abas de consulta (nas abas editaveis, ou com a prioridade sendo digitada, apagaria o texto)
+  const digitando = document.activeElement && document.activeElement.id === "prioridade";
+  if ((aba === "fazer" && !digitando) || aba === "faltando" || !carregar.feito) render();
   carregar.feito = true;
 }
 async function carregarCurvas() {   // todas as curvas do ano (pagina de 1000 em 1000)
@@ -289,15 +303,30 @@ function renderFazer() {
     return `<td class="aviso"><b>Baixar ciclo${qtd > 1 ? ` (${qtd})` : ""}</b><small>Comunicado${qtd > 1 ? "s" : ""} ${esc(intervalos(r.aviso_comunicado))} · desde ${dia(r.aviso_em)}</small>${agenda}</td>`;
   };
   const celular = window.matchMedia("(max-width: 700px)").matches;   // no celular nao mostra a coluna Responsavel
-  $("conteudo").innerHTML = rows.length ? `<div class="caixa fazer"><table>
+  $("conteudo").innerHTML = rows.length ? `<div class="caixa fazer">${prioridadeHtml()}<table>
     <colgroup><col class="c-emp">${celular ? "" : `<col class="c-resp">`}<col class="c-aviso"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-esp"></colgroup>
-    <tr><th>Empresa</th>${celular ? "" : "<th>Resp.</th>"}<th>Aviso</th><th>1. Renomear</th><th>2. Certificado</th><th>3. Salvar no mês</th><th>Esperando</th></tr>
+    <tr><th>Empresa</th>${celular ? "" : "<th>Resp.</th>"}<th>Aviso</th><th>1. Renomear</th><th>2. Certificado</th><th>Salvo na empresa</th><th>Esperando</th></tr>
     ${rows.map(r => `<tr class="${r.aviso_comunicado ? "com-aviso" : ""}"><td><b>${esc(r.empresa)}</b></td>${celular ? "" : `<td>${esc(r.responsavel) || "—"}</td>`}${aviso(r)}
       ${n(r.renomear, "ren")}${n(r.fazer_certificado, "cer")}${n(r.salvar_no_mes, "sal")}
       <td class="${horas(r) >= 24 ? "atraso" : ""}">${esc(r.esperando_ha) || "—"}</td></tr>`).join("")}</table></div>
     <div class="legenda">Aviso = comunicado na pasta da empresa. O sistema lê a data e o horário do tratamento no PDF: antes do horário aparece como "Agendado"; depois, "Baixar ciclo". Cada curva colada depois do início do tratamento resolve um comunicado (o mais antigo primeiro).<br>
     Números = quantidade de curvas esperando cada tarefa. Em vermelho: esperando há mais de 24 horas.</div>`
-    : `<div class="caixa vazio">Nada pendente. Tudo em dia!</div>`;
+    : `<div class="caixa fazer">${prioridadeHtml()}</div><div class="caixa vazio">Nada pendente. Tudo em dia!</div>`;
+  ligarPrioridade();
+}
+
+// Campo PRIORIDADE (vermelho, em cima do cabecalho): texto livre, salvo no banco e igual para todos
+const prioridadeHtml = () => `<div class="prioridade"><label for="prioridade">PRIORIDADE</label><textarea id="prioridade" rows="1" placeholder="Escreva aqui as prioridades…">${esc(dados.prioridade)}</textarea></div>`;
+function ligarPrioridade() {
+  const ta = $("prioridade"); if (!ta) return;
+  const ajusta = () => { ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; };
+  ajusta(); ta.oninput = ajusta;
+  ta.onchange = async () => {
+    const texto = ta.value.trim();
+    const { error } = await sb.from("curvas_prioridade").upsert({ id: 1, texto, atualizado_em: new Date().toISOString() });
+    if (error) { toast("Erro ao salvar a prioridade: " + error.message); return; }
+    dados.prioridade = texto; toast("Prioridade salva");
+  };
 }
 
 function renderFaltando() {
@@ -433,6 +462,12 @@ async function renderTabela(chave) {
 
 /* ---------------- Relatorios 2026 (fechamento, relatorio e recibo de cada mes) ---------------- */
 let soPendencia = false;
+// OK (verde) / S/A (amarelo); qualquer outro valor que ja esteja preenchido (ex.: EMBARGADA, CANCELADO) aparece em vermelho
+const stClasse = v => !v ? "" : v === "OK" ? "st-ok" : v === "S/A" ? "st-sa" : "st-x";
+const stSelect = (e, campo) => {
+  const v = e[campo] || "", ops = ["", "OK", "S/A"]; if (v && !ops.includes(v)) ops.push(v);
+  return `<select class="st ${stClasse(v)}" data-nome="${esc(e.nome)}" data-campo="${campo}">${ops.map(o => `<option ${o === v ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+};
 async function renderRelatorios() {
   if (!cacheTab.relatorios) {
     $("conteudo").innerHTML = `<div class="caixa vazio">Carregando…</div>`;
@@ -465,9 +500,10 @@ async function renderRelatorios() {
     return `<td class="rm ${st}" title="${esc(dicas)}">${TXT[st]}</td>`;
   };
   $("conteudo").innerHTML = `<div class="caixa rel"><table>
-    <colgroup><col class="c-rt"><col class="c-emp"><col class="c-sei">${MESES.map(() => `<col class="c-m">`).join("")}</colgroup>
-    <tr><th>RT</th><th>Empresa</th><th>SEI - Relatório</th>${MESES.map((m, i) => `<th class="${i + 1 === mesAtual ? "atual" : ""}">${m}</th>`).join("")}</tr>
+    <colgroup><col class="c-rt"><col class="c-emp"><col class="c-st"><col class="c-st"><col class="c-sei">${MESES.map(() => `<col class="c-m">`).join("")}</colgroup>
+    <tr><th>RT</th><th>Empresa</th><th>Conferência</th><th>Status</th><th>SEI - Relatório</th>${MESES.map((m, i) => `<th class="${i + 1 === mesAtual ? "atual" : ""}">${m}</th>`).join("")}</tr>
     ${rows.map(e => `<tr><td><input list="listaRt" class="rt" value="${esc(e.rt)}" data-nome="${esc(e.nome)}"></td><td class="emp-nome"><b>${esc(e.nome)}</b></td>
+      <td>${stSelect(e, "conferencia_rel")}</td><td>${stSelect(e, "status_rel")}</td>
       <td><input class="sei" value="${esc((petDe(e.nome) || {}).relatorios)}" data-nome="${esc(e.nome)}"></td>${MESES.map((m, i) => celula(e, i + 1)).join("")}</tr>`).join("")}
     </table><datalist id="listaRt">${rts.map(r => `<option value="${esc(r)}">`).join("")}</datalist></div>
     <label class="so-pend"><input type="checkbox" id="soPend" ${soPendencia ? "checked" : ""}> mostrar só empresas com pendência</label>
@@ -480,6 +516,14 @@ async function renderRelatorios() {
     const { error } = await sb.from("curvas_empresas").update({ rt: valor, atualizado_em: new Date().toISOString() }).eq("nome", el.dataset.nome);
     if (error) { toast("Erro ao salvar: " + error.message); return; }
     const e = dados.empresas.find(x => x.nome === el.dataset.nome); if (e) e.rt = valor; toast("Salvo");
+  });
+  // Conferencia e Status (OK / S/A), coloridos
+  document.querySelectorAll("select.st").forEach(el => el.onchange = async () => {
+    const valor = el.value || null, campo = el.dataset.campo;
+    const { error } = await sb.from("curvas_empresas").update({ [campo]: valor, atualizado_em: new Date().toISOString() }).eq("nome", el.dataset.nome);
+    if (error) { toast("Erro ao salvar: " + error.message); return; }
+    el.className = "st " + stClasse(valor);
+    const e = dados.empresas.find(x => x.nome === el.dataset.nome); if (e) e[campo] = valor; toast("Salvo");
   });
   // SEI - Relatorio: grava na linha do Peticionamento SEI (cria a linha se a empresa ainda nao tiver)
   document.querySelectorAll("input.sei").forEach(el => el.onchange = async () => {
