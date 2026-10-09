@@ -350,7 +350,7 @@ function renderGrade() {
     const k = c.empresa + "|" + (c.estufa ?? "");
     if (!linhas.has(k)) linhas.set(k, { emp: c.empresa, e: c.estufa, cel: {}, ult: null });
     const L = linhas.get(k); (L.cel[dia(c)] = L.cel[dia(c)] || []).push(c);
-    if (!c.sigla) L.ult = c.ciclo;
+    if (L.ultN == null || Number(c.ciclo) >= L.ultN) { L.ultN = Number(c.ciclo); L.ult = c.sigla ? `${c.ciclo} ${c.sigla}` : c.ciclo; }   // a ultima conta mesmo cancelada (ex.: 431 CE)
   }
   const ord = [...linhas.values()].sort((a, b) => a.emp.localeCompare(b.emp, "pt-BR") || (a.e ?? 0) - (b.e ?? 0));
   const cab = d => { const [y, m, dd] = d.split("-"); return `${dd}/${m}`; };
