@@ -94,7 +94,8 @@
   label.so-pend { display: flex; gap: 6px; align-items: center; margin: 10px 2px 0; text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--text); }
   label.so-pend input { width: auto; }
   /* PRIORIDADE: campo vermelho em cima do cabecalho do "O que fazer" */
-  .prioridade { display: flex; align-items: stretch; background: var(--accent); }
+  .prioridade { display: flex; align-items: stretch; background: var(--accent); position: sticky; top: 0; z-index: 4; }   /* fica fixa no topo ao rolar */
+  .fazer th { top: var(--prio-h, 0px); }
   .prioridade label { display: flex; align-items: center; margin: 0; padding: 0 16px; color: var(--accent-ink); font: 700 15px var(--font-display); letter-spacing: .14em; text-transform: none; }
   .prioridade textarea { flex: 1; min-height: 40px; max-height: 40vh; border: 0; border-radius: 0; background: var(--bad-bg); color: var(--bad); font: 600 14px/1.4 var(--font-body); padding: 10px 14px; resize: none; overflow: auto; }
   .prioridade textarea::placeholder { color: var(--bad); opacity: .5; font-weight: 500; }
@@ -320,7 +321,11 @@ function renderFazer() {
 const prioridadeHtml = () => `<div class="prioridade"><label for="prioridade">PRIORIDADE</label><textarea id="prioridade" rows="1" placeholder="Escreva aqui as prioridades…">${esc(dados.prioridade)}</textarea></div>`;
 function ligarPrioridade() {
   const ta = $("prioridade"); if (!ta) return;
-  const ajusta = () => { ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; };
+  const faixa = ta.closest(".prioridade"), caixa = ta.closest(".caixa");
+  const ajusta = () => {
+    ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px";
+    if (faixa && caixa) caixa.style.setProperty("--prio-h", faixa.offsetHeight + "px");   // o cabecalho da tabela fica logo abaixo da prioridade fixa
+  };
   ajusta(); ta.oninput = ajusta;
   ta.onchange = async () => {
     const texto = ta.value.trim();
