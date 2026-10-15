@@ -2568,6 +2568,7 @@ function buildOsPrintHtml(o){
   while(prod.length < 3) prod.push({});
   const rows = prod.map(p=>`<tr><td class="l">${esc(p.nome)}</td><td>${esc(p.ativo)}</td><td>${esc(p.volume)}</td><td>${esc(p.alvo)}</td><td>${esc(p.equip)}</td></tr>`).join('');
   const logo = new URL('logo-exata.png', location.href).href;
+  const logoMann = new URL('logo-mann.png', location.href).href;
   const fld = (label, value, cls)=>`<div class="f ${cls||''}"><span>${label}</span><b>${value ? esc(value) : '&nbsp;'}</b></div>`;
   const hasCom = o.showCom && (o.valor!=null || o.pagamento || o.nfe);
   const horario = o.horario ? esc(o.horario) : '';
@@ -2578,8 +2579,10 @@ function buildOsPrintHtml(o){
   *{box-sizing:border-box;}
   html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   body{font-family:Calibri,'Segoe UI',Arial,sans-serif;color:#1b1b1b;font-size:12.5px;margin:0;padding:14px;max-width:790px;margin-inline:auto;line-height:1.35;}
-  .head{display:grid;grid-template-columns:150px 1fr 170px;gap:14px;align-items:center;padding-bottom:10px;border-bottom:3px solid #c00000;}
-  .head img{height:62px;width:auto;display:block;}
+  .head{display:grid;grid-template-columns:auto 1fr 170px;gap:14px;align-items:center;padding-bottom:10px;border-bottom:3px solid #c00000;}
+  .logos{display:flex;align-items:center;gap:12px;}
+  .logos img{height:50px;width:auto;display:block;}
+  .logos .sep{width:1px;height:40px;background:#cfcfca;}
   .tit{text-align:center;}
   .tit .t1{font-size:20px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;}
   .tit .t2{font-size:12.5px;font-weight:600;color:#c00000;margin-top:2px;}
@@ -2616,7 +2619,7 @@ function buildOsPrintHtml(o){
   .rodape strong{color:#1b1b1b;}
 </style></head><body>
   <div class="head">
-    <img src="${logo}" alt="EXATA">
+    <div class="logos"><img src="${logo}" alt="EXATA"><span class="sep"></span><img src="${logoMann}" alt="MANN"></div>
     <div class="tit">
       <div class="t1">Ordem de Serviço</div>
       <div class="t2">Expurgo, Fumigação e Dedetização</div>
