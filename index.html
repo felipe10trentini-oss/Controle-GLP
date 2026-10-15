@@ -146,6 +146,15 @@ nav.tabs button:not(.active):hover{color:var(--text);}
 .ut-item .ut-value{font-family:var(--font-mono);font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;}
 .ut-badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:var(--bad-bg);color:var(--bad);margin-left:6px;vertical-align:middle;}
 
+/* ---------- Ordem de serviço ---------- */
+.chk-row{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:14px;}
+.chk-row label{display:flex;align-items:center;gap:6px;cursor:pointer;}
+.chk-row input{padding:0;width:auto;}
+.badge.agendada{background:var(--warn-bg);color:var(--warn);}
+.badge.realizada{background:var(--good-bg);color:var(--good);}
+.badge.cancelada{background:var(--surface-2);color:var(--text-muted);}
+@media (max-width:640px){#modal-os .form-grid{grid-template-columns:1fr 1fr !important;}}
+
 /* ---------- Alerts ---------- */
 .alert-box{border:1px solid var(--warn);background:var(--warn-bg);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;}
 .alert-box.critical{border-color:var(--bad);background:var(--bad-bg);}
@@ -276,6 +285,7 @@ footer.note{margin-top:34px;font-size:12px;color:var(--text-muted);border-top:1p
     <button data-view="trocas">Trocas</button>
     <button data-view="tratamentos">Tratamentos</button>
     <button data-view="ordemcompra">Ordem de Compra</button>
+    <button data-view="ordemservico">Ordem de Serviço</button>
     <button data-view="config">Configurações</button>
   </nav>
   <div class="sync-pill" id="btn-user" title="Clique para definir seu nome">👤 <span id="user-name-label">Definir nome</span></div>
@@ -471,9 +481,155 @@ footer.note{margin-top:34px;font-size:12px;color:var(--text-muted);border-top:1p
   </div>
 </section>
 
+<!-- ===================== ORDEM DE SERVIÇO (dedetização) ===================== -->
+<section class="view" id="view-ordemservico">
+  <div class="toolbar">
+    <div class="field"><label>Ano</label><select id="os-f-ano"><option value="">Todos</option></select></div>
+    <div class="field"><label>Mês</label><select id="os-f-mes"><option value="">Todos</option></select></div>
+    <div class="field"><label>Status</label>
+      <select id="os-f-status"><option value="">Todos</option><option>Agendada</option><option>Realizada</option><option>Cancelada</option></select>
+    </div>
+    <div class="field"><label>Serviço</label><select id="os-f-tipo"><option value="">Todos</option></select></div>
+    <div class="field" style="flex:1;min-width:160px;"><label>Buscar cliente</label><input id="os-f-busca" placeholder="Nome do cliente"></div>
+    <button class="btn" id="btn-os-produtos">Produtos</button>
+    <button class="btn" id="btn-os-clientes">Clientes</button>
+    <button class="btn" id="btn-csv-os">Exportar CSV</button>
+    <button class="btn primary" id="btn-nova-os">+ Nova ordem de serviço</button>
+  </div>
+
+  <div class="grid kpis" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));">
+    <div class="card"><div class="kpi-label">Ordens no filtro</div><div class="kpi-value" id="os-kpi-count">–</div></div>
+    <div class="card"><div class="kpi-label">Valor total (R$)</div><div class="kpi-value" id="os-kpi-valor">–</div></div>
+    <div class="card"><div class="kpi-label">Agendadas</div><div class="kpi-value" id="os-kpi-agendadas">–</div><div class="kpi-sub">ainda não realizadas</div></div>
+    <div class="card"><div class="kpi-label">Sem pagamento registrado</div><div class="kpi-value" id="os-kpi-sempag">–</div><div class="kpi-sub" id="os-kpi-sempag-sub">realizadas com valor</div></div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Nº</th><th>Data</th><th>Horário</th><th>Cliente</th><th>Serviço</th><th>Aplicador</th>
+        <th class="num">Valor (R$)</th><th>Status</th><th>Pagamento</th><th>NF-e</th><th></th>
+      </tr></thead>
+      <tbody id="tbl-os"></tbody>
+    </table>
+  </div>
+</section>
+
 </div><!-- /#app -->
 
 <!-- ===================== MODALS ===================== -->
+<div class="modal-backdrop" id="modal-os">
+  <div class="modal" style="max-width:820px;">
+    <h3 id="modal-os-title">Nova ordem de serviço</h3>
+    <form id="form-os">
+      <input type="hidden" id="os-id">
+      <div class="form-grid" style="grid-template-columns:repeat(4,1fr);">
+        <div class="field"><label>OS Nº</label><input id="os-numero" placeholder="000/2026"></div>
+        <div class="field"><label>Data para execução</label><input type="date" id="os-data" required></div>
+        <div class="field"><label>Horário</label><input type="time" id="os-horario"></div>
+        <div class="field"><label>Status</label>
+          <select id="os-status"><option>Agendada</option><option>Realizada</option><option>Cancelada</option></select>
+        </div>
+      </div>
+
+      <div class="section-title" style="margin:16px 0 8px;"><h2 style="font-size:14px;">Dados do cliente</h2></div>
+      <div class="form-grid">
+        <div class="field full"><label>Cliente</label><input list="dl-os-clientes" id="os-cliente" required></div>
+        <div class="field"><label>Contato</label><input id="os-contato"></div>
+        <div class="field"><label>Município</label><input id="os-municipio" placeholder="Curitiba - PR"></div>
+        <div class="field full"><label>Endereço</label><input id="os-endereco"></div>
+      </div>
+
+      <div class="section-title" style="margin:16px 0 8px;"><h2 style="font-size:14px;">Vetores e outros animais nocivos cujo combate foi solicitado</h2></div>
+      <div class="chk-row" id="os-vetores">
+        <label><input type="checkbox" value="Barata"> Barata</label>
+        <label><input type="checkbox" value="Roedores"> Roedores</label>
+        <label><input type="checkbox" value="Cupim"> Cupim</label>
+        <label><input type="checkbox" value="Formiga"> Formiga</label>
+        <label><input type="checkbox" value="Aranha"> Aranha</label>
+        <label><input type="checkbox" value="Traça"> Traça</label>
+        <label><input type="checkbox" value="Outros"> Outros: Insetos rasteiros e voadores</label>
+      </div>
+
+      <div class="section-title" style="margin:16px 0 8px;"><h2 style="font-size:14px;">Características do local a ser tratado</h2></div>
+      <div class="form-grid">
+        <div class="field"><label>Tipo da atividade</label><input list="dl-os-tipos" id="os-tipo" placeholder="Desratização, Dedetização, Fumigação..."></div>
+        <div class="field"><label>Valor (R$)</label><input type="number" step="0.01" min="0" id="os-valor"></div>
+        <div class="field"><label>Descrição da área interna do imóvel</label><input id="os-descricao"></div>
+        <div class="field"><label>Área aproximada do local (m²)</label><input id="os-area"></div>
+        <div class="field full"><label>Obs</label><input id="os-obs"></div>
+      </div>
+
+      <div class="section-title" style="margin:16px 0 8px;"><h2 style="font-size:14px;">Produtos químicos e equipamentos empregados</h2></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Nome comum</th><th>Princípio ativo</th><th>Volume aplicado</th><th>Vetor/Alvo</th><th>Equipamentos</th><th></th></tr></thead>
+          <tbody id="os-produtos"></tbody>
+        </table>
+      </div>
+      <div class="toolbar" style="margin-top:8px;">
+        <select id="os-prod-select" style="max-width:300px;"></select>
+        <button type="button" class="btn btn-sm" id="os-prod-add">+ Adicionar produto cadastrado</button>
+        <button type="button" class="btn btn-sm" id="os-add-produto">+ Linha em branco</button>
+        <button type="button" class="btn btn-sm" id="os-open-produtos">Cadastrar / editar produtos</button>
+      </div>
+
+      <div class="form-grid" style="margin-top:14px;">
+        <div class="field"><label>Aplicador</label><input list="dl-os-aplicadores" id="os-aplicador"></div>
+        <div class="field"><label>Técnico responsável</label><input id="os-tecnico"></div>
+        <div class="field"><label>Pagamento</label><input id="os-pagamento" placeholder="boleto, PIX, pago em..."></div>
+        <div class="field"><label>NF-e</label><input id="os-nfe"></div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn danger" id="os-delete" style="display:none;">Excluir</button>
+        <button type="button" class="btn" id="os-cancel">Cancelar</button>
+        <button type="button" class="btn" id="os-imprimir">Imprimir / PDF</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-produtos">
+  <div class="modal" style="max-width:980px;">
+    <h3>Cadastro de produtos (dedetização)</h3>
+    <p class="hint" style="margin-top:-8px;margin-bottom:12px;">Cadastre uma vez e use em qualquer ordem de serviço. As alterações salvam sozinhas ao sair do campo.</p>
+    <div class="table-wrap" style="max-height:52vh;overflow:auto;">
+      <table>
+        <thead><tr><th>Nome comum</th><th>Princípio ativo</th><th>Volume aplicado</th><th>Vetores / alvo</th><th>Equipamentos</th><th></th></tr></thead>
+        <tbody id="tbl-produtos-os"></tbody>
+      </table>
+    </div>
+    <div class="hint" id="produtos-os-aviso" style="margin-top:8px;"></div>
+    <div class="toolbar" style="margin-top:12px;">
+      <button type="button" class="btn" id="btn-novo-produto-os">+ Novo produto</button>
+      <div class="spacer"></div>
+      <button type="button" class="btn primary" id="produtos-os-fechar">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-clientes">
+  <div class="modal" style="max-width:980px;">
+    <h3>Cadastro de clientes (dedetização)</h3>
+    <p class="hint" style="margin-top:-8px;margin-bottom:12px;">Ao escolher o cliente numa ordem de serviço, contato, endereço e município são preenchidos daqui.</p>
+    <div class="toolbar"><div class="field" style="flex:1;"><label>Buscar</label><input id="clientes-os-busca" placeholder="Nome, endereço ou apelido"></div></div>
+    <div class="table-wrap" style="max-height:50vh;overflow:auto;">
+      <table>
+        <thead><tr><th>Nome completo</th><th>Contato</th><th>Endereço</th><th>Município</th><th></th></tr></thead>
+        <tbody id="tbl-clientes-os"></tbody>
+      </table>
+    </div>
+    <div class="hint" id="clientes-os-aviso" style="margin-top:8px;"></div>
+    <div class="toolbar" style="margin-top:12px;">
+      <button type="button" class="btn" id="btn-novo-cliente-os">+ Novo cliente</button>
+      <div class="spacer"></div>
+      <button type="button" class="btn primary" id="clientes-os-fechar">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="modal-nome">
   <div class="modal" style="max-width:380px;">
     <h3>Quem é você?</h3>
@@ -616,6 +772,9 @@ footer.note{margin-top:34px;font-size:12px;color:var(--text-muted);border-top:1p
 <datalist id="dl-fornecedores"></datalist>
 <datalist id="dl-clientes"></datalist>
 <datalist id="dl-operadores"></datalist>
+<datalist id="dl-os-clientes"></datalist>
+<datalist id="dl-os-tipos"></datalist>
+<datalist id="dl-os-aplicadores"></datalist>
 <div id="toast-host"></div>
 
 <script>
@@ -641,6 +800,10 @@ let COMPRAS = [];
 let TROCAS = {};
 let TRATAMENTOS = [];
 let ORDENS = [];
+let ORDENS_SERVICO = [];
+let CLIENTES_OS = [];
+let PRODUTOS_OS = [];
+let OS_CADASTROS_OK = true; // false while clientes_os / produtos_os tables don't exist yet
 let currentTruck = null;
 let currentMetric = "custo";
 let charts = {};
@@ -1175,6 +1338,7 @@ function renderAll(){
   renderTratamentos();
   renderConfig();
   renderOrdens();
+  renderOrdensServico();
 }
 
 /* ---------------- supabase data mapping ---------------- */
@@ -1208,6 +1372,20 @@ function ordemFromRow(r){
     fornecedorCnpj:r.fornecedor_cnpj, fornecedorContato:r.fornecedor_contato, fornecedorEmail:r.fornecedor_email,
     modoPagamento:r.modo_pagamento, itens:r.itens||[], totalGeral:r.total_geral, lancadoPor:r.lancado_por};
 }
+function osFromRow(r){
+  return {id:r.id, numero:r.numero, data:r.data, horario:r.horario, cliente:r.cliente, contato:r.contato,
+    endereco:r.endereco, municipio:r.municipio, vetores:r.vetores||[], tipo:r.tipo_atividade,
+    descricao:r.descricao_area, area:r.area_m2, obs:r.obs, valor:r.valor, produtos:r.produtos||[],
+    aplicador:r.aplicador, tecnico:r.tecnico_responsavel, status:r.status||'Agendada',
+    pagamento:r.pagamento, nfe:r.nfe, lancadoPor:r.lancado_por};
+}
+function osToRow(o){
+  return {numero:o.numero, data:o.data, horario:o.horario, cliente:o.cliente, contato:o.contato,
+    endereco:o.endereco, municipio:o.municipio, vetores:o.vetores, tipo_atividade:o.tipo,
+    descricao_area:o.descricao, area_m2:o.area, obs:o.obs, valor:o.valor, produtos:o.produtos,
+    aplicador:o.aplicador, tecnico_responsavel:o.tecnico, status:o.status,
+    pagamento:o.pagamento, nfe:o.nfe, lancado_por:o.lancadoPor};
+}
 function ordemToRow(o){
   return {numero:o.numero, data:o.data, solicitado_por:o.solicitadoPor, fornecedor_nome:o.fornecedorNome,
     fornecedor_cnpj:o.fornecedorCnpj, fornecedor_contato:o.fornecedorContato, fornecedor_email:o.fornecedorEmail,
@@ -1240,7 +1418,7 @@ async function fetchAllRows(table){
   let all = [];
   let from = 0;
   while(true){
-    const { data, error } = await sb.from(table).select('*').range(from, from+pageSize-1);
+    const { data, error } = await sb.from(table).select('*').order('id').range(from, from+pageSize-1);
     if(error){ console.error('fetchAllRows', table, error); throw new Error(table + ': ' + error.message); }
     all = all.concat(data||[]);
     if(!data || data.length < pageSize) break;
@@ -1274,8 +1452,26 @@ async function loadOrdens(){
   ORDENS = data.map(ordemFromRow);
 }
 
+async function loadOrdensServico(){
+  const data = await fetchAllRows('ordens_servico');
+  ORDENS_SERVICO = data.map(osFromRow);
+}
+
+// Cadastros auxiliares da OS: never block the app if the tables aren't there yet.
+async function loadCadastrosOs(){
+  try{
+    const [c, p] = await Promise.all([fetchAllRows('clientes_os'), fetchAllRows('produtos_os')]);
+    CLIENTES_OS = c.map(r=>({id:r.id, nome:r.nome, contato:r.contato, endereco:r.endereco, municipio:r.municipio, apelidos:r.apelidos}));
+    PRODUTOS_OS = p.map(r=>({id:r.id, nome:r.nome_comum, ativo:r.principio_ativo, volume:r.volume_aplicado, alvo:r.vetores, equip:r.equipamentos}));
+    OS_CADASTROS_OK = true;
+  }catch(e){
+    console.warn('cadastros da OS indisponíveis', e);
+    OS_CADASTROS_OK = false;
+  }
+}
+
 async function loadAllAndRender(){
-  await Promise.all([loadConfig(), loadCompras(), loadTrocas(), loadTratamentos(), loadOrdens()]);
+  await Promise.all([loadConfig(), loadCompras(), loadTrocas(), loadTratamentos(), loadOrdens(), loadOrdensServico(), loadCadastrosOs()]);
   renderAll();
 }
 
@@ -1288,6 +1484,9 @@ function setupRealtime(){
   sb.channel('public:trocas').on('postgres_changes',{event:'*',schema:'public',table:'trocas'}, ()=>{ loadTrocas().then(renderAll); }).subscribe();
   sb.channel('public:tratamentos').on('postgres_changes',{event:'*',schema:'public',table:'tratamentos'}, ()=>{ loadTratamentos().then(renderAll); }).subscribe();
   sb.channel('public:ordens_compra').on('postgres_changes',{event:'*',schema:'public',table:'ordens_compra'}, ()=>{ loadOrdens().then(renderAll); }).subscribe();
+  sb.channel('public:ordens_servico').on('postgres_changes',{event:'*',schema:'public',table:'ordens_servico'}, ()=>{ loadOrdensServico().then(renderAll); }).subscribe();
+  sb.channel('public:clientes_os').on('postgres_changes',{event:'*',schema:'public',table:'clientes_os'}, ()=>{ loadCadastrosOs().then(renderAll); }).subscribe();
+  sb.channel('public:produtos_os').on('postgres_changes',{event:'*',schema:'public',table:'produtos_os'}, ()=>{ loadCadastrosOs().then(renderAll); }).subscribe();
 }
 
 async function saveConfig(){
@@ -1926,6 +2125,447 @@ document.getElementById('oc-email-btn').onclick = ()=>{
   const subject = encodeURIComponent(`Ordem de Compra ${o.numero||''} - ${o.fornecedorNome}`);
   const body = encodeURIComponent(bodyLines.join('\n'));
   window.location.href = `mailto:${encodeURIComponent(CONFIG.financeiroEmail)}?subject=${subject}&body=${body}`;
+};
+
+/* ---------------- ordem de serviço (dedetização / desratização / fumigação) ---------------- */
+const OS_DEFAULT_APLICADOR = 'Felipe Trentini';
+const OS_DEFAULT_TECNICO = 'Eng Geraldo Mann';
+const modalOs = document.getElementById('modal-os');
+let currentOsProdutos = [];
+let osSuggestedNumero = '';
+
+function normTipo(t){ return String(t||'').trim().toLowerCase().replace(/\s+/g,' '); }
+function tipoLabel(t){ const s = String(t||'').trim().replace(/\s+/g,' '); return s ? s.charAt(0).toUpperCase()+s.slice(1) : ''; }
+
+function populateOsFilters(){
+  const fa = document.getElementById('os-f-ano'), fm = document.getElementById('os-f-mes'), ft = document.getElementById('os-f-tipo');
+  const prevA = fa.value, prevM = fm.value, prevT = ft.value;
+  const anos = [...new Set(ORDENS_SERVICO.map(o=>o.data ? o.data.slice(0,4) : null).filter(Boolean))].sort().reverse();
+  fa.innerHTML = '<option value="">Todos</option>' + anos.map(a=>`<option>${a}</option>`).join('');
+  fa.value = prevA;
+  fm.innerHTML = '<option value="">Todos</option>' + MESES.map((m,i)=>`<option value="${i}">${m}</option>`).join('');
+  fm.value = prevM;
+  const tipos = new Map();
+  ORDENS_SERVICO.forEach(o=>{ const k = normTipo(o.tipo); if(k && !tipos.has(k)) tipos.set(k, tipoLabel(o.tipo)); });
+  const sorted = [...tipos.entries()].sort((a,b)=>a[1].localeCompare(b[1],'pt-BR'));
+  ft.innerHTML = '<option value="">Todos</option>' + sorted.map(([k,l])=>`<option value="${esc(k)}">${esc(l)}</option>`).join('');
+  ft.value = prevT;
+  document.getElementById('dl-os-tipos').innerHTML = sorted.map(([k,l])=>`<option value="${esc(l)}">`).join('');
+  const clientes = [...new Set([...CLIENTES_OS.map(c=>String(c.nome||'').trim()), ...ORDENS_SERVICO.map(o=>String(o.cliente||'').trim())].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  document.getElementById('dl-os-clientes').innerHTML = clientes.map(c=>`<option value="${esc(c)}">`).join('');
+  const aplic = [...new Set([OS_DEFAULT_APLICADOR, ...ORDENS_SERVICO.map(o=>String(o.aplicador||'').trim()).filter(Boolean)])];
+  document.getElementById('dl-os-aplicadores').innerHTML = aplic.map(a=>`<option value="${esc(a)}">`).join('');
+}
+
+function filteredOs(){
+  const ano = document.getElementById('os-f-ano').value;
+  const mes = document.getElementById('os-f-mes').value;
+  const status = document.getElementById('os-f-status').value;
+  const tipo = document.getElementById('os-f-tipo').value;
+  const busca = document.getElementById('os-f-busca').value.trim().toLowerCase();
+  return ORDENS_SERVICO.filter(o=>
+    (!ano || (o.data||'').slice(0,4)===ano) &&
+    (mes==="" || (o.data && String(monthIdx(o.data))===mes)) &&
+    (!status || o.status===status) &&
+    (!tipo || normTipo(o.tipo)===tipo) &&
+    (!busca || String(o.cliente||'').toLowerCase().includes(busca))
+  ).sort((a,b)=> (b.data||'').localeCompare(a.data||'') || String(b.numero||'').localeCompare(String(a.numero||'')));
+}
+
+function renderOrdensServico(){
+  populateOsFilters();
+  const list = filteredOs();
+  const valorTotal = list.reduce((s,o)=>s+(Number(o.valor)||0),0);
+  const semPag = list.filter(o=>o.status==='Realizada' && (Number(o.valor)||0)>0 && !String(o.pagamento||'').trim());
+  document.getElementById('os-kpi-count').textContent = list.length.toLocaleString('pt-BR');
+  document.getElementById('os-kpi-valor').textContent = 'R$ ' + BRL(valorTotal);
+  document.getElementById('os-kpi-agendadas').textContent = list.filter(o=>o.status==='Agendada').length;
+  document.getElementById('os-kpi-sempag').textContent = semPag.length;
+  document.getElementById('os-kpi-sempag-sub').textContent = 'R$ ' + BRL(semPag.reduce((s,o)=>s+(Number(o.valor)||0),0)) + ' · realizadas com valor';
+  const tb = document.getElementById('tbl-os');
+  tb.innerHTML = list.length ? list.map(o=>`
+    <tr>
+      <td>${esc(o.numero)||'–'}</td><td>${fmtDate(o.data)}</td><td>${esc(o.horario)||'–'}</td>
+      <td>${esc(o.cliente)}</td><td>${esc(tipoLabel(o.tipo))||'–'}</td><td>${esc(o.aplicador)||'–'}</td>
+      <td class="num mono">${o.valor!=null ? BRL(o.valor) : '–'}</td>
+      <td>${osStatusBadge(o.status)}</td><td>${esc(o.pagamento)||'–'}</td><td>${esc(o.nfe)||'–'}</td>
+      <td><button class="iconbtn" data-edit-os="${o.id}">Abrir</button></td>
+    </tr>`).join('') : `<tr class="empty-row"><td colspan="11">Nenhuma ordem de serviço encontrada para este filtro.</td></tr>`;
+}
+function osStatusBadge(s){
+  const k = String(s||'Agendada').toLowerCase();
+  return `<span class="badge ${k}">${esc(s||'Agendada')}</span>`;
+}
+
+['os-f-ano','os-f-mes','os-f-status','os-f-tipo'].forEach(id=>document.getElementById(id).addEventListener('change', renderOrdensServico));
+document.getElementById('os-f-busca').addEventListener('input', renderOrdensServico);
+
+document.getElementById('btn-csv-os').onclick = ()=>{
+  exportCSV('ordens_servico.csv',
+    ['OS','Data','Horário','Cliente','Contato','Endereço','Município','Serviço','Valor','Aplicador','Status','Pagamento','NF-e','Obs'],
+    filteredOs().map(o=>[o.numero||'', fmtDate(o.data), o.horario||'', o.cliente||'', o.contato||'', o.endereco||'', o.municipio||'',
+      tipoLabel(o.tipo), o.valor, o.aplicador||'', o.status||'', o.pagamento||'', o.nfe||'', o.obs||''])
+  );
+};
+
+function nextOsNumero(dataStr){
+  const year = (dataStr || new Date().toISOString().slice(0,10)).slice(0,4);
+  let max = 0;
+  ORDENS_SERVICO.forEach(o=>{
+    const m = String(o.numero||'').match(/^(\d+)\/(\d{4})/);
+    if(m && m[2]===year) max = Math.max(max, parseInt(m[1],10));
+  });
+  return String(max+1).padStart(3,'0') + '/' + year;
+}
+
+function renderOsProdutos(){
+  const tb = document.getElementById('os-produtos');
+  tb.innerHTML = currentOsProdutos.map((p,i)=>`
+    <tr>
+      <td><input data-i="${i}" data-f="nome" value="${esc(p.nome)}" style="width:120px;"></td>
+      <td><input data-i="${i}" data-f="ativo" value="${esc(p.ativo)}" style="width:130px;"></td>
+      <td><input data-i="${i}" data-f="volume" value="${esc(p.volume)}" style="width:100px;"></td>
+      <td><input data-i="${i}" data-f="alvo" value="${esc(p.alvo)}" style="width:100px;"></td>
+      <td><input data-i="${i}" data-f="equip" value="${esc(p.equip)}" style="width:130px;"></td>
+      <td><button type="button" class="iconbtn" data-rm-prod="${i}">✕</button></td>
+    </tr>`).join('');
+  tb.querySelectorAll('input').forEach(inp=>inp.addEventListener('input', e=>{
+    currentOsProdutos[+e.target.dataset.i][e.target.dataset.f] = e.target.value;
+  }));
+  tb.querySelectorAll('[data-rm-prod]').forEach(b=>b.addEventListener('click', e=>{
+    currentOsProdutos.splice(+e.target.dataset.rmProd,1);
+    renderOsProdutos();
+  }));
+}
+function addOsProduto(p){
+  currentOsProdutos = currentOsProdutos.filter(x=>x.nome||x.ativo||x.volume||x.alvo||x.equip);
+  currentOsProdutos.push(Object.assign({nome:'',ativo:'',volume:'',alvo:'',equip:''}, p||{}));
+  renderOsProdutos();
+}
+function setOsVetor(nome, on){
+  document.querySelectorAll('#os-vetores input').forEach(c=>{ if(c.value===nome) c.checked = on; });
+}
+document.getElementById('os-add-produto').onclick = ()=>addOsProduto();
+
+/* ---- catálogo de produtos ---- */
+// Used only until the produtos_os table exists, so the form keeps working.
+const OS_PRODUTOS_PADRAO = [
+  {id:'_rigon', nome:'Rigon GS', ativo:'Brodifacoum', volume:'', alvo:'Roedores', equip:'Bloco parafinado'},
+  {id:'_fosfina', nome:'Fosfina', ativo:'PH3', volume:'3g/m³', alvo:'-', equip:'-'},
+];
+function catalogoProdutos(){ return PRODUTOS_OS.length ? PRODUTOS_OS : OS_PRODUTOS_PADRAO; }
+function fillOsProdSelect(){
+  const sel = document.getElementById('os-prod-select');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">Escolher produto cadastrado...</option>' +
+    catalogoProdutos().map(p=>`<option value="${esc(p.id)}">${esc(p.nome)}${p.ativo?' — '+esc(p.ativo):''}</option>`).join('');
+  sel.value = prev;
+}
+document.getElementById('os-prod-add').onclick = ()=>{
+  const id = document.getElementById('os-prod-select').value;
+  const p = catalogoProdutos().find(x=>x.id===id);
+  if(!p){ toast('Escolha um produto na lista.', true); return; }
+  addOsProduto({nome:p.nome||'', ativo:p.ativo||'', volume:p.volume||'', alvo:p.alvo||'', equip:p.equip||''});
+  if(/roedor/i.test(p.alvo||'')) setOsVetor('Roedores', true);
+  if(/fosfina/i.test(p.nome||'') && !document.getElementById('os-tipo').value.trim()) document.getElementById('os-tipo').value = 'Fumigação';
+};
+
+const modalProdutos = document.getElementById('modal-produtos');
+function renderProdutosOs(){
+  const tb = document.getElementById('tbl-produtos-os');
+  tb.innerHTML = PRODUTOS_OS.length ? PRODUTOS_OS.map(p=>`
+    <tr>
+      <td><input data-id="${esc(p.id)}" data-f="nome_comum" value="${esc(p.nome)}" style="width:150px;"></td>
+      <td><input data-id="${esc(p.id)}" data-f="principio_ativo" value="${esc(p.ativo)}" style="width:170px;"></td>
+      <td><input data-id="${esc(p.id)}" data-f="volume_aplicado" value="${esc(p.volume)}" style="width:100px;"></td>
+      <td><input data-id="${esc(p.id)}" data-f="vetores" value="${esc(p.alvo)}" style="width:190px;"></td>
+      <td><input data-id="${esc(p.id)}" data-f="equipamentos" value="${esc(p.equip)}" style="width:140px;"></td>
+      <td><button type="button" class="iconbtn" data-del-produto="${esc(p.id)}">✕</button></td>
+    </tr>`).join('') : `<tr class="empty-row"><td colspan="6">Nenhum produto cadastrado ainda.</td></tr>`;
+  document.getElementById('produtos-os-aviso').textContent = OS_CADASTROS_OK ? '' :
+    'O cadastro ainda não foi habilitado no banco de dados — peça ao Claude para criar as tabelas de produtos e clientes.';
+}
+document.getElementById('tbl-produtos-os').addEventListener('change', async e=>{
+  const inp = e.target.closest('input[data-id]');
+  if(!inp) return;
+  const { error } = await sb.from('produtos_os').update({[inp.dataset.f]: inp.value.trim() || null}).eq('id', inp.dataset.id);
+  if(error){ toast('Erro ao salvar o produto: ' + error.message, true); return; }
+  toast('Produto salvo.');
+  loadCadastrosOs().then(()=>{ fillOsProdSelect(); });
+});
+document.getElementById('tbl-produtos-os').addEventListener('click', async e=>{
+  const b = e.target.closest('[data-del-produto]');
+  if(!b || !confirm('Excluir este produto do cadastro? (As ordens de serviço já feitas não mudam.)')) return;
+  const { error } = await sb.from('produtos_os').delete().eq('id', b.dataset.delProduto);
+  if(error){ toast('Erro ao excluir: ' + error.message, true); return; }
+  await loadCadastrosOs(); renderProdutosOs(); fillOsProdSelect();
+});
+document.getElementById('btn-novo-produto-os').onclick = async ()=>{
+  const nome = (prompt('Nome comum do produto:') || '').trim();
+  if(!nome) return;
+  const { error } = await sb.from('produtos_os').insert({id: uid('prd'), nome_comum: nome});
+  if(error){ toast('Erro ao criar o produto: ' + error.message, true); return; }
+  await loadCadastrosOs(); renderProdutosOs(); fillOsProdSelect();
+};
+function openProdutosModal(){ renderProdutosOs(); modalProdutos.classList.add('open'); }
+document.getElementById('btn-os-produtos').onclick = openProdutosModal;
+document.getElementById('os-open-produtos').onclick = openProdutosModal;
+document.getElementById('produtos-os-fechar').onclick = ()=>modalProdutos.classList.remove('open');
+
+/* ---- cadastro de clientes ---- */
+const modalClientes = document.getElementById('modal-clientes');
+function renderClientesOs(){
+  const q = document.getElementById('clientes-os-busca').value.trim().toLowerCase();
+  const list = CLIENTES_OS.filter(c=>!q || [c.nome,c.endereco,c.contato,c.apelidos,c.municipio].join(' ').toLowerCase().includes(q))
+    .sort((a,b)=>String(a.nome).localeCompare(String(b.nome),'pt-BR'));
+  const tb = document.getElementById('tbl-clientes-os');
+  tb.innerHTML = list.length ? list.map(c=>`
+    <tr>
+      <td><input data-id="${esc(c.id)}" data-f="nome" value="${esc(c.nome)}" style="width:250px;" title="${esc(c.apelidos?'Também aparece como: '+c.apelidos:'')}"></td>
+      <td><input data-id="${esc(c.id)}" data-f="contato" value="${esc(c.contato)}" style="width:130px;"></td>
+      <td><input data-id="${esc(c.id)}" data-f="endereco" value="${esc(c.endereco)}" style="width:270px;"></td>
+      <td><input data-id="${esc(c.id)}" data-f="municipio" value="${esc(c.municipio)}" style="width:130px;"></td>
+      <td><button type="button" class="iconbtn" data-del-cliente="${esc(c.id)}">✕</button></td>
+    </tr>`).join('') : `<tr class="empty-row"><td colspan="5">Nenhum cliente encontrado.</td></tr>`;
+  document.getElementById('clientes-os-aviso').textContent = OS_CADASTROS_OK ? `${CLIENTES_OS.length} clientes cadastrados.` :
+    'O cadastro ainda não foi habilitado no banco de dados — peça ao Claude para criar as tabelas de produtos e clientes.';
+}
+document.getElementById('clientes-os-busca').addEventListener('input', renderClientesOs);
+document.getElementById('tbl-clientes-os').addEventListener('change', async e=>{
+  const inp = e.target.closest('input[data-id]');
+  if(!inp) return;
+  const v = inp.value.trim();
+  if(inp.dataset.f === 'nome' && !v){ toast('O nome não pode ficar vazio.', true); return; }
+  const { error } = await sb.from('clientes_os').update({[inp.dataset.f]: v || null}).eq('id', inp.dataset.id);
+  if(error){ toast('Erro ao salvar o cliente: ' + error.message, true); return; }
+  toast('Cliente salvo.');
+  loadCadastrosOs().then(renderAll);
+});
+document.getElementById('tbl-clientes-os').addEventListener('click', async e=>{
+  const b = e.target.closest('[data-del-cliente]');
+  if(!b || !confirm('Excluir este cliente do cadastro? (As ordens de serviço já feitas não mudam.)')) return;
+  const { error } = await sb.from('clientes_os').delete().eq('id', b.dataset.delCliente);
+  if(error){ toast('Erro ao excluir: ' + error.message, true); return; }
+  await loadCadastrosOs(); renderClientesOs();
+});
+document.getElementById('btn-novo-cliente-os').onclick = async ()=>{
+  const nome = (prompt('Nome completo do cliente:') || '').trim();
+  if(!nome) return;
+  const { error } = await sb.from('clientes_os').insert({id: uid('cli'), nome});
+  if(error){ toast('Erro ao criar o cliente: ' + error.message, true); return; }
+  await loadCadastrosOs(); renderClientesOs();
+};
+document.getElementById('btn-os-clientes').onclick = ()=>{ renderClientesOs(); modalClientes.classList.add('open'); };
+document.getElementById('clientes-os-fechar').onclick = ()=>modalClientes.classList.remove('open');
+
+function normCli(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,''); }
+function findClienteOs(nome){
+  const k = normCli(nome);
+  if(!k) return null;
+  return CLIENTES_OS.find(c=>normCli(c.nome)===k) ||
+         CLIENTES_OS.find(c=>String(c.apelidos||'').split(';').some(a=>normCli(a)===k)) || null;
+}
+// picking a registered client fills contact / address / city (only blank fields)
+document.getElementById('os-cliente').addEventListener('change', e=>{
+  const c = findClienteOs(e.target.value);
+  if(!c) return;
+  e.target.value = c.nome;
+  [['os-contato', c.contato], ['os-endereco', c.endereco], ['os-municipio', c.municipio]].forEach(([id, v])=>{
+    const el = document.getElementById(id);
+    if(v && !el.value.trim()) el.value = v;
+  });
+});
+
+function openOsModal(existing){
+  const hoje = new Date().toISOString().slice(0,10);
+  fillOsProdSelect();
+  document.getElementById('modal-os-title').textContent = existing ? 'Ordem de serviço' : 'Nova ordem de serviço';
+  document.getElementById('os-delete').style.display = existing ? '' : 'none';
+  const f = existing || {numero:nextOsNumero(hoje), data:hoje, horario:'', status:'Agendada', aplicador:OS_DEFAULT_APLICADOR, tecnico:OS_DEFAULT_TECNICO, vetores:[], produtos:[]};
+  osSuggestedNumero = existing ? '' : f.numero;
+  document.getElementById('os-id').value = existing ? existing.id : '';
+  document.getElementById('os-numero').value = f.numero || '';
+  document.getElementById('os-data').value = f.data || '';
+  document.getElementById('os-horario').value = /^\d{1,2}:\d{2}/.test(f.horario||'') ? f.horario.slice(0,5).padStart(5,'0') : '';
+  document.getElementById('os-status').value = f.status || 'Agendada';
+  document.getElementById('os-cliente').value = f.cliente || '';
+  document.getElementById('os-contato').value = f.contato || '';
+  document.getElementById('os-municipio').value = f.municipio || '';
+  document.getElementById('os-endereco').value = f.endereco || '';
+  document.querySelectorAll('#os-vetores input').forEach(c=>{ c.checked = (f.vetores||[]).includes(c.value); });
+  document.getElementById('os-tipo').value = f.tipo || '';
+  document.getElementById('os-valor').value = f.valor!=null ? f.valor : '';
+  document.getElementById('os-descricao').value = f.descricao || '';
+  document.getElementById('os-area').value = f.area || '';
+  document.getElementById('os-obs').value = f.obs || '';
+  document.getElementById('os-aplicador').value = f.aplicador || '';
+  document.getElementById('os-tecnico').value = f.tecnico || '';
+  document.getElementById('os-pagamento').value = f.pagamento || '';
+  document.getElementById('os-nfe').value = f.nfe || '';
+  currentOsProdutos = (f.produtos||[]).map(p=>Object.assign({nome:'',ativo:'',volume:'',alvo:'',equip:''}, p));
+  if(!currentOsProdutos.length) currentOsProdutos.push({nome:'',ativo:'',volume:'',alvo:'',equip:''});
+  renderOsProdutos();
+  modalOs.classList.add('open');
+}
+document.getElementById('btn-nova-os').onclick = ()=>openOsModal(null);
+document.getElementById('os-cancel').onclick = ()=>modalOs.classList.remove('open');
+document.getElementById('tbl-os').addEventListener('click', e=>{
+  const btn = e.target.closest('[data-edit-os]');
+  if(!btn) return;
+  openOsModal(ORDENS_SERVICO.find(o=>o.id===btn.dataset.editOs));
+});
+document.getElementById('os-data').addEventListener('change', e=>{
+  const isNew = !document.getElementById('os-id').value;
+  const numEl = document.getElementById('os-numero');
+  if(isNew && e.target.value && (numEl.value===osSuggestedNumero || !numEl.value)){
+    osSuggestedNumero = nextOsNumero(e.target.value);
+    numEl.value = osSuggestedNumero;
+  }
+});
+
+function readOsForm(){
+  const valorRaw = document.getElementById('os-valor').value;
+  return {
+    numero: document.getElementById('os-numero').value.trim() || null,
+    data: document.getElementById('os-data').value || null,
+    horario: document.getElementById('os-horario').value || null,
+    status: document.getElementById('os-status').value,
+    cliente: document.getElementById('os-cliente').value.trim(),
+    contato: document.getElementById('os-contato').value.trim() || null,
+    municipio: document.getElementById('os-municipio').value.trim() || null,
+    endereco: document.getElementById('os-endereco').value.trim() || null,
+    vetores: [...document.querySelectorAll('#os-vetores input:checked')].map(c=>c.value),
+    tipo: document.getElementById('os-tipo').value.trim() || null,
+    valor: valorRaw==='' ? null : Number(valorRaw),
+    descricao: document.getElementById('os-descricao').value.trim() || null,
+    area: document.getElementById('os-area').value.trim() || null,
+    obs: document.getElementById('os-obs').value.trim() || null,
+    produtos: currentOsProdutos.filter(p=>p.nome||p.ativo||p.volume||p.alvo||p.equip),
+    aplicador: document.getElementById('os-aplicador').value.trim() || null,
+    tecnico: document.getElementById('os-tecnico').value.trim() || null,
+    pagamento: document.getElementById('os-pagamento').value.trim() || null,
+    nfe: document.getElementById('os-nfe').value.trim() || null,
+  };
+}
+
+document.getElementById('form-os').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const existingId = document.getElementById('os-id').value;
+  const id = existingId || uid('os');
+  const isNew = !existingId;
+  const existing = isNew ? null : ORDENS_SERVICO.find(o=>o.id===id);
+  const data = readOsForm();
+  data.lancadoPor = isNew ? (USER_NAME||null) : (existing ? existing.lancadoPor : null);
+  try{
+    const row = osToRow(data);
+    const res = isNew ? await sb.from('ordens_servico').insert(Object.assign({id}, row))
+                      : await sb.from('ordens_servico').update(row).eq('id', id);
+    if(res.error) throw res.error;
+    // keep the client registry current (new client, or fill blanks of a known one)
+    if(OS_CADASTROS_OK && data.cliente){
+      try{
+        const known = findClienteOs(data.cliente);
+        if(!known){
+          await sb.from('clientes_os').insert({id: uid('cli'), nome: data.cliente, contato: data.contato, endereco: data.endereco, municipio: data.municipio});
+        }else{
+          const fill = {};
+          if(!known.contato && data.contato) fill.contato = data.contato;
+          if(!known.endereco && data.endereco) fill.endereco = data.endereco;
+          if(!known.municipio && data.municipio) fill.municipio = data.municipio;
+          if(Object.keys(fill).length) await sb.from('clientes_os').update(fill).eq('id', known.id);
+        }
+        loadCadastrosOs().then(renderAll);
+      }catch(e2){ console.warn('cadastro de cliente', e2); }
+    }
+    modalOs.classList.remove('open');
+    toast('Ordem de serviço salva.');
+    loadOrdensServico().then(renderAll);
+  }catch(err){
+    console.error('salvar OS', err);
+    toast('Erro ao salvar a ordem de serviço: ' + (err && err.message ? err.message : String(err)), true);
+  }
+});
+document.getElementById('os-delete').onclick = async ()=>{
+  const id = document.getElementById('os-id').value;
+  if(!id || !confirm('Excluir esta ordem de serviço?')) return;
+  try{
+    const { error } = await sb.from('ordens_servico').delete().eq('id', id);
+    if(error) throw error;
+    modalOs.classList.remove('open'); toast('Ordem de serviço excluída.');
+    loadOrdensServico().then(renderAll);
+  }catch(err){ toast('Erro ao excluir: ' + (err && err.message ? err.message : String(err)), true); }
+};
+
+function buildOsPrintHtml(o){
+  const vet = n => (o.vetores||[]).includes(n) ? 'X' : '&nbsp;&nbsp;';
+  const prod = (o.produtos||[]).slice();
+  while(prod.length < 2) prod.push({});
+  const rows = prod.map(p=>`<tr><td>${esc(p.nome)}</td><td>${esc(p.ativo)}</td><td>${esc(p.volume)}</td><td>${esc(p.alvo)}</td><td>${esc(p.equip)}</td></tr>`).join('');
+  const logo = new URL('logo-exata.png', location.href).href;
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>OS ${esc(o.numero||'')}</title>
+<style>
+  @page{size:A4;margin:14mm;}
+  body{font-family:Calibri,Arial,sans-serif;color:#000;font-size:13px;margin:0;padding:18px;max-width:780px;margin-inline:auto;}
+  .top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;}
+  .top img{height:78px;}
+  .titulo{flex:1;text-align:center;padding-top:30px;}
+  .titulo .t1{font-size:21px;font-weight:bold;text-decoration:underline;}
+  .titulo .t1 span{color:#e5202a;}
+  .titulo .t2{font-weight:bold;font-size:13px;margin-top:4px;}
+  .osn{border:1.5px solid #000;padding:2px 8px;font-weight:bold;font-size:14px;white-space:nowrap;}
+  .bloco{margin-top:18px;line-height:1.7;}
+  .h{font-weight:bold;text-align:center;margin-top:20px;}
+  .h.l{text-align:left;margin-left:8px;}
+  table{width:100%;border-collapse:collapse;margin-top:8px;}
+  th,td{border:1.5px solid #000;padding:5px 8px;text-align:center;min-height:30px;height:30px;}
+  .assin{display:flex;justify-content:space-between;margin-top:34px;}
+  .linhas{display:flex;justify-content:space-around;margin-top:46px;}
+  .linhas div{width:30%;border-top:1px solid #000;text-align:center;padding-top:4px;}
+  .rodape{text-align:center;font-size:10px;margin-top:22px;}
+  .row2{display:flex;justify-content:space-between;}
+</style></head><body>
+  <div class="top">
+    <img src="${logo}" alt="EXATA">
+    <div class="titulo"><div class="t1"><span>EXATA -</span> Expurgo, Fumigação e Dedetização</div><div class="t2">Ordem de Serviço e execução</div></div>
+    <div class="osn">OS Nº: ${esc(o.numero||'')}</div>
+  </div>
+  <div class="bloco">Data para execução: ${fmtDate(o.data)}<br>Horário: ${esc(o.horario||'')}</div>
+  <div class="h l">DADOS DO CLIENTE</div>
+  <div class="bloco" style="margin-top:8px;">
+    <div class="row2"><span>Cliente: ${esc(o.cliente||'')}</span><span>${o.contato ? 'Contato: '+esc(o.contato) : ''}</span></div>
+    Endereço: ${esc(o.endereco||'')}<br>Município: ${esc(o.municipio||'')}
+  </div>
+  <div class="h">VETORES E OUTROS ANIMAIS NOCIVOS CUJO COMBATE FOI SOLICITADO</div>
+  <div class="bloco" style="margin-top:4px;">
+    ( ${vet('Barata')} ) Barata &nbsp;&nbsp; ( ${vet('Roedores')} ) Roedores &nbsp;&nbsp; ( ${vet('Cupim')} ) Cupim &nbsp;&nbsp;
+    ( ${vet('Formiga')} ) Formiga &nbsp;&nbsp; ( ${vet('Aranha')} ) Aranha &nbsp;&nbsp; ( ${vet('Traça')} ) Traça<br>
+    ( ${vet('Outros')} ) Outros: Insetos rasteiros e voadores
+  </div>
+  <div class="h">CARACTERÍSTICAS DO LOCAL A SER TRATADO</div>
+  <div class="bloco" style="margin-top:4px;">
+    Tipo da Atividade: ${esc(o.tipo||'')}<br><br>
+    Descrição da área interna do imóvel: ${esc(o.descricao||'')}<br><br>
+    Área aproximada do Local (m²): ${esc(o.area||'')}<br>
+    Obs: ${esc(o.obs||'')}
+  </div>
+  <div class="h" style="margin-top:34px;">PRODUTOS QUÍMICOS E EQUIPAMENTOS EMPREGADOS:</div>
+  <table>
+    <thead><tr><th>Nome Comum</th><th>Principio ativo</th><th>Volume Aplicado</th><th>Vetor/Alvo</th><th>Equipamentos</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="assin"><span>Aplicador: ${esc(o.aplicador||'')}</span><span>Técnico Responsável: ${esc(o.tecnico||'')}</span></div>
+  <div class="linhas"><div>Operador</div><div>Cliente</div></div>
+  <div class="rodape"><strong>EXATA AMBIENTAL</strong> - (41) 3107-1515 / (41) 99176-0988<br>CURITIBA</div>
+</body></html>`;
+}
+
+document.getElementById('os-imprimir').onclick = ()=>{
+  const o = readOsForm();
+  const w = window.open('', '_blank');
+  if(!w){ toast('Não foi possível abrir a janela de impressão (bloqueador de pop-up?).', true); return; }
+  w.document.write(buildOsPrintHtml(o));
+  w.document.close();
+  setTimeout(()=>{ try{ w.focus(); w.print(); }catch(err){} }, 600);
 };
 
 })();
