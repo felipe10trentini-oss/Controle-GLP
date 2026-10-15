@@ -2572,13 +2572,12 @@ function buildOsPrintHtml(o){
   const fld = (label, value, cls)=>`<div class="f ${cls||''}"><span>${label}</span><b>${value ? esc(value) : '&nbsp;'}</b></div>`;
   const hasCom = o.showCom && (o.valor!=null || o.pagamento || o.nfe);
   const horario = o.horario ? esc(o.horario) : '';
-  const emitido = new Date().toLocaleString('pt-BR');
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>OS ${esc(o.numero||'')} - ${esc(o.cliente||'')}</title>
 <style>
   @page{size:A4;margin:10mm;}
   *{box-sizing:border-box;}
   html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-  body{font-family:Calibri,'Segoe UI',Arial,sans-serif;color:#1b1b1b;font-size:12.5px;margin:0;padding:14px;max-width:790px;margin-inline:auto;line-height:1.35;}
+  body{font-family:Calibri,'Segoe UI',Arial,sans-serif;color:#1b1b1b;font-size:12.5px;margin:0;padding:14px 14px 48px;max-width:790px;margin-inline:auto;line-height:1.35;}
   .head{display:grid;grid-template-columns:auto 1fr 170px;gap:14px;align-items:center;padding-bottom:10px;border-bottom:3px solid #c00000;}
   .logos{display:flex;align-items:center;gap:12px;}
   .logos img{height:50px;width:auto;display:block;}
@@ -2614,7 +2613,8 @@ function buildOsPrintHtml(o){
   .assin{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:12px;}
   .linhas{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:44px;}
   .linhas div{border-top:1.5px solid #1b1b1b;text-align:center;padding-top:4px;font-size:11.5px;color:#444;}
-  .rodape{margin-top:18px;border-top:1px solid #cfcfca;padding-top:6px;display:flex;justify-content:space-between;gap:12px;font-size:10px;color:#666;}
+  .rodape{position:fixed;left:0;right:0;bottom:0;padding:0 14px 2px;background:#fff;}
+  .rodape div{max-width:790px;margin:0 auto;border-top:1px solid #cfcfca;padding-top:6px;text-align:center;font-size:11px;color:#444;}
   .rodape strong{color:#1b1b1b;}
 </style></head><body>
   <div class="head">
@@ -2661,10 +2661,7 @@ function buildOsPrintHtml(o){
   </div>
   <div class="linhas"><div>Operador</div><div>Cliente</div></div>
 
-  <div class="rodape">
-    <span><strong>EXATA AMBIENTAL</strong> · (41) 3107-1515 / (41) 99176-0988 · Curitiba</span>
-    <span>OS ${esc(o.numero||'')} · emitida em ${emitido}</span>
-  </div>
+  <div class="rodape"><div><strong>EXATA AMBIENTAL</strong> · (41) 3107-1515 / (41) 99176-0988 · Curitiba</div></div>
 </body></html>`;
 }
 
