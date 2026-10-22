@@ -1258,6 +1258,7 @@ function utilizacao(){
       <div class="row"><span class="muted">Trajetos lançados</span><b>${N0(ts.length)}</b></div>
       <div class="row"><span class="muted">Último trajeto</span><b>${lastT?dBR(lastT):'–'}</b></div>
       <div class="row"><span class="muted">Folhas (fotos)</span><b>${N0(fo.length)}</b></div>
+      <div class="row"><span class="muted">Folhas a ler / conferir</span><b>${N0(fo.filter(f=>!f.status || f.status==='pendente').length)} / ${N0(fo.filter(f=>f.status==='revisar').length)}</b></div>
       <div class="go">Abrir →</div></a>`; }).join('')}</div>
   <p class="hint">Hoje os operadores preenchem a folha de papel e a foto vai para <b>Controle veículos › Controle Utilização Veiculo</b>. A partir do app, o operador lança cada trajeto direto no celular (Operador › Veículo › Utilização), sem digitar depois.</p>`;
   $('#u-import').onclick = importFolhas;
@@ -1319,7 +1320,7 @@ function utilVeic(v){
     const draw = ()=>{
       const rows = getRows(); const part = rows.slice(0, US.shown);
       $('#u-list').innerHTML = rows.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Saída</th><th>Chegada</th><th class="num">Km saída</th><th class="num">Km chegada</th><th class="num">Km rodados</th><th>Origem</th><th>Destino</th><th>Motorista</th><th>Obs.</th></tr></thead><tbody>
-        ${part.map(t=>`<tr><td>${dBR(t.data)}</td><td>${esc(t.saida)||'–'}</td><td>${esc(t.chegada)||'–'}</td><td class="num">${t.km_saida!=null?N0(t.km_saida):'–'}</td><td class="num">${t.km_chegada!=null?N0(t.km_chegada):'<span class="muted">–</span>'}</td><td class="num">${kmRod(t)!=null?N0(kmRod(t)):'–'}</td><td class="wrap">${esc(t.origem)||'–'}</td><td class="wrap">${esc(t.destino)||'–'}</td><td>${esc(t.motorista)||'–'}${t.fonte==='app'?' <span class="badge good">app</span>':''}</td><td class="wrap">${esc(t.obs)||''}</td></tr>`).join('')}
+        ${part.map(t=>`<tr><td>${dBR(t.data)}</td><td>${esc(t.saida)||'–'}</td><td>${esc(t.chegada)||'–'}</td><td class="num">${t.km_saida!=null?N0(t.km_saida):'–'}</td><td class="num">${t.km_chegada!=null?N0(t.km_chegada):'<span class="muted">–</span>'}</td><td class="num">${kmRod(t)!=null?N0(kmRod(t)):'–'}</td><td class="wrap">${esc(t.origem)||'–'}</td><td class="wrap">${esc(t.destino)||'–'}</td><td>${esc(t.motorista)||'–'}${t.fonte==='app'?' <span class="badge good">app</span>':t.fonte==='foto'?' <span class="badge info">lido da foto</span>':t.fonte==='foto (revisar)'?' <span class="badge warn">conferir</span>':''}</td><td class="wrap">${esc(t.obs)||''}</td></tr>`).join('')}
         </tbody></table></div>${rows.length>US.shown?`<div class="morebar"><button class="btn" id="u-more">Mostrar mais (${rows.length-US.shown} restantes)</button></div>`:''}` : '<div class="card empty">Nenhum trajeto neste filtro.</div>';
       const mb = $('#u-more'); if(mb) mb.onclick = ()=>{ US.shown += 100; draw(); };
     };
