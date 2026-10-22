@@ -1,5 +1,6 @@
 {
   "redirects": [
+    { "source": "/", "destination": "/painel.html", "permanent": false },
     { "source": "/curvas.html", "destination": "https://controle-curvas.vercel.app/", "permanent": false },
     { "source": "/curvas", "destination": "https://controle-curvas.vercel.app/", "permanent": false }
   ]

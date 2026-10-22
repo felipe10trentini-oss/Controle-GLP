@@ -296,6 +296,7 @@ tr.clk{cursor:pointer;}
 </div>
 <div id="toast" class="toast" hidden></div>
 
+<dialog id="dlg-edit"></dialog>
 <dialog id="dlg-user"></dialog>
 <dialog id="dlg-veic"></dialog>
 
@@ -534,8 +535,10 @@ async function dbUpsert(table, rows){ const { error } = await sb.from(table).ups
 /* ---- km por veículo: leituras + abastecimentos + trajetos ---- */
 function kmRegistros(v){
   const rows = [];
-  (DB.leit||[]).filter(r=>r.veic===v).forEach(r=>rows.push({ data:String(r.data), km:r.km, origem: r.operador ? `App · ${r.operador}` : (r.origem==='planilha semanal' ? 'Planilha semanal' : cap(r.origem||'leitura')), obs:r.obs||null }));
-  (DB.abast||[]).filter(a=>a.veic===v && a.km).forEach(a=>rows.push({ data:String(a.data), km:a.km, origem: a.operador ? `App · ${a.operador}` : 'Abastecimento', obs:null }));
+  (DB.leit||[]).filter(r=>r.veic===v).forEach(r=>rows.push({ data:String(r.data), km:r.km, origem: r.operador ? `App · ${r.operador}` : (r.origem==='planilha semanal' ? 'Planilha semanal' : cap(r.origem||'leitura')), obs:r.obs||null, src:'leit', rid:r.id }));
+  (DB.abast||[]).filter(a=>a.veic===v && a.km).forEach(a=>rows.push({ data:String(a.data), km:a.km, origem: a.operador ? `App · ${a.operador}` : 'Abastecimento', obs:null, src:'abast', rid:a.id }));
+  // o km de chegada do trajeto lançado no app vale como leitura (só neste lugar: não é gravado de novo em km_leituras)
+  (DB.traj||[]).filter(t=>t.veic===v && t.fonte==='app' && t.km_chegada).forEach(t=>rows.push({ data:String(t.data), km:t.km_chegada, origem:`App · ${t.motorista||'trajeto'} (trajeto)`, obs:null, src:'traj', rid:t.id }));
   const seen = new Set();
   const uniq = rows.filter(r=>{ const k = r.data + '|' + r.km; if(seen.has(k)) return false; seen.add(k); return true; });
   uniq.sort((a,b)=>a.data.localeCompare(b.data) || a.km - b.km);
@@ -637,9 +640,9 @@ async function go(){
   try{
     if(!key) home();
     else if(key==='configuracoes'){ await need('veiculos','contatos','avcfg','avlog'); if(token===goToken) await configuracoes(); }
-    else if(key==='custos'){ await need('veiculos','custos','abast','leit','arqs'); if(token===goToken) custos(); }
-    else if(key==='km'){ await need('veiculos','leit','abast'); if(token===goToken) (sub ? kmVeic(decodeURIComponent(sub).toUpperCase()) : km()); }
-    else if(key==='manutencao'){ await need('veiculos','manut','oleo','leit','abast','custos','contatos','avcfg','avlog'); if(token===goToken) manutencao(); }
+    else if(key==='custos'){ await need('veiculos','custos','abast','leit','traj','manut','arqs'); if(token===goToken) custos(); }
+    else if(key==='km'){ await need('veiculos','leit','abast','traj'); if(token===goToken) (sub ? kmVeic(decodeURIComponent(sub).toUpperCase()) : km()); }
+    else if(key==='manutencao'){ await need('veiculos','manut','oleo','leit','abast','traj','custos','contatos','avcfg','avlog'); if(token===goToken) manutencao(); }
     else if(key==='suportes'){ await need('sup_ent','sup_sai','sup_cic','sup_cont'); if(token===goToken) suportes(); }
     else if(key==='tratamentos'){ await need('veiculos','serv','arqs'); if(token===goToken) (sub && sub2 ? tratDetalhe(decodeURIComponent(sub).toUpperCase(), sub2) : sub ? tratVeic(decodeURIComponent(sub).toUpperCase()) : tratamentos()); }
     else if(key==='utilizacao'){ await need('veiculos','traj','folhas','leit'); if(token===goToken) (sub ? utilVeic(decodeURIComponent(sub).toUpperCase()) : utilizacao()); }
@@ -869,11 +872,11 @@ function custoLanc(box, rows, total){
   const sorted = rows.slice().sort((a,b)=> b.comp.localeCompare(a.comp) || (b.data||'').localeCompare(a.data||''));
   const part = sorted.slice(0, CS.shown);
   box.innerHTML = rows.length ? `
-  <div class="table-wrap"><table><thead><tr><th>Data</th><th>Mês</th><th>Veículo</th><th>Categoria</th><th>Descrição / Fornecedor</th><th class="num">Valor</th><th>NF / nota</th></tr></thead><tbody>
+  <div class="table-wrap"><table><thead><tr><th>Data</th><th>Mês</th><th>Veículo</th><th>Categoria</th><th>Descrição / Fornecedor</th><th class="num">Valor</th><th>NF / nota</th><th></th></tr></thead><tbody>
     ${part.map(l=>`<tr><td>${l.data?dBR(l.data):'<span class="muted">–</span>'}</td><td>${mLabel(l.comp)}</td><td><b>${esc(l.veic)}</b></td><td><span class="badge">${esc(cap(l.cat))}</span></td>
       <td class="wrap">${esc(l.desc)||'<span class="muted">–</span>'}${l.obs?`<div class="muted" style="font-size:12px">${esc(l.obs)}</div>`:''}${l.fonte==='glp'?'<div style="margin-top:3px"><span class="badge info">Automático · Controle GLP</span></div>':''}${l.fonte==='app'?`<div style="margin-top:3px"><span class="badge good">App · ${esc(l.operador)}</span></div>`:''}</td>
-      <td class="num">${BRL(l.valor)}</td><td>${esc(l.nf)||'<span class="muted">–</span>'}${l.empresa?` <span class="mini">${esc(l.empresa)}</span>`:''}<div style="margin-top:3px">${notaLinks(l)}</div></td></tr>`).join('')}
-    <tr class="tot"><td colspan="5">Total do filtro (${N0(rows.length)} lançamentos)</td><td class="num">${BRL(total)}</td><td></td></tr></tbody></table></div>
+      <td class="num">${BRL(l.valor)}</td><td>${esc(l.nf)||'<span class="muted">–</span>'}${l.empresa?` <span class="mini">${esc(l.empresa)}</span>`:''}<div style="margin-top:3px">${notaLinks(l)}</div></td><td>${l.fonte==='glp' ? '<span class="mini">no GLP</span>' : btnEd('cu', l.id)}</td></tr>`).join('')}
+    <tr class="tot"><td colspan="5">Total do filtro (${N0(rows.length)} lançamentos)</td><td class="num">${BRL(total)}</td><td></td><td></td></tr></tbody></table></div>
   ${rows.length>CS.shown?`<div class="morebar"><button class="btn" id="c-more">Mostrar mais (${rows.length-CS.shown} restantes)</button></div>`:''}` : '<div class="card empty">Nenhum lançamento neste filtro.</div>';
   const mb = $('#c-more'); if(mb) mb.onclick = ()=>{ CS.shown += 100; custosBody(); };
 }
@@ -887,8 +890,8 @@ function custoAbast(box){
     ${vs.map(v=>{ const r = ab.filter(a=>a.veic===v); const L = sum(r,a=>a.litros), T = sum(r,a=>a.total), K = sum(r,a=>a.kmrod); const kmls = r.filter(a=>a.kml).map(a=>a.kml);
       return `<tr><td><b>${v}</b></td><td class="num">${r.length}</td><td class="num">${N1(L)}</td><td class="num">${BRL(T)}</td><td class="num">${L?BRL(T/L):'–'}</td><td class="num">${N0(K)}</td><td class="num">${kmls.length?N1(sum(kmls,x=>x)/kmls.length):'–'}</td></tr>`; }).join('') || '<tr><td colspan="7" class="empty">Sem abastecimentos neste filtro.</td></tr>'}</tbody></table></div>
   <h4 class="sechead">Últimos abastecimentos</h4>
-  <div class="table-wrap"><table><thead><tr><th>Data</th><th>Veículo</th><th>Posto</th><th>Cidade</th><th>Comb.</th><th class="num">Litros</th><th class="num">R$/L</th><th class="num">Total</th><th class="num">Km/L</th></tr></thead><tbody>
-    ${ab.slice().sort((a,b)=>b.data.localeCompare(a.data)).slice(0,30).map(a=>`<tr><td>${dBR(a.data)}</td><td><b>${a.veic}</b></td><td class="wrap">${esc(a.posto)}</td><td>${esc(a.cidade)}</td><td>${esc(a.comb)}</td><td class="num">${N1(a.litros)}</td><td class="num">${BRL(a.vlitro)}</td><td class="num">${BRL(a.total)}</td><td class="num">${a.kml?N1(a.kml):'–'}</td></tr>`).join('')}</tbody></table></div>`;
+  <div class="table-wrap"><table><thead><tr><th>Data</th><th>Veículo</th><th>Posto</th><th>Cidade</th><th>Comb.</th><th class="num">Litros</th><th class="num">R$/L</th><th class="num">Total</th><th class="num">Km/L</th><th></th></tr></thead><tbody>
+    ${ab.slice().sort((a,b)=>b.data.localeCompare(a.data)).slice(0,30).map(a=>`<tr><td>${dBR(a.data)}</td><td><b>${a.veic}</b></td><td class="wrap">${esc(a.posto)}</td><td>${esc(a.cidade)}</td><td>${esc(a.comb)}</td><td class="num">${N1(a.litros)}</td><td class="num">${BRL(a.vlitro)}</td><td class="num">${BRL(a.total)}</td><td class="num">${a.kml?N1(a.kml):'–'}</td><td>${btnEd('ab', a.id)}</td></tr>`).join('')}</tbody></table></div>`;
 }
 
 // pendências para o financeiro conferir
@@ -911,8 +914,8 @@ function custoPend(box, rows){
   box.innerHTML = `
   <div class="kpi-row">${defs.map(d=>`<div class="card pend-card ${d[0]===CS.pend?'on':''}" data-p="${d[0]}"><div class="l">${d[1]}</div><div class="v">${d[2].length}</div><div class="s">${R$(sum(d[2], l=>l.valor))}</div></div>`).join('')}</div>
   <p class="fin-note">${cur[3]} Considera os filtros acima. Clique em um quadro para ver a lista.</p>
-  ${lst.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Mês</th><th>Veículo</th><th>Categoria</th><th>Descrição</th><th class="num">Valor</th><th>NF</th></tr></thead><tbody>
-    ${lst.slice(0,200).map(l=>`<tr><td class="${!l.data?'hl':''}">${l.data?dBR(l.data):'sem data'}</td><td>${mLabel(l.comp)}</td><td><b>${esc(l.veic)}</b></td><td>${esc(cap(l.cat))}</td><td class="wrap">${esc(l.desc)||'–'}</td><td class="num">${BRL(l.valor)}</td><td>${esc(l.nf)||'<span class="muted">–</span>'}</td></tr>`).join('')}</tbody></table></div>${lst.length>200?`<p class="hint">Mostrando 200 de ${lst.length}. Use os filtros para refinar.</p>`:''}`
+  ${lst.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Mês</th><th>Veículo</th><th>Categoria</th><th>Descrição</th><th class="num">Valor</th><th>NF</th><th></th></tr></thead><tbody>
+    ${lst.slice(0,200).map(l=>`<tr><td class="${!l.data?'hl':''}">${l.data?dBR(l.data):'sem data'}</td><td>${mLabel(l.comp)}</td><td><b>${esc(l.veic)}</b></td><td>${esc(cap(l.cat))}</td><td class="wrap">${esc(l.desc)||'–'}</td><td class="num">${BRL(l.valor)}</td><td>${esc(l.nf)||'<span class="muted">–</span>'}</td><td>${btnEd('cu', l.id)}</td></tr>`).join('')}</tbody></table></div>${lst.length>200?`<p class="hint">Mostrando 200 de ${lst.length}. Use os filtros para refinar.</p>`:''}`
     : '<div class="card empty">Nada pendente neste filtro. 👍</div>'}`;
   $$('.pend-card').forEach(c=>c.onclick = ()=>{ CS.pend = c.dataset.p; custosBody(); });
 }
@@ -1009,9 +1012,9 @@ function kmVeic(v){
   </div>
   <div class="card" style="margin-bottom:14px"><h4>Evolução do odômetro</h4><div class="chartbox sm"><canvas id="kv1"></canvas></div></div>
   <div class="filters" style="grid-template-columns:minmax(160px,240px)"><div class="field"><label>Mês</label><select id="kv-mes"><option value="">Todos os meses (${regs.length})</option>${meses.map(m=>`<option value="${m}" ${KV.mes===m?'selected':''}>${mLabel(m)} (${regs.filter(r=>r.data.startsWith(m)).length})</option>`).join('')}</select></div></div>
-  <div class="table-wrap"><table><thead><tr><th>Data</th><th class="num">Km</th><th class="num">Desde o anterior</th><th class="num">Dias</th><th class="num">Km/dia</th><th>Origem</th><th></th></tr></thead><tbody>
+  <div class="table-wrap"><table><thead><tr><th>Data</th><th class="num">Km</th><th class="num">Desde o anterior</th><th class="num">Dias</th><th class="num">Km/dia</th><th>Origem</th><th></th><th></th></tr></thead><tbody>
     ${view.map(r=>`<tr><td>${dBR(r.data)}</td><td class="num"><b>${N0(r.km)}</b></td><td class="num">${r.delta!=null?(r.delta>0?'+':'')+N0(r.delta):'<span class="muted">–</span>'}</td><td class="num">${r.dias!=null?r.dias:'<span class="muted">–</span>'}</td><td class="num">${r.media!=null?N0(r.media):'<span class="muted">–</span>'}</td>
-      <td>${esc(r.origem)}${r.obs?` <span class="muted">· ${esc(r.obs)}</span>`:''}</td><td>${r.flag==='queda'?'<span class="badge bad">Km menor que o anterior</span>':r.flag==='salto'?'<span class="badge warn">Salto grande</span>':''}</td></tr>`).join('')}
+      <td>${esc(r.origem)}${r.obs?` <span class="muted">· ${esc(r.obs)}</span>`:''}</td><td>${r.flag==='queda'?'<span class="badge bad">Km menor que o anterior</span>':r.flag==='salto'?'<span class="badge warn">Salto grande</span>':''}</td><td>${r.src && r.rid ? btnEd({leit:'kmleit',abast:'ab',traj:'tj'}[r.src], r.rid) : ''}</td></tr>`).join('')}
   </tbody></table></div>
   <p class="hint">Reúne as leituras semanais, os abastecimentos e o que os operadores lançam no app. Linhas marcadas precisam de conferência (km menor que a leitura anterior ou salto acima de 2.500 km).</p>`;
   $('#kv-mes').onchange = e=>{ KV.mes = e.target.value; kmVeic(v); };
@@ -1057,9 +1060,10 @@ function manutencao(){
   const hist = ()=>{
     const r = DB.manut.filter(m=>(m.servico||m.empresa||m.nf) && (!MS.veic||m.veic===MS.veic) && (!MS.q || [m.servico,m.empresa,m.obs].join(' ').toLowerCase().includes(MS.q.toLowerCase())))
       .sort((a,b)=>String(b.data||'').localeCompare(String(a.data||'')));
-    $('#m-hist').innerHTML = r.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Veículo</th><th>Serviço realizado</th><th>Empresa</th><th>Km / obs.</th><th>NF</th></tr></thead><tbody>
+    $('#m-hist').innerHTML = r.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Veículo</th><th>Serviço realizado</th><th>Empresa</th><th>Km / obs.</th><th>NF</th><th class="num">Valor</th><th></th></tr></thead><tbody>
       ${r.map(m=>`<tr><td>${dBR(m.data)}</td><td><b>${m.veic}</b></td><td class="wrap">${esc(m.servico)||'<span class="muted">–</span>'}</td><td class="wrap">${esc(m.empresa)||'<span class="muted">–</span>'}</td><td>${m.km?N0(m.km):esc(m.obs)||'<span class="muted">–</span>'}</td>
-        <td>${esc(m.nf)||'<span class="muted">–</span>'}${m.arq?' '+notaDrive(m.arq,'nota'):''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="card empty">Nenhum serviço encontrado.</div>';
+        <td>${esc(m.nf)||'<span class="muted">–</span>'}${m.arq?' '+notaDrive(m.arq,'nota'):''}</td>
+        <td class="num">${(c=>c?BRL(c.valor):'<span class="muted">–</span>')(DB.custos.find(c=>c.manut_id===m.id))}</td><td>${btnEd('mn', m.id)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="card empty">Nenhum serviço encontrado.</div>';
   };
   hist();
   $('#m-v').onchange = e=>{ MS.veic = e.target.value; hist(); };
@@ -1108,12 +1112,13 @@ $('#form-man').addEventListener('submit', async e=>{
   const f = e.target;
   if(!f.servico.value.trim() || !f.data.value){ e.preventDefault(); return; }
   const km = parseInt(f.km.value, 10) || null, valor = parseFloat(f.valor.value);
+  // o valor em R$ fica só em Controle de custos (ligado por manut_id); aqui não se repete
   const m = { id: uid('mn'), veic:f.veic.value, data:f.data.value, servico:f.servico.value.trim(), empresa:f.empresa.value.trim()||null, km, nf:f.nf.value.trim()||null,
-              valor: valor > 0 ? r2(valor) : null, obs: km ? 'KM' + km : null, operador: USER || 'Escritório' };
+              valor: null, obs: km ? 'KM' + km : null, operador: USER || 'Escritório' };
   try{
     await dbInsert('manutencoes', [m]); DB.manut.push(m);
     if(valor > 0){
-      const l = { id: uid('cu'), data:m.data, comp:m.data.slice(0,7)+'-01', veic:m.veic, cat:'MANUTENÇÃO VEICULAR', descr:`${m.servico}${m.empresa?' — '+m.empresa:''}`, valor:r2(valor), nf:m.nf, fonte:'app', operador:USER||'Escritório' };
+      const l = { id: uid('cu'), data:m.data, comp:m.data.slice(0,7)+'-01', veic:m.veic, cat:'MANUTENÇÃO VEICULAR', descr:`${m.servico}${m.empresa?' — '+m.empresa:''}`, valor:r2(valor), nf:m.nf, fonte:'app', operador:USER||'Escritório', manut_id:m.id };
       await dbInsert('custos', [l]); if(DB.custos) DB.custos.push({ ...l, desc:l.descr, comp:m.data.slice(0,7) });
     }
     if(f.oleo.checked && km){
@@ -1187,12 +1192,12 @@ function suportes(){
   } else if(SS.tab==='saidas'){
     const rows = DB.sup_sai.filter(s=>!SS.cli || cliNome(s)===SS.cli);
     body.innerHTML = `<div class="filters" style="grid-template-columns:minmax(200px,320px)"><div class="field"><label>Cliente</label><select id="s-cli"><option value="">Todos</option>${porCli.map(x=>`<option ${SS.cli===x[0]?'selected':''}>${esc(x[0])}</option>`).join('')}</select></div></div>
-      <div class="table-wrap"><table><thead><tr><th>NF</th><th>Ciclo</th><th>Cliente</th><th>CNPJ</th><th class="num">Quantidade</th><th>Certificado</th></tr></thead><tbody>
-      ${rows.map(s=>{ const cancel = /INATIVA|CANCELADA/i.test(s.cliente||''); return `<tr><td>${esc(s.nf)}</td><td>${esc(s.ciclo)||'<span class="muted">–</span>'}</td><td>${cancel?`<span class="badge bad">${esc(s.cliente)}</span>`:(s.cliente?`<b>${esc(s.cliente)}</b>`:'<span class="badge warn">sem cliente informado</span>')}</td><td>${esc(s.cnpj)||'<span class="muted">–</span>'}</td><td class="num">${s.qtd!=null?N0(s.qtd):'–'}</td><td>${esc(s.cert)||'<span class="muted">–</span>'}</td></tr>`; }).join('')}</tbody></table></div>`;
+      <div class="table-wrap"><table><thead><tr><th>NF</th><th>Ciclo</th><th>Cliente</th><th>CNPJ</th><th class="num">Quantidade</th><th>Certificado</th><th></th></tr></thead><tbody>
+      ${rows.map(s=>{ const cancel = /INATIVA|CANCELADA/i.test(s.cliente||''); return `<tr><td>${esc(s.nf)}</td><td>${esc(s.ciclo)||'<span class="muted">–</span>'}</td><td>${cancel?`<span class="badge bad">${esc(s.cliente)}</span>`:(s.cliente?`<b>${esc(s.cliente)}</b>`:'<span class="badge warn">sem cliente informado</span>')}</td><td>${esc(s.cnpj)||'<span class="muted">–</span>'}</td><td class="num">${s.qtd!=null?N0(s.qtd):'–'}</td><td>${esc(s.cert)||'<span class="muted">–</span>'}</td><td>${btnEd('ss', s.id)}</td></tr>`; }).join('')}</tbody></table></div>`;
     $('#s-cli').onchange = e=>{ SS.cli = e.target.value; suportes(); };
   } else {
-    body.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Ciclo</th><th>Veículo</th><th>Fornecedor</th><th>NF fornecedor</th><th>Material</th><th class="num">Qtd.</th><th>Comunicado</th><th>Certificado</th></tr></thead><tbody>
-      ${DB.sup_ent.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data))).map(e=>`<tr><td>${dBR(e.data)}</td><td><b>${esc(e.ciclo)}</b></td><td>${esc(e.veic)}</td><td>${esc(e.fornecedor)}</td><td>${esc(e.nf)}</td><td class="wrap">${esc(e.material)}</td><td class="num">${N0(e.qtd)}</td><td>${esc(e.comunicado)}</td><td>${esc(e.cert)}</td></tr>`).join('')}</tbody></table></div>`;
+    body.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Ciclo</th><th>Veículo</th><th>Fornecedor</th><th>NF fornecedor</th><th>Material</th><th class="num">Qtd.</th><th>Comunicado</th><th>Certificado</th><th></th></tr></thead><tbody>
+      ${DB.sup_ent.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data))).map(e=>`<tr><td>${dBR(e.data)}</td><td><b>${esc(e.ciclo)}</b></td><td>${esc(e.veic)}</td><td>${esc(e.fornecedor)}</td><td>${esc(e.nf)}</td><td class="wrap">${esc(e.material)}</td><td class="num">${N0(e.qtd)}</td><td>${esc(e.comunicado)}</td><td>${esc(e.cert)}</td><td>${btnEd('se', e.id)}</td></tr>`).join('')}</tbody></table></div>`;
   }
 }
 $('#form-sup-in').addEventListener('submit', async e=>{
@@ -1391,8 +1396,8 @@ function utilVeic(v){
       <div class="field"><label>Buscar origem, destino ou observação</label><input id="u-q" type="search" value="${esc(US.q)}"></div></div><div id="u-list"></div>`;
     const draw = ()=>{
       const rows = getRows(); const part = rows.slice(0, US.shown);
-      $('#u-list').innerHTML = rows.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Saída</th><th>Chegada</th><th class="num">Km saída</th><th class="num">Km chegada</th><th class="num">Km rodados</th><th>Origem</th><th>Destino</th><th>Motorista</th><th>Obs.</th></tr></thead><tbody>
-        ${part.map(t=>`<tr><td>${dBR(t.data)}</td><td>${esc(t.saida)||'–'}</td><td>${esc(t.chegada)||'–'}</td><td class="num">${t.km_saida!=null?N0(t.km_saida):'–'}</td><td class="num">${t.km_chegada!=null?N0(t.km_chegada):'<span class="muted">–</span>'}</td><td class="num">${kmRod(t)!=null?N0(kmRod(t)):'–'}</td><td class="wrap">${esc(t.origem)||'–'}</td><td class="wrap">${esc(t.destino)||'–'}</td><td>${esc(t.motorista)||'–'}${t.fonte==='app'?' <span class="badge good">app</span>':t.fonte==='foto'?' <span class="badge info">lido da foto</span>':t.fonte==='foto (revisar)'?' <span class="badge warn">conferir</span>':''}</td><td class="wrap">${esc(t.obs)||''}</td></tr>`).join('')}
+      $('#u-list').innerHTML = rows.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Saída</th><th>Chegada</th><th class="num">Km saída</th><th class="num">Km chegada</th><th class="num">Km rodados</th><th>Origem</th><th>Destino</th><th>Motorista</th><th>Obs.</th><th></th></tr></thead><tbody>
+        ${part.map(t=>`<tr><td>${dBR(t.data)}</td><td>${esc(t.saida)||'–'}</td><td>${esc(t.chegada)||'–'}</td><td class="num">${t.km_saida!=null?N0(t.km_saida):'–'}</td><td class="num">${t.km_chegada!=null?N0(t.km_chegada):'<span class="muted">–</span>'}</td><td class="num">${kmRod(t)!=null?N0(kmRod(t)):'–'}</td><td class="wrap">${esc(t.origem)||'–'}</td><td class="wrap">${esc(t.destino)||'–'}</td><td>${esc(t.motorista)||'–'}${t.fonte==='app'?' <span class="badge good">app</span>':t.fonte==='foto'?' <span class="badge info">lido da foto</span>':t.fonte==='foto (revisar)'?' <span class="badge warn">conferir</span>':''}</td><td class="wrap">${esc(t.obs)||''}</td><td>${btnEd('tj', t.id)}</td></tr>`).join('')}
         </tbody></table></div>${rows.length>US.shown?`<div class="morebar"><button class="btn" id="u-more">Mostrar mais (${rows.length-US.shown} restantes)</button></div>`:''}` : '<div class="card empty">Nenhum trajeto neste filtro.</div>';
       const mb = $('#u-more'); if(mb) mb.onclick = ()=>{ US.shown += 100; draw(); };
     };
@@ -1581,6 +1586,245 @@ function cfAvisos(){
   avisosBox();
 }
 
+/* ============================ CORREÇÃO MANUAL DOS LANÇAMENTOS ============================ */
+// Cada correção grava quem alterou e quando (editado_por / editado_em). Excluir é só para administradores.
+const carimbo = () => ({ editado_em: new Date().toISOString(), editado_por: USER || 'Escritório' });
+const souAdmin = () => !!(PERFIL && PERFIL.tipo === 'admin');
+const btnEd = (tipo, id) => `<button class="btn sm" data-ed="${tipo}|${esc(id)}" title="Corrigir este lançamento">Editar</button>`;
+async function refazerTela(){ const y = window.scrollY; await go(); window.scrollTo(0, y); }
+
+function abrirEdicao(o){
+  const d = $('#dlg-edit');
+  const campo = c=>{
+    if(c.sect) return `<div class="sect full" style="grid-column:1/-1;margin-top:4px">${esc(c.sect)}</div>`;
+    const v = o.valores[c.k], val = v == null ? '' : v;
+    if(c.type === 'checkbox') return `<div class="field full"><label class="checkrow" style="text-transform:none;letter-spacing:0;font-size:14px;color:var(--text)"><input type="checkbox" name="${c.k}" ${v ? 'checked' : ''}> ${esc(c.label)}</label></div>`;
+    const inp = c.type === 'select'
+      ? `<select name="${c.k}">${c.opts.map(x=>{ const [a, b] = Array.isArray(x) ? x : [x, x]; return `<option value="${esc(a)}" ${String(a) === String(val) ? 'selected' : ''}>${esc(b || '—')}</option>`; }).join('')}</select>`
+      : `<input name="${c.k}" type="${c.type || 'text'}" ${c.step ? `step="${c.step}"` : ''} ${c.type === 'number' ? 'inputmode="decimal"' : ''} value="${esc(val)}" ${c.required ? 'required' : ''} ${c.readonly ? 'readonly' : ''}>`;
+    return `<div class="field ${c.full ? 'full' : ''}"><label>${esc(c.label)}</label>${inp}</div>`;
+  };
+  const ult = o.valores.editado_em ? `Última correção: ${dBR(String(o.valores.editado_em).slice(0,10))}${o.valores.editado_por ? ' por ' + esc(o.valores.editado_por) : ''}.` : '';
+  d.innerHTML = `<form id="form-edit" autocomplete="off">
+    <h3>${esc(o.titulo)}</h3>
+    ${o.aviso ? `<p class="hint" style="margin:0 0 10px">${o.aviso}</p>` : ''}
+    <div class="fgrid">${o.campos.map(campo).join('')}</div>
+    ${ult ? `<p class="hint">${ult}</p>` : ''}
+    <div class="hintbox bad" id="ed-msg" hidden></div>
+    <div class="dlg-actions">${o.onDelete && souAdmin() ? '<button type="button" class="btn ghost" id="ed-del" style="margin-right:auto;color:var(--bad)">Excluir</button>' : ''}<button type="button" class="btn" id="ed-cancel">Cancelar</button><button type="submit" class="btn primary">Salvar correção</button></div>
+  </form>`;
+  const f = $('#form-edit', d), msg = t=>{ const m = $('#ed-msg'); m.textContent = t; m.hidden = !t; };
+  $('#ed-cancel').onclick = ()=>d.close();
+  const colher = ()=>{
+    const v = {};
+    o.campos.filter(c=>!c.sect).forEach(c=>{
+      const el = f.elements[c.k];
+      if(c.type === 'checkbox') v[c.k] = el.checked;
+      else if(c.type === 'number'){ const n = parseFloat(String(el.value).replace(',', '.')); v[c.k] = isNaN(n) ? null : n; }
+      else v[c.k] = String(el.value).trim() || null;
+    });
+    return v;
+  };
+  f.onsubmit = async e=>{
+    e.preventDefault(); msg('');
+    const btn = $('button[type=submit]', f); btn.disabled = true;
+    try{ await o.onSave(colher()); d.close(); toast('Correção salva.'); await refazerTela(); }
+    catch(err){ console.error(err); btn.disabled = false; msg('Não foi possível salvar: ' + (err.message || err)); }
+  };
+  if(o.onDelete && souAdmin()) $('#ed-del').onclick = async ()=>{
+    if(!confirm(o.confirmaExcluir || 'Excluir este lançamento? Isso não pode ser desfeito.')) return;
+    try{ await o.onDelete(); d.close(); toast('Lançamento excluído.'); await refazerTela(); }
+    catch(err){ console.error(err); msg('Não foi possível excluir: ' + (err.message || err)); }
+  };
+  d.showModal();
+}
+document.addEventListener('click', e=>{
+  const b = e.target.closest('[data-ed]'); if(!b) return;
+  const [tipo, ...r] = b.dataset.ed.split('|'), id = r.join('|');
+  ({ cu:editarCusto, ab:editarAbast, kmleit:editarLeitura, mn:editarManut, tj:editarTrajeto, se:editarSupEntrada, ss:editarSupSaida }[tipo] || (()=>{}))(id);
+});
+
+/* ---- custos (e o abastecimento / manutenção ligados a ele) ---- */
+const ymd = s => s ? String(s).slice(0, 10) : null;
+function editarCusto(id){
+  const l = DB.custos.find(x=>x.id === id); if(!l) return;
+  const ab = (DB.abast||[]).find(a=>a.custo_id === id);
+  const cats = [...new Set([...categorias(), l.cat])];
+  const campos = [
+    { k:'data', label:'Data', type:'date' }, { k:'comp', label:'Mês de competência', type:'month', required:true },
+    { k:'veic', label:'Veículo', type:'select', opts: VEIC().map(v=>v.cod) }, { k:'cat', label:'Categoria', type:'select', opts: cats },
+    { k:'desc', label:'Descrição / fornecedor', full:true }, { k:'valor', label:'Valor (R$)', type:'number', step:'0.01', required:true },
+    { k:'nf', label:'Nº da NF' }, { k:'empresa', label:'Empresa da nota', type:'select', opts:['','MANN','EXATA SC'] }, { k:'obs', label:'Observação', full:true }
+  ];
+  const valores = { ...l, desc: l.desc, comp: String(l.comp).slice(0,7), data: ymd(l.data) };
+  if(ab){
+    campos.push({ sect:'Abastecimento ligado a esta nota' }, { k:'litros', label:'Litros', type:'number', step:'0.001' }, { k:'km', label:'Km do odômetro', type:'number' }, { k:'cheio', label:'Completou o tanque', type:'checkbox' });
+    Object.assign(valores, { litros: ab.litros, km: ab.km, cheio: ab.cheio });
+  }
+  abrirEdicao({
+    titulo: 'Corrigir lançamento de custo', campos, valores,
+    aviso: ab ? 'O valor, a data, a NF e o veículo valem também para o abastecimento ligado a esta nota (um lançamento só).' : '',
+    confirmaExcluir: ab ? 'Excluir este custo e o abastecimento ligado a ele?' : 'Excluir este lançamento de custo?',
+    onSave: async v=>{
+      if(!(v.valor >= 0) || !v.comp) throw new Error('Informe o valor e o mês de competência.');
+      const row = { data: v.data, comp: v.comp + '-01', veic: v.veic, cat: v.cat, descr: v.desc, valor: r2(v.valor), nf: v.nf, empresa: v.empresa, obs: v.obs };
+      await dbUpdate('custos', { ...row, ...carimbo() }, 'id', id);
+      Object.assign(l, row, { desc: v.desc, comp: v.comp });
+      if(ab){
+        if(!v.data) throw new Error('O abastecimento precisa de data.');
+        await salvarAbast(ab, { data: v.data, veic: v.veic, nfe: v.nf, total: row.valor, litros: v.litros, km: v.km != null ? Math.round(v.km) : null, cheio: v.cheio });
+      }
+      const mn = l.manut_id && (DB.manut||[]).find(m=>m.id === l.manut_id);
+      if(mn){ const p = { data: v.data || mn.data, veic: v.veic, nf: v.nf }; await dbUpdate('manutencoes', { ...p, ...carimbo() }, 'id', mn.id); Object.assign(mn, p); }
+    },
+    onDelete: async ()=>{
+      if(ab){ await dbDelete('abastecimentos', 'id', ab.id); DB.abast = DB.abast.filter(x=>x.id !== ab.id); }
+      await dbDelete('custos', 'id', id); DB.custos = DB.custos.filter(x=>x.id !== id);
+    }
+  });
+}
+
+/* ---- abastecimentos ---- */
+// km rodados e km/L dependem do abastecimento anterior do mesmo veículo
+async function recalcAbast(x){
+  const prev = (DB.abast||[]).filter(p=>p.id !== x.id && p.veic === x.veic && p.km && String(p.data) <= String(x.data) && p.km < x.km)
+    .sort((a, b)=>String(b.data).localeCompare(String(a.data)) || b.km - a.km)[0];
+  const kmrod = prev && x.km ? x.km - prev.km : null;
+  const kml = kmrod > 0 && x.cheio && x.litros ? Math.round(kmrod / x.litros * 100) / 100 : null;
+  const novo = { kmrod: kmrod > 0 ? kmrod : null, kml };
+  if(novo.kmrod !== (x.kmrod ?? null) || novo.kml !== (x.kml ?? null)){ await dbUpdate('abastecimentos', novo, 'id', x.id); Object.assign(x, novo); }
+}
+async function salvarAbast(a, p){
+  const litros = p.litros > 0 ? p.litros : null;
+  const row = { ...p, litros, vlitro: litros && p.total ? r2(p.total / litros) : null };
+  const mudouKm = row.km !== a.km || String(row.data) !== String(a.data) || row.veic !== a.veic;
+  await dbUpdate('abastecimentos', { ...row, ...carimbo() }, 'id', a.id); Object.assign(a, row);
+  await recalcAbast(a);
+  if(mudouKm){
+    const prox = DB.abast.filter(x=>x.id !== a.id && x.veic === a.veic && x.km && String(x.data) >= String(a.data)).sort((u, w)=>String(u.data).localeCompare(String(w.data)) || u.km - w.km)[0];
+    if(prox) await recalcAbast(prox);
+  }
+}
+function editarAbast(id){
+  const a = DB.abast.find(x=>x.id === id); if(!a) return;
+  if(a.custo_id && DB.custos && DB.custos.find(c=>c.id === a.custo_id)) return editarCusto(a.custo_id);
+  abrirEdicao({
+    titulo: 'Corrigir abastecimento',
+    campos: [
+      { k:'data', label:'Data', type:'date', required:true }, { k:'veic', label:'Veículo', type:'select', opts: VEIC().map(v=>v.cod) },
+      { k:'posto', label:'Posto', full:true }, { k:'cidade', label:'Cidade' }, { k:'comb', label:'Combustível', type:'select', opts:['Diesel','Gasolina','Etanol','Flex'] },
+      { k:'litros', label:'Litros', type:'number', step:'0.001' }, { k:'total', label:'Valor total (R$)', type:'number', step:'0.01' },
+      { k:'km', label:'Km do odômetro', type:'number' }, { k:'nfe', label:'Nº da NF' }, { k:'cheio', label:'Completou o tanque', type:'checkbox' }
+    ],
+    valores: { ...a, data: ymd(a.data) },
+    aviso: 'O custo em R$ deste combustível está em Controle de custos; aqui ficam litros, km e km/L.',
+    onSave: async v=>{ if(!v.data) throw new Error('Informe a data.'); await salvarAbast(a, { data: v.data, veic: v.veic, posto: v.posto, cidade: v.cidade, comb: v.comb, litros: v.litros, total: v.total, km: v.km, nfe: v.nfe, cheio: v.cheio }); },
+    onDelete: async ()=>{ await dbDelete('abastecimentos', 'id', id); DB.abast = DB.abast.filter(x=>x.id !== id); }
+  });
+}
+
+/* ---- leituras de km ---- */
+function editarLeitura(id){
+  const r = (DB.leit||[]).find(x=>x.id === id); if(!r) return;
+  abrirEdicao({
+    titulo: 'Corrigir leitura de km',
+    campos: [{ k:'veic', label:'Veículo', type:'select', opts: VEIC().map(v=>v.cod) }, { k:'data', label:'Data', type:'date', required:true }, { k:'km', label:'Km do odômetro', type:'number', required:true }, { k:'obs', label:'Observação', full:true }],
+    valores: { ...r, data: ymd(r.data) },
+    onSave: async v=>{ if(!v.data || !(v.km > 0)) throw new Error('Informe a data e o km.'); const p = { veic: v.veic, data: v.data, km: Math.round(v.km), obs: v.obs }; await dbUpdate('km_leituras', { ...p, ...carimbo() }, 'id', id); Object.assign(r, p); },
+    onDelete: async ()=>{ await dbDelete('km_leituras', 'id', id); DB.leit = DB.leit.filter(x=>x.id !== id); }
+  });
+}
+// linha da tela de quilometragem: abre o editor do lugar onde o km foi lançado
+function editarRegistroKm(src, rid){ ({ leit:editarLeitura, abast:editarAbast, traj:editarTrajeto }[src] || (()=>{}))(rid); }
+
+/* ---- manutenção (o valor mora só em Controle de custos) ---- */
+function editarManut(id){
+  const m = DB.manut.find(x=>x.id === id); if(!m) return;
+  const cu = (DB.custos||[]).find(c=>c.manut_id === id);
+  abrirEdicao({
+    titulo: 'Corrigir manutenção',
+    campos: [
+      { k:'data', label:'Data', type:'date', required:true }, { k:'veic', label:'Veículo', type:'select', opts: VEIC().map(v=>v.cod) },
+      { k:'servico', label:'Serviço realizado', full:true, required:true }, { k:'empresa', label:'Empresa que realizou', full:true },
+      { k:'km', label:'Km do veículo', type:'number' }, { k:'nf', label:'Nº da NF' }, { k:'valor', label:'Valor (R$) — vai para Controle de custos', type:'number', step:'0.01', full:true }
+    ],
+    valores: { ...m, data: ymd(m.data), valor: cu ? cu.valor : null },
+    aviso: cu ? 'O valor deste serviço está em Controle de custos (categoria Manutenção veicular). Apagar o valor aqui remove esse gasto de lá.' : 'Se informar um valor, ele passa a entrar em Controle de custos.',
+    confirmaExcluir: cu ? 'Excluir esta manutenção e o gasto ligado a ela nos custos?' : 'Excluir esta manutenção?',
+    onSave: async v=>{
+      if(!v.data || !v.servico) throw new Error('Informe a data e o serviço.');
+      const km = v.km > 0 ? Math.round(v.km) : null;
+      const p = { data: v.data, veic: v.veic, servico: v.servico, empresa: v.empresa, km, nf: v.nf, obs: km ? 'KM' + km : m.obs };
+      await dbUpdate('manutencoes', { ...p, ...carimbo() }, 'id', id); Object.assign(m, p);
+      const cp = { data: v.data, comp: v.data.slice(0,7) + '-01', veic: v.veic, descr: `${v.servico}${v.empresa ? ' — ' + v.empresa : ''}`, valor: r2(v.valor || 0), nf: v.nf };
+      if(v.valor > 0){
+        if(cu){ await dbUpdate('custos', { ...cp, ...carimbo() }, 'id', cu.id); Object.assign(cu, cp, { desc: cp.descr, comp: v.data.slice(0,7) }); }
+        else { const n = { id: uid('cu'), cat:'MANUTENÇÃO VEICULAR', fonte:'app', operador: USER || 'Escritório', manut_id: id, ...cp }; await dbInsert('custos', [n]); DB.custos.push({ ...n, desc: n.descr, comp: v.data.slice(0,7) }); }
+      } else if(cu){ await dbDelete('custos', 'id', cu.id); DB.custos = DB.custos.filter(x=>x.id !== cu.id); }
+    },
+    onDelete: async ()=>{
+      if(cu){ await dbDelete('custos', 'id', cu.id); DB.custos = DB.custos.filter(x=>x.id !== cu.id); }
+      await dbDelete('manutencoes', 'id', id); DB.manut = DB.manut.filter(x=>x.id !== id);
+    }
+  });
+}
+
+/* ---- trajetos (utilização) ---- */
+function editarTrajeto(id){
+  const t = (DB.traj||[]).find(x=>x.id === id); if(!t) return;
+  abrirEdicao({
+    titulo: 'Corrigir trajeto',
+    campos: [
+      { k:'data', label:'Data', type:'date', required:true }, { k:'veic', label:'Veículo', type:'select', opts: VEIC().map(v=>v.cod) },
+      { k:'saida', label:'Horário de saída', type:'time' }, { k:'chegada', label:'Horário de chegada', type:'time' },
+      { k:'km_saida', label:'Km de saída', type:'number' }, { k:'km_chegada', label:'Km de chegada', type:'number' },
+      { k:'origem', label:'Origem' }, { k:'destino', label:'Destino' }, { k:'motorista', label:'Motorista', full:true }, { k:'obs', label:'Observação', full:true }
+    ],
+    valores: { ...t, data: ymd(t.data), saida: t.saida ? String(t.saida).slice(0,5) : null, chegada: t.chegada ? String(t.chegada).slice(0,5) : null },
+    onSave: async v=>{
+      if(!v.data) throw new Error('Informe a data.');
+      if(v.km_saida != null && v.km_chegada != null && v.km_chegada < v.km_saida) throw new Error('O km de chegada é menor que o km de saída.');
+      const p = { data: v.data, veic: v.veic, saida: v.saida, chegada: v.chegada, km_saida: v.km_saida != null ? Math.round(v.km_saida) : null, km_chegada: v.km_chegada != null ? Math.round(v.km_chegada) : null, origem: v.origem, destino: v.destino, motorista: v.motorista, obs: v.obs };
+      if(t.fonte && /revisar/.test(t.fonte)) p.fonte = 'foto';   // depois de conferido, deixa de ser “conferir”
+      await dbUpdate('utilizacao_trajetos', { ...p, ...carimbo() }, 'id', id); Object.assign(t, p);
+    },
+    onDelete: async ()=>{ await dbDelete('utilizacao_trajetos', 'id', id); DB.traj = DB.traj.filter(x=>x.id !== id); }
+  });
+}
+
+/* ---- suportes ---- */
+function editarSupEntrada(id){
+  const e = DB.sup_ent.find(x=>String(x.id) === String(id)); if(!e) return;
+  const temSaida = DB.sup_sai.some(s=>s.ciclo === e.chave);
+  abrirEdicao({
+    titulo: `Corrigir entrada · ciclo ${e.ciclo} · ${e.veic}`,
+    campos: [
+      { k:'data', label:'Data', type:'date' }, { k:'qtd', label:'Quantidade', type:'number', required:true },
+      { k:'fornecedor', label:'Fornecedor', full:true }, { k:'nf', label:'NF do fornecedor' }, { k:'material', label:'Material' },
+      { k:'comunicado', label:'Comunicado' }, { k:'cert', label:'Certificado' }
+    ],
+    valores: { ...e, data: ymd(e.data) },
+    aviso: 'O ciclo e o veículo não mudam aqui, porque as saídas estão ligadas a eles. Se estiverem errados, exclua e lance de novo.',
+    confirmaExcluir: temSaida ? '' : 'Excluir esta entrada?',
+    onSave: async v=>{ if(!(v.qtd > 0)) throw new Error('Informe a quantidade.'); const p = { data: v.data, qtd: Math.round(v.qtd), fornecedor: v.fornecedor, nf: v.nf, material: v.material, comunicado: v.comunicado, cert: v.cert }; await dbUpdate('suportes_entrada', { ...p, ...carimbo() }, 'id', e.id); Object.assign(e, p); },
+    onDelete: async ()=>{ if(temSaida) throw new Error('Esta entrada já tem saídas lançadas. Exclua as saídas antes.'); await dbDelete('suportes_entrada', 'id', e.id); DB.sup_ent = DB.sup_ent.filter(x=>x.id !== e.id); }
+  });
+}
+function editarSupSaida(id){
+  const s = DB.sup_sai.find(x=>String(x.id) === String(id)); if(!s) return;
+  abrirEdicao({
+    titulo: `Corrigir saída · NF ${s.nf || ''}`,
+    campos: [
+      { k:'ciclo', label:'Ciclo de origem', type:'select', opts: [['', '(sem ciclo)'], ...DB.sup_ent.map(e=>[e.chave, `${e.chave} — ${e.veic}`])], full:true },
+      { k:'nf', label:'Nº da NF' }, { k:'qtd', label:'Quantidade', type:'number' }, { k:'cliente', label:'Cliente', full:true }, { k:'cnpj', label:'CNPJ' }, { k:'cert', label:'Certificado' }
+    ],
+    valores: s,
+    aviso: 'Para cancelar uma nota, escreva “CANCELADA” no nome do cliente: ela deixa de contar nas saídas.',
+    onSave: async v=>{ const p = { ciclo: v.ciclo, nf: v.nf, qtd: v.qtd != null ? Math.round(v.qtd) : null, cliente: v.cliente, cnpj: v.cnpj, cert: v.cert }; await dbUpdate('suportes_saida', { ...p, ...carimbo() }, 'id', s.id); Object.assign(s, p); },
+    onDelete: async ()=>{ await dbDelete('suportes_saida', 'id', s.id); DB.sup_sai = DB.sup_sai.filter(x=>x.id !== s.id); }
+  });
+}
+
 /* ============================ LANÇAMENTO DO OPERADOR (celular) ============================ */
 const COMB_FIXO = { ATU:'Diesel', RHV:'Diesel', RIX:'Diesel', DUCATO:'Diesel', SHINERAY:'Gasolina' };
 const CAT_OPERADOR = ['COMBUSTÍVEL','ALIMENTAÇÃO','HOTEL','PEDÁGIO','ESTACIONAMENTO','LAVAGEM','MATERIAIS','MANUTENÇÃO VEICULAR','UBER','PASSAGEM DE ÔNIBUS'];
@@ -1752,9 +1996,9 @@ function bindNfe(){
         const ab = { id: uid('ab'), data: f.data.value, veic: W.veic, nfe: custo.nf, posto: f.desc.value.trim(), cidade: f.cidade.value.trim() || null, comb: COMB_FIXO[W.veic] || f.comb.value, litros: L, vlitro: r2(v/L), total: custo.valor,
                      km, kmrod: kmrod>0 ? kmrod : null, kml: (kmrod>0 && f.cheio.checked) ? Math.round(kmrod/L*100)/100 : null, cheio: f.cheio.checked, operador: W.op, custo_id: custoId, fonte: 'app' };
         await dbInsert('abastecimentos', [ab]); addDB('abast', ab);
-        const lr = { id: uid('kl'), veic: W.veic, data: f.data.value, km, origem: 'abastecimento', operador: W.op }; await dbInsert('km_leituras', [lr]); addDB('leit', lr);
+        // o km fica só no abastecimento (a tela de Quilometragem já lê de lá), sem repetir em km_leituras
         KMC[W.veic] = { ...(KMC[W.veic]||{}), km_atual: Math.max(km, (KMC[W.veic]||{}).km_atual||0), km_data: f.data.value, abast_km: km, abast_data: f.data.value };
-        extra += ` Também registrado: abastecimento de ${N1(L)} L${ab.kml?` (${N1(ab.kml)} km/L)`:''} e leitura de ${N0(km)} km.`;
+        extra += ` Também registrado: abastecimento de ${N1(L)} L${ab.kml?` (${N1(ab.kml)} km/L)`:''} e o km de ${N0(km)}.`;
       }
       W.done = { titulo:'Nota lançada', resumo:`${cap(cat)} · R$ ${BRL(custo.valor)} · NF ${custo.nf}`, extra, tipo:'nfe' };
       wiz();
@@ -1839,7 +2083,8 @@ function bindTrajeto(){
       const t = { id: uid('ut'), veic: W.veic, data: f.data.value, saida: f.saida.value || null, chegada: f.chegada.value || null, km_saida: a, km_chegada: b,
                   origem: f.origem.value.trim(), destino: f.destino.value.trim(), motorista: W.op, obs: f.obs.value.trim() || null, fonte: 'app' };
       await dbInsert('utilizacao_trajetos', [t]); addDB('traj', t);
-      if(b){ const lr = { id: uid('kl'), veic: W.veic, data: f.data.value, km: b, origem: 'trajeto', operador: W.op }; await dbInsert('km_leituras', [lr]); addDB('leit', lr); KMC[W.veic] = { ...(KMC[W.veic]||{}), km_atual: Math.max(b, (KMC[W.veic]||{}).km_atual||0), km_data: f.data.value }; }
+      // o km de chegada fica só no trajeto (a tela de Quilometragem já lê de lá), sem repetir em km_leituras
+      if(b){ KMC[W.veic] = { ...(KMC[W.veic]||{}), km_atual: Math.max(b, (KMC[W.veic]||{}).km_atual||0), km_data: f.data.value }; }
       TJ.origem = t.destino; TJ.kmSaida = b || '';
       W.done = { titulo:'Trajeto salvo', resumo:`${t.origem} → ${t.destino}${b?` · ${N0(b-a)} km`:''}`, extra: b ? `Leitura de ${N0(b)} km também registrada na quilometragem.` : 'Lembre de lançar o km de chegada depois.', tipo:'trajeto' };
       wiz();
