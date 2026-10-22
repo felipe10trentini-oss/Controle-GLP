@@ -1,0 +1,1671 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel Geral · MANN &amp; EXATA</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+
+:root{
+  color-scheme:light;
+  --bg:#f2f2f0; --surface:#fff; --surface-2:#e7e7e5; --border:#d2d2cf; --text:#161616; --text-muted:#61615f;
+  --accent:#c00000; --accent-ink:#fff; --accent-2:#4a4a4a;
+  --good:#2f8f5b; --good-bg:#e3f3ea; --warn:#b8790f; --warn-bg:#faf0dc; --bad:#c00000; --bad-bg:#fbe4e4; --info:#1f5ea8; --info-bg:#e6f0fb;
+  --shadow:0 1px 2px rgba(10,10,10,.06),0 4px 14px rgba(10,10,10,.06); --radius:10px;
+  --font-display:'Barlow Condensed',sans-serif; --font-body:'IBM Plex Sans',sans-serif; --font-mono:'IBM Plex Mono',monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{ color-scheme:dark; --bg:#121212; --surface:#1c1c1c; --surface-2:#262626; --border:#3a3a3a; --text:#efefee; --text-muted:#a3a3a1;
+    --accent:#e23a3a; --accent-ink:#160404; --accent-2:#a5a5a5; --good:#57b586; --good-bg:#1c2f26; --warn:#e0af3f; --warn-bg:#332a15;
+    --bad:#e26a6a; --bad-bg:#332019; --info:#7fb2f0; --info-bg:#172b45; --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.35); }
+}
+*{box-sizing:border-box;}
+html,body{margin:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;line-height:1.45;padding:0 16px 48px;max-width:1280px;margin:0 auto;}
+h1,h2,h3,.disp{font-family:var(--font-display);text-transform:uppercase;letter-spacing:.02em;font-weight:700;margin:0;}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
+button{font-family:inherit;cursor:pointer;}
+[hidden]{display:none!important;}
+a{color:inherit;}
+
+/* topo */
+.topbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 0 14px;border-bottom:3px solid var(--accent);margin-bottom:20px;}
+.logos{display:flex;align-items:center;gap:12px;background:#fff;border-radius:8px;padding:6px 14px;}
+.logos img{height:26px;width:auto;display:block;}
+.logos .sep{width:1px;height:22px;background:#d2d2cf;}
+.brand h1{font-size:22px;line-height:1;}
+.brand span{font-size:11px;color:var(--text-muted);}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.crumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-muted);}
+.crumb b{color:var(--text);font-weight:600;}
+.btn{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:7px;padding:8px 14px;font-size:13.5px;font-weight:600;}
+.btn:hover{filter:brightness(.97);}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
+.btn.ghost{background:transparent;}
+.btn.sm{padding:5px 10px;font-size:12px;}
+.proto{display:inline-flex;align-items:center;gap:6px;background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn);border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}
+
+/* home */
+.hero{margin:6px 0 18px;}
+.hero h2{font-size:34px;line-height:1.05;}
+.hero p{margin:6px 0 0;color:var(--text-muted);max-width:60ch;}
+.tiles{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;}
+.tile{grid-column:span 2;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:18px 18px 16px;
+  display:flex;flex-direction:column;gap:14px;text-decoration:none;color:inherit;position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s,border-color .15s;}
+.tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent);}
+.tile:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 2px 4px rgba(10,10,10,.08),0 10px 24px rgba(10,10,10,.10);}
+.tile:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.tile-head{display:flex;align-items:center;gap:12px;}
+.ico{width:44px;height:44px;border-radius:11px;background:var(--bad-bg);color:var(--accent);display:grid;place-items:center;flex:none;}
+.ico svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.tile h3{font-size:22px;line-height:1;}
+.tile .sub{font-size:12px;color:var(--text-muted);margin-top:3px;}
+.tag{margin-left:auto;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:3px 9px;white-space:nowrap;}
+.tag.live{background:var(--good-bg);color:var(--good);}
+.tag.new{background:var(--info-bg);color:var(--info);}
+.kpis3{display:flex;justify-content:space-between;gap:14px;}
+.k{min-width:0;flex:0 1 auto;}
+.k .v{font:600 17px var(--font-mono);white-space:nowrap;}
+.k .l{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin-top:2px;max-width:104px;}
+.tile-foot{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);padding-top:11px;font-size:12px;color:var(--text-muted);}
+.tile-foot .go{color:var(--accent);font-weight:700;font-size:13px;}
+.warnline{display:flex;align-items:center;gap:6px;color:var(--warn);font-weight:600;}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none;}
+.dot.bad{color:var(--bad);} .dot.good{color:var(--good);}
+.attn{margin-top:22px;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:16px 18px;}
+.attn h3{font-size:18px;margin-bottom:10px;}
+.attn ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,1fr);gap:8px 22px;}
+.attn li{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:8px;background:var(--surface-2);}
+.attn li b{font-weight:600;}
+.attn li small{display:block;color:var(--text-muted);}
+.lvl{width:9px;height:9px;border-radius:50%;margin-top:6px;flex:none;}
+.lvl.bad{background:var(--bad);} .lvl.warn{background:var(--warn);} .lvl.info{background:var(--info);}
+
+/* tiles da tela inicial: só ícone, título e descrição */
+.tile{flex-direction:row;align-items:center;gap:18px;min-height:118px;padding:20px 22px 20px 26px;}
+.tile.half{grid-column:span 3;}
+.tile .ico{width:58px;height:58px;border-radius:14px;}
+.tile .ico svg{width:30px;height:30px;}
+.tile h3{font-size:25px;}
+.tile .sub{font-size:13.5px;margin-top:5px;line-height:1.35;}
+
+/* lançamento do operador (celular) */
+.wiz{max-width:680px;margin:0 auto;}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+.steps button{border:1px solid var(--border);background:var(--surface);color:var(--text-muted);border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:600;}
+.steps button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
+.steps button.done{color:var(--text);}
+.wiz h2{font-size:30px;line-height:1.05;margin-bottom:4px;}
+.wiz .lead{color:var(--text-muted);margin:0 0 16px;}
+.pick{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+.bigbtn{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:12px;padding:16px;text-align:left;box-shadow:var(--shadow);min-height:64px;display:flex;flex-direction:column;gap:3px;}
+.bigbtn:hover,.bigbtn:focus-visible{border-color:var(--accent);outline:none;}
+.bigbtn b{font:700 22px var(--font-display);text-transform:uppercase;letter-spacing:.02em;line-height:1.1;}
+.bigbtn span{font-size:12.5px;color:var(--text-muted);}
+.bigbtn.sel{border-color:var(--accent);background:var(--bad-bg);}
+.grp{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);font-weight:700;margin:14px 2px 8px;}
+.opt{display:flex;gap:14px;align-items:center;}
+.opt .ico{width:48px;height:48px;}
+.wform{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:18px;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.wform .full{grid-column:1/-1;}
+.wform input,.wform select,.wform textarea{font-size:16px;padding:11px 12px;}
+.wform .sect{grid-column:1/-1;border-top:1px dashed var(--border);padding-top:12px;margin-top:2px;font:700 14px var(--font-display);text-transform:uppercase;letter-spacing:.04em;}
+.hintbox{grid-column:1/-1;border-radius:8px;padding:9px 12px;font-size:13px;background:var(--info-bg);color:var(--info);}
+.hintbox.warn{background:var(--warn-bg);color:var(--warn);} .hintbox.bad{background:var(--bad-bg);color:var(--bad);}
+.photo{display:flex;gap:12px;align-items:center;}
+.photo img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--border);}
+.checkrow{display:flex;gap:10px;align-items:center;font-size:14px;}
+.checkrow input{width:auto;}
+.wactions{grid-column:1/-1;display:flex;gap:10px;justify-content:flex-end;margin-top:4px;}
+.wactions .btn{padding:12px 18px;font-size:15px;}
+.okbox{text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:26px 18px;}
+.okbox .check{width:60px;height:60px;border-radius:50%;background:var(--good-bg);color:var(--good);display:grid;place-items:center;margin:0 auto 12px;font-size:32px;font-weight:700;}
+.lastlist{margin-top:18px;}
+.lastlist li{list-style:none;display:flex;justify-content:space-between;gap:10px;padding:9px 12px;border-radius:8px;background:var(--surface-2);margin-bottom:6px;font-size:13px;}
+.lastlist{padding:0;}
+@media (max-width:640px){ .pick{grid-template-columns:1fr 1fr;} .wform{grid-template-columns:1fr;padding:14px;} .opt{flex-direction:row;} }
+
+/* paginas */
+.pagehead{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:14px;}
+.pagehead h2{font-size:30px;line-height:1;}
+.pagehead p{margin:4px 0 0;color:var(--text-muted);}
+.pagehead .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;}
+.tabs{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:999px;width:fit-content;max-width:100%;overflow-x:auto;margin-bottom:14px;}
+.tabs button{border:none;background:transparent;color:var(--text-muted);padding:7px 16px;border-radius:999px;font-weight:600;font-size:13.5px;white-space:nowrap;}
+.tabs button.on{background:var(--accent);color:var(--accent-ink);}
+.filters{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr)) minmax(180px,1.4fr);gap:10px;align-items:end;margin-bottom:14px;}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0;}
+.field label{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-weight:600;}
+select,input,textarea{font-family:var(--font-body);font-size:14px;padding:8px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);width:100%;}
+select:focus,input:focus,textarea:focus{outline:2px solid var(--accent-2);outline-offset:1px;}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;min-width:0;}
+.card .l{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);font-weight:600;margin-bottom:6px;}
+.card .v{font:600 24px var(--font-mono);white-space:nowrap;line-height:1.1;}
+.card .s{font-size:12px;color:var(--text-muted);margin-top:5px;overflow-wrap:anywhere;}
+.grid2{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:14px;}
+.grid2e{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+.card h4{margin:0 0 10px;font:700 15px var(--font-display);text-transform:uppercase;letter-spacing:.03em;}
+.chartbox{position:relative;height:290px;}
+.chartbox.sm{height:260px;}
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:640px;}
+thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);padding:10px 12px;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--surface);position:sticky;top:0;}
+tbody td{padding:9px 12px;border-bottom:1px solid var(--border);white-space:nowrap;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--surface-2);}
+td.num,th.num{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
+td.wrap{white-space:normal;min-width:180px;}
+tr.tot td{font-weight:700;background:var(--surface-2);}
+.badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;background:var(--surface-2);color:var(--text);}
+.badge.good{background:var(--good-bg);color:var(--good);} .badge.warn{background:var(--warn-bg);color:var(--warn);} .badge.bad{background:var(--bad-bg);color:var(--bad);} .badge.info{background:var(--info-bg);color:var(--info);}
+.muted{color:var(--text-muted);}
+.bar{height:8px;background:var(--surface-2);border-radius:99px;overflow:hidden;min-width:90px;}
+.bar i{display:block;height:100%;background:var(--good);border-radius:99px;}
+.bar.warn i{background:var(--warn);} .bar.bad i{background:var(--bad);}
+.vgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px;}
+.vcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;display:flex;flex-direction:column;gap:9px;}
+.vcard .top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
+.vcard .code{font:700 26px var(--font-display);letter-spacing:.02em;}
+.vcard .nm{font-size:11.5px;color:var(--text-muted);}
+.vcard .row{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;}
+.vcard .row b{font-family:var(--font-mono);font-weight:600;}
+.note{background:var(--info-bg);color:var(--info);border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:14px;}
+.empty{padding:26px;text-align:center;color:var(--text-muted);}
+.hint{font-size:12px;color:var(--text-muted);margin:8px 2px 0;}
+.morebar{display:flex;justify-content:center;margin:12px 0;}
+
+/* modal */
+dialog{border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--text);padding:22px;width:min(560px,94vw);box-shadow:0 20px 60px rgba(0,0,0,.3);}
+dialog::backdrop{background:rgba(10,14,12,.5);}
+dialog h3{font-size:22px;margin-bottom:12px;}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;}
+.fgrid .full{grid-column:1/-1;}
+.dlg-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:9px;font-weight:600;font-size:13px;box-shadow:var(--shadow);z-index:99;}
+
+@media (max-width:1000px){
+  .tile{grid-column:span 3;} .cards{grid-template-columns:repeat(2,1fr);} .vgrid{grid-template-columns:repeat(2,1fr);}
+  .grid2,.grid2e{grid-template-columns:1fr;} .filters{grid-template-columns:repeat(2,1fr);} .filters .field:last-child{grid-column:1/-1;}
+  .attn ul{grid-template-columns:1fr;}
+}
+@media (max-width:640px){
+  .tile{grid-column:1/-1!important;} .kpis3{flex-wrap:wrap;gap:12px 16px;} .k{flex:1 1 40%;} .k .l{max-width:none;} .logos img{height:22px;} .brand h1{font-size:19px;} .hero h2{font-size:28px;}
+  .cards{grid-template-columns:1fr 1fr;gap:10px;} .card .v{font-size:19px;} .vgrid{grid-template-columns:1fr;}
+  .top-right{width:100%;margin-left:0;justify-content:space-between;} .fgrid{grid-template-columns:1fr;}
+  .pagehead .acts{margin-left:0;width:100%;} .pagehead .acts .btn{flex:1;}
+}
+@media print{ .topbar .top-right,.pagehead .acts,.tabs{display:none;} body{background:#fff;} }
+a.vcard.link{text-decoration:none;color:inherit;transition:transform .15s,border-color .15s;}
+a.vcard.link:hover{border-color:var(--accent);transform:translateY(-2px);}
+a.vcard.link:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.vcard .go{color:var(--accent);font-weight:700;font-size:13px;margin-top:2px;}
+.sechead{margin:20px 2px 8px;font:700 16px var(--font-display);text-transform:uppercase;letter-spacing:.03em;}
+.tiles{grid-template-columns:repeat(12,1fr)!important;}
+.tile.t3{grid-column:span 4!important;}
+.tile.t4{grid-column:span 3!important;}
+.tile.t4{flex-direction:column;align-items:flex-start;gap:12px;}
+@media (max-width:1000px){ .tile.t3,.tile.t4{grid-column:span 6!important;flex-direction:row;align-items:center;} .tile:last-child{grid-column:1/-1!important;} }
+@media (max-width:640px){ .tile.t3,.tile.t4{grid-column:1/-1!important;} }
+tr.clk{cursor:pointer;}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:10px;}
+.ph{position:relative;aspect-ratio:1;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface-2);padding:0;display:block;}
+.ph img{width:100%;height:100%;object-fit:cover;display:block;}
+.ph .badge{position:absolute;left:6px;top:6px;}
+.ph.off{display:grid;place-items:center;color:var(--text-muted);text-align:center;font-size:12px;}
+.ph.off svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:1.6;display:block;margin:0 auto 4px;}
+.ph.off small{display:block;}
+#dlg-foto{width:min(900px,96vw);padding:12px;}
+#dlg-foto img{width:100%;max-height:78vh;object-fit:contain;border-radius:8px;background:#000;display:block;}
+#dlg-foto .cap{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;font-size:13px;color:var(--text-muted);}
+
+
+/* ===== painel real: ajustes ===== */
+.tiles{display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:16px;}
+.tile,.tile.t3,.tile.t4,.tile.half{grid-column:auto!important;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start;gap:14px!important;min-height:176px;padding:22px!important;}
+.tile .ico{width:56px;height:56px;}
+.tile h3{font-size:24px;}
+.tile .sub{font-size:13.5px;}
+@media (max-width:1000px){ .tiles{grid-template-columns:repeat(2,1fr)!important;} }
+@media (max-width:560px){ .tiles{grid-template-columns:1fr!important;} .tile{min-height:0;flex-direction:row!important;align-items:center!important;} }
+
+/* login */
+#auth-gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100;}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:28px;width:100%;max-width:380px;text-align:center;}
+.login-logos{display:flex;gap:14px;justify-content:center;align-items:center;margin-bottom:14px;background:#fff;border-radius:8px;padding:8px 14px;}
+.login-logos img{height:26px;}
+.login-card h1{font-size:26px;margin:4px 0 16px;}
+.login-card .field{text-align:left;margin-bottom:12px;}
+.login-error{color:var(--bad);font-size:13px;margin-top:8px;min-height:16px;}
+.sync-pill{font-size:11px;color:var(--text-muted);display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:999px;white-space:nowrap;cursor:pointer;background:transparent;}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--good);flex:none;}
+.loading{padding:60px 0;text-align:center;color:var(--text-muted);}
+.loading::before{content:"";display:block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;margin:0 auto 12px;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.errbox{background:var(--bad-bg);color:var(--bad);border-radius:10px;padding:14px 16px;margin:14px 0;}
+
+/* financeiro */
+.fin-note{font-size:12.5px;color:var(--text-muted);margin:0 2px 12px;max-width:90ch;}
+.matrix td.num,.matrix th.num{white-space:nowrap;}
+.matrix tr.sub td{background:var(--surface-2);font-weight:700;}
+.matrix tr.tot td{background:var(--text);color:var(--bg);font-weight:700;}
+.matrix td.up{color:var(--bad);} .matrix td.down{color:var(--good);}
+.matrix thead th.grp{text-align:center;border-bottom:2px solid var(--accent);}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px;}
+.pend-card{cursor:pointer;} .pend-card.on{border-color:var(--accent);background:var(--bad-bg);}
+.hl{background:color-mix(in srgb, var(--warn) 22%, transparent);}
+.tabs{flex-wrap:wrap;border-radius:18px;}
+@media print{ .topbar,.pagehead .acts,.tabs,.filters,.morebar,#toast{display:none!important;} body{background:#fff;padding:0;max-width:none;} .card,.table-wrap{box-shadow:none;} }
+.fotos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;}
+.fotos-grid a,.fotos-grid button{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface-2);padding:0;aspect-ratio:3/4;display:block;position:relative;}
+.fotos-grid img{width:100%;height:100%;object-fit:cover;display:block;}
+.fotos-grid .cap{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);color:#fff;font-size:11.5px;padding:4px 7px;text-align:left;}
+.mini{font-size:12px;color:var(--text-muted);}
+
+</style>
+</head>
+<body>
+<div id="auth-gate">
+  <div class="login-card">
+    <div class="login-logos"><img src="logo-mann.png" alt="MANN"><span class="sep" style="width:1px;height:22px;background:#d2d2cf"></span><img src="logo-exata.png" alt="EXATA"></div>
+    <h1>Painel Geral</h1>
+    <form id="form-login">
+      <div class="field"><label>E-mail de acesso</label><input type="email" id="login-email" required autocomplete="username"></div>
+      <div class="field"><label>Senha da equipe</label><input type="password" id="login-senha" required autocomplete="current-password"></div>
+      <button type="submit" class="btn primary" style="width:100%;padding:11px">Entrar</button>
+      <div class="login-error" id="login-error"></div>
+    </form>
+  </div>
+</div>
+
+<div id="app-shell" hidden>
+<header class="topbar">
+  <a class="logos" href="#/" title="Painel geral"><img src="logo-mann.png" alt="MANN"><span class="sep"></span><img src="logo-exata.png" alt="EXATA"></a>
+  <div class="brand"><h1>Painel Geral</h1><span>Frota · Tratamentos · Dedetização · Suportes</span></div>
+  <div class="top-right">
+    <div class="crumb" id="crumb"></div>
+    <a class="btn primary" href="#/lancar" style="text-decoration:none">+ Lançar</a>
+    <button class="sync-pill" id="btn-logout" title="Clique para sair"><span class="sync-dot"></span><span id="user-label">sair</span></button>
+  </div>
+</header>
+<main id="app"></main>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<dialog id="dlg-foto">
+  <img id="foto-big" alt="">
+  <div class="cap"><span id="foto-cap"></span><span><a id="foto-open" class="btn sm" target="_blank" rel="noopener" style="text-decoration:none">Abrir em outra aba</a> <button class="btn sm" data-close>Fechar</button></span></div>
+</dialog>
+
+<dialog id="dlg-lanc">
+  <form method="dialog" id="form-lanc">
+    <h3>Lançamento de custo (escritório)</h3>
+    <div class="fgrid">
+      <div class="field"><label>Data</label><input type="date" name="data" required></div>
+      <div class="field"><label>Competência (mês)</label><input type="month" name="comp" required></div>
+      <div class="field"><label>Veículo</label><select name="veic" id="f-veic" required></select></div>
+      <div class="field"><label>Categoria</label><select name="cat" id="f-cat" required></select></div>
+      <div class="field full"><label>Descrição / Fornecedor</label><input name="desc" placeholder="Ex.: Posto Estrela — Curitiba"></div>
+      <div class="field"><label>Valor (R$)</label><input type="number" step="0.01" min="0" name="valor" required></div>
+      <div class="field"><label>Nº da NF</label><input name="nf"></div>
+      <div class="field"><label>Empresa da nota</label><select name="empresa"><option value="">—</option><option>MANN</option><option>EXATA SC</option></select></div>
+      <div class="field full"><label>Observação</label><input name="obs"></div>
+    </div>
+    <div class="dlg-actions"><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn primary" value="ok">Salvar</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlg-man">
+  <form method="dialog" id="form-man">
+    <h3>Registrar manutenção</h3>
+    <div class="fgrid">
+      <div class="field"><label>Data</label><input type="date" name="data" required></div>
+      <div class="field"><label>Veículo</label><select name="veic"></select></div>
+      <div class="field full"><label>Serviço realizado</label><input name="servico" placeholder="Ex.: Troca de óleo e filtros" required></div>
+      <div class="field full"><label>Empresa que realizou</label><input name="empresa"></div>
+      <div class="field"><label>Km do veículo</label><input type="number" name="km" inputmode="numeric"></div>
+      <div class="field"><label>Nº da NF</label><input name="nf"></div>
+      <div class="field"><label>Valor (R$) — opcional</label><input type="number" step="0.01" min="0" name="valor"></div>
+      <div class="field" style="justify-content:flex-end"><label class="checkrow"><input type="checkbox" name="oleo" style="width:auto"> É troca de óleo</label></div>
+    </div>
+    <p class="hint">Se informar o valor, o gasto também entra em “Manutenção veicular” nos custos — um lançamento só.</p>
+    <div class="dlg-actions"><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn primary" value="ok">Salvar</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlg-sup-in">
+  <form method="dialog" id="form-sup-in">
+    <h3>Nova entrada de suportes</h3>
+    <div class="fgrid">
+      <div class="field"><label>Data</label><input type="date" name="data" required></div>
+      <div class="field"><label>Veículo do tratamento</label><input name="veic" placeholder="Ex.: RIX2I54" required></div>
+      <div class="field"><label>Ciclo</label><input name="ciclo" inputmode="numeric" required></div>
+      <div class="field"><label>Comunicado</label><input name="comunicado"></div>
+      <div class="field"><label>Fornecedor</label><input name="fornecedor" required></div>
+      <div class="field"><label>NF do fornecedor</label><input name="nf"></div>
+      <div class="field"><label>Material</label><input name="material" value="Suportes de madeira"></div>
+      <div class="field"><label>Quantidade</label><input type="number" name="qtd" min="1" required></div>
+      <div class="field"><label>Certificado</label><input name="cert"></div>
+    </div>
+    <div class="dlg-actions"><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn primary" value="ok">Salvar</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlg-sup-out">
+  <form method="dialog" id="form-sup-out">
+    <h3>Nova saída (venda) de suportes</h3>
+    <div class="fgrid">
+      <div class="field full"><label>Ciclo de origem</label><select name="ciclo" id="so-ciclo" required></select></div>
+      <div class="field"><label>Nº da NF</label><input name="nf" required></div>
+      <div class="field"><label>Quantidade</label><input type="number" name="qtd" min="1" required></div>
+      <div class="field full"><label>Cliente</label><input name="cliente" required></div>
+      <div class="field"><label>CNPJ</label><input name="cnpj"></div>
+      <div class="field"><label>Certificado</label><input name="cert"></div>
+    </div>
+    <p class="hint" id="so-saldo"></p>
+    <div class="dlg-actions"><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn primary" value="ok">Salvar</button></div>
+  </form>
+</dialog>
+
+
+<script>
+const SUPABASE_URL = "https://vjbyyjfmilmeyzeiinxf.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_HgnI-KSEvq1PJet6fmrV_g_MRf6HK4M";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const BUCKET = 'painel-arquivos';
+const GLP_URL = 'index.html';
+const OS_URL = 'index.html#ordemservico';
+const NOTAS_BASE = 'https://manntratamentos-my.sharepoint.com/personal/felipe_manntratamentos_onmicrosoft_com/Documents/Controle%20ve%C3%ADculos/Notas/';
+
+const $ = (s, el=document)=>el.querySelector(s);
+const $$ = (s, el=document)=>[...el.querySelectorAll(s)];
+const BRL = v => v==null || v==='' || isNaN(v) ? '–' : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const R$ = v => v==null || isNaN(v) ? '–' : 'R$ ' + BRL(v);
+const R$k = v => v>=1e6 ? 'R$ '+(v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:2})+' mi' : v>=1e5 ? 'R$ '+Math.round(v/1e3).toLocaleString('pt-BR')+' mil' : v>=1e4 ? 'R$ '+(v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mil' : R$(v);
+const N0 = v => v==null || isNaN(v) ? '–' : Math.round(v).toLocaleString('pt-BR');
+const N1 = v => v==null || isNaN(v) ? '–' : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
+const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const MESES_L = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const MES_PASTA = ['1. Janeiro','2. Fevereiro','3. Março','4. Abril','5. Maio','6. Junho','7. Julho','8. Agosto','9. Setembro','10. Outubro','11. Novembro','12. Dezembro'];
+const mLabel = ym => ym ? MESES[+ym.slice(5,7)-1] + '/' + ym.slice(2,4) : '–';
+const dBR = iso => iso ? String(iso).slice(8,10)+'/'+String(iso).slice(5,7)+'/'+String(iso).slice(0,4) : '–';
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const sum = (a, f) => a.reduce((s,x)=>s+(Number(f(x))||0),0);
+const groupSum = (a, k, f) => { const m = new Map(); a.forEach(x=>m.set(k(x),(m.get(k(x))||0)+(Number(f(x))||0))); return m; };
+const cap = s => s ? s.charAt(0) + s.slice(1).toLowerCase() : '';
+const r2 = n => Math.round(n*100)/100;
+const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const TODAY = new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
+const dark = () => matchMedia('(prefers-color-scheme: dark)').matches;
+const PALETTE = () => dark() ? ['#e23a3a','#d9d9d6','#e0af3f','#57b586','#7fb2f0','#b79be8','#7a7a76'] : ['#c00000','#2b2b2b','#b8790f','#2f8f5b','#1f5ea8','#7a5ea8','#a9a9a5'];
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+let charts = [];
+function mkChart(el, cfg){
+  Chart.defaults.font.family = "'IBM Plex Sans',sans-serif"; Chart.defaults.color = css('--text-muted'); Chart.defaults.borderColor = css('--border');
+  const c = new Chart(el, cfg); charts.push(c); return c;
+}
+function killCharts(){ charts.forEach(c=>c.destroy()); charts = []; }
+function toast(msg, bad){ const t = $('#toast'); t.textContent = msg; t.style.background = bad ? 'var(--bad)' : ''; t.style.color = bad ? '#fff' : ''; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(()=>t.hidden = true, bad ? 6000 : 3200); }
+function csvDownload(name, head, rows){
+  const csv = [head, ...rows].map(r=>r.map(c=>`"${String(c==null?'':c).replace(/"/g,'""')}"`).join(';')).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿'+csv], {type:'text/csv'})); a.download = name; a.click();
+}
+function xlsxDownload(name, sheets){
+  if(typeof XLSX === 'undefined'){ toast('Biblioteca de Excel não carregou. Use o CSV.', true); return; }
+  const wb = XLSX.utils.book_new();
+  sheets.forEach(s=>XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([s.head, ...s.rows]), s.name.slice(0,31)));
+  XLSX.writeFile(wb, name);
+}
+const ICON = {
+  glp:'<svg viewBox="0 0 24 24"><path d="M12 3c1 3.2 4.5 5 4.5 9.2A4.5 4.5 0 0 1 12 17a4.5 4.5 0 0 1-4.5-4.8c0-1.9 1-3.2 2-4.2.3 1.2 1 1.9 1.8 2.2C11 7.8 11.2 5.3 12 3z"/><path d="M9 21h6"/></svg>',
+  os:'<svg viewBox="0 0 24 24"><path d="M9 3h6l1 3h3l-1 4H6L5 6h3z"/><path d="M7 10v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-9"/><path d="M10 14h4"/></svg>',
+  custos:'<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M7 15h4"/><circle cx="17" cy="15" r="1.2"/></svg>',
+  km:'<svg viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/><circle cx="12" cy="16" r="1.3"/><path d="M5 16H3m18 0h-2M6.3 10.3 5 9m12.7 1.3L19 9"/></svg>',
+  suportes:'<svg viewBox="0 0 24 24"><path d="M3 9h18v3H3zM5 12v6m7-6v6m7-6v6"/><path d="M3 18h18"/><path d="M6 6h12"/></svg>',
+  nota:'<svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>',
+  manut:'<svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3.5 17.5a1.8 1.8 0 0 0 2.5 2.5l5.8-5.8a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.2-.5-.5-2.2z"/></svg>',
+  trat:'<svg viewBox="0 0 24 24"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z"/><path d="M12 9v7"/></svg>',
+  util:'<svg viewBox="0 0 24 24"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm10 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0z"/><path d="M3 17V7a1 1 0 0 1 1-1h9v11M13 9h4l3 3v5h-1M9 17h6"/></svg>'
+};
+
+/* ============================ dados (carregados por área) ============================ */
+const DB = {};
+async function fetchAll(table, order='id'){
+  const out = [];
+  for(let from = 0; ; from += 1000){
+    const { data, error } = await sb.from(table).select('*').order(order).range(from, from + 999);
+    if(error) throw new Error(table + ': ' + error.message);
+    out.push(...data); if(data.length < 1000) break;
+  }
+  return out;
+}
+const num = v => v==null ? null : Number(v);
+const LOADERS = {
+  veiculos: async()=> (await fetchAll('veiculos','ordem')),
+  custos: async()=> (await fetchAll('custos_painel','id')).map(r=>({ ...r, desc:r.descr, comp:String(r.comp).slice(0,7), valor:Number(r.valor) })),
+  abast: async()=> (await fetchAll('abastecimentos','data')).map(r=>({ ...r, litros:num(r.litros), vlitro:num(r.vlitro), total:num(r.total), kml:num(r.kml) })),
+  leit: async()=> await fetchAll('km_leituras','data'),
+  manut: async()=> await fetchAll('manutencoes','data'),
+  oleo: async()=> await fetchAll('troca_oleo','veic'),
+  sup_ent: async()=> (await fetchAll('suportes_entrada','id')).map(r=>({ ...r, qtd:num(r.qtd) })),
+  sup_sai: async()=> (await fetchAll('suportes_saida','id')).map(r=>({ ...r, qtd:num(r.qtd) })),
+  sup_cic: async()=> (await fetchAll('suportes_ciclos','chave')).map(r=>({ ...r, temp:num(r.temp), tratada:num(r.tratada), saldo:num(r.saldo) })),
+  sup_cont: async()=> (await fetchAll('suportes_contagem','id')).map(r=>({ ...r, saldo_sistema:num(r.saldo_sistema), saldo_fisico:num(r.saldo_fisico) })),
+  serv: async()=> (await fetchAll('servicos_ht','id')).map(r=>({ ...r, decl:num(r.decl), fotos:r.fotos||0 })),
+  traj: async()=> await fetchAll('utilizacao_trajetos','data'),
+  folhas: async()=> await fetchAll('utilizacao_folhas','id'),
+  arqs: async()=> await fetchAll('arquivos_painel','id'),
+  contatos: async()=> await fetchAll('avisos_contatos','id'),
+  avcfg: async()=> await fetchAll('avisos_config','chave'),
+  avlog: async()=> (await fetchAll('avisos_log','created_at')).reverse()
+};
+async function need(...names){
+  await Promise.all(names.map(async n=>{ if(!DB[n]) DB[n] = await LOADERS[n](); }));
+}
+async function reload(...names){ names.forEach(n=>delete DB[n]); await need(...names); }
+const VEIC = () => DB.veiculos || [];
+const VEIC_NOME = v => (VEIC().find(x=>x.cod===v) || {});
+const ORDER = ['RHV','ATU','JCV','RIX','TQV','MONTANA','DUCATO','SHINERAY'];
+const HT = ['ATU','JCV','RHV','RIX','TQV'];
+const OPERADORES = ['Max','Rodrigo','João','Ageu','Sidney','Willian','Antonio','Felipe'];
+
+/* ---- arquivos (Storage) ---- */
+async function signedUrls(paths){
+  const uniq = [...new Set(paths.filter(Boolean))]; const m = {};
+  for(let i = 0; i < uniq.length; i += 100){
+    const { data } = await sb.storage.from(BUCKET).createSignedUrls(uniq.slice(i, i + 100), 3600);
+    (data || []).forEach(d=>{ if(d.signedUrl && d.path) m[d.path] = d.signedUrl; });
+  }
+  return m;
+}
+async function compressImage(file, max=1600, q=0.8){
+  if(!file.type || !file.type.startsWith('image/')) return file;
+  try{
+    const bmp = await createImageBitmap(file); const r = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas'); c.width = Math.round(bmp.width * r); c.height = Math.round(bmp.height * r);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    return await new Promise(res=>c.toBlob(b=>res(b || file), 'image/jpeg', q));
+  }catch(e){ return file; }
+}
+async function uploadFile(path, blob){
+  const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || 'image/jpeg', upsert: true });
+  if(error) throw new Error('envio da foto: ' + error.message);
+}
+const safeName = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w.\- ]+/g,'_').trim();
+async function dbInsert(table, rows){ const { error } = await sb.from(table).insert(rows); if(error) throw new Error(table + ': ' + error.message); }
+async function dbUpdate(table, vals, col, val){ const { error } = await sb.from(table).update(vals).eq(col, val); if(error) throw new Error(table + ': ' + error.message); }
+async function dbDelete(table, col, val){ const { error } = await sb.from(table).delete().eq(col, val); if(error) throw new Error(table + ': ' + error.message); }
+async function dbUpsert(table, rows){ const { error } = await sb.from(table).upsert(rows); if(error) throw new Error(table + ': ' + error.message); }
+
+/* ---- km por veículo: leituras + abastecimentos + trajetos ---- */
+function kmRegistros(v){
+  const rows = [];
+  (DB.leit||[]).filter(r=>r.veic===v).forEach(r=>rows.push({ data:String(r.data), km:r.km, origem: r.operador ? `App · ${r.operador}` : (r.origem==='planilha semanal' ? 'Planilha semanal' : cap(r.origem||'leitura')), obs:r.obs||null }));
+  (DB.abast||[]).filter(a=>a.veic===v && a.km).forEach(a=>rows.push({ data:String(a.data), km:a.km, origem: a.operador ? `App · ${a.operador}` : 'Abastecimento', obs:null }));
+  const seen = new Set();
+  const uniq = rows.filter(r=>{ const k = r.data + '|' + r.km; if(seen.has(k)) return false; seen.add(k); return true; });
+  uniq.sort((a,b)=>a.data.localeCompare(b.data) || a.km - b.km);
+  let prev = null;
+  uniq.forEach(r=>{
+    if(prev){ r.delta = r.km - prev.km; r.dias = daysBetween(prev.data, r.data); r.media = r.dias > 0 ? r.delta / r.dias : null;
+      r.flag = r.delta < 0 ? 'queda' : (r.delta > 2500 ? 'salto' : null); }
+    prev = r;
+  });
+  return uniq;
+}
+function kmMensal(){
+  const out = {};
+  ORDER.forEach(v=>{
+    const regs = kmRegistros(v); if(!regs.length) return;
+    const mx = {}, mn = {};
+    regs.forEach(r=>{ const m = r.data.slice(0,7); mx[m] = Math.max(mx[m]||0, r.km); mn[m] = Math.min(mn[m]||1e12, r.km); });
+    const ms = Object.keys(mx).sort(); out[v] = {};
+    ms.forEach((m,i)=>{ out[v][m] = i ? mx[m]-mx[ms[i-1]] : mx[m]-mn[m]; });
+  });
+  return out;
+}
+function kmAtual(){
+  const o = {};
+  ORDER.forEach(v=>{ const regs = kmRegistros(v); if(regs.length){ const r = regs[regs.length-1]; o[v] = { veic:v, data:r.data, km:r.km }; } });
+  return o;
+}
+function oleoInfo(v){
+  const t0 = (DB.oleo||[]).find(x=>x.veic===v); if(!t0) return null;
+  const a = kmAtual()[v]; const km_atual = Math.max(t0.km_troca||0, a ? a.km : 0);
+  const faltam = t0.proxima ? t0.proxima - km_atual : null;
+  const interv = t0.intervalo || (t0.proxima && t0.km_troca ? t0.proxima - t0.km_troca : null);
+  const usado = interv && t0.km_troca ? km_atual - t0.km_troca : null;
+  const pct = interv && usado!=null ? Math.max(0, Math.min(100, usado/interv*100)) : 0;
+  const nivel = !t0.ultima ? 'info' : faltam==null ? 'info' : faltam < 0 ? 'bad' : faltam < 1000 ? 'warn' : 'good';
+  return { ...t0, km_atual, faltam, interv, usado, pct, nivel };
+}
+
+/* ============================ autenticação ============================ */
+let USER = LS.get('hub_op', '');
+function setUserLabel(){ $('#user-label').textContent = USER ? USER + ' · sair' : 'sair'; }
+$('#form-login').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const email = $('#login-email').value.trim(), senha = $('#login-senha').value, err = $('#login-error');
+  err.textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+  if(error){ err.textContent = 'E-mail ou senha incorretos.'; return; }
+  startApp();
+});
+$('#btn-logout').addEventListener('click', async ()=>{
+  if(!confirm('Sair do painel?')) return;
+  await sb.auth.signOut(); location.reload();
+});
+function startApp(){
+  $('#auth-gate').hidden = true; $('#app-shell').hidden = false; setUserLabel(); go();
+}
+(async function initAuth(){
+  const { data } = await sb.auth.getSession();
+  if(data && data.session) startApp();
+})();
+
+/* ============================ roteamento ============================ */
+const NAMES = { custos:'Controle de custos', km:'Quilometragem', manutencao:'Manutenção do veículo', suportes:'Venda de suportes', tratamentos:'Tratamentos HT', utilizacao:'Utilização de veículos', lancar:'Lançamento do operador' };
+let goToken = 0;
+async function go(){
+  killCharts();
+  const token = ++goToken;
+  const raw = location.hash.replace(/^#\/?/, '');
+  const [path, qs] = raw.split('?'); const q = Object.fromEntries(new URLSearchParams(qs||''));
+  const [key, sub, sub2] = path.split('/');
+  $('#app').innerHTML = '<div class="loading">Carregando…</div>';
+  try{
+    if(!key) home();
+    else if(key==='custos'){ await need('veiculos','custos','abast','leit','arqs'); if(token===goToken) custos(); }
+    else if(key==='km'){ await need('veiculos','leit','abast'); if(token===goToken) (sub ? kmVeic(decodeURIComponent(sub).toUpperCase()) : km()); }
+    else if(key==='manutencao'){ await need('veiculos','manut','oleo','leit','abast','custos','contatos','avcfg','avlog'); if(token===goToken) manutencao(); }
+    else if(key==='suportes'){ await need('sup_ent','sup_sai','sup_cic','sup_cont'); if(token===goToken) suportes(); }
+    else if(key==='tratamentos'){ await need('veiculos','serv','arqs'); if(token===goToken) (sub && sub2 ? tratDetalhe(decodeURIComponent(sub).toUpperCase(), sub2) : sub ? tratVeic(decodeURIComponent(sub).toUpperCase()) : tratamentos()); }
+    else if(key==='utilizacao'){ await need('veiculos','traj','folhas','leit'); if(token===goToken) (sub ? utilVeic(decodeURIComponent(sub).toUpperCase()) : utilizacao()); }
+    else if(key==='lancar'){ await need('veiculos','leit','abast','serv','traj','arqs','custos'); if(token===goToken) lancar(q); }
+    else home();
+  }catch(e){
+    console.error(e);
+    if(token===goToken) $('#app').innerHTML = `<div class="errbox"><b>Não foi possível carregar esta área.</b><br>${esc(e.message||e)}<br><span class="mini">Se aparecer “relation … does not exist”, as tabelas do painel ainda não foram criadas no banco.</span></div>`;
+  }
+  const trail = [];
+  if(key && NAMES[key]){
+    if((key==='km' || key==='tratamentos' || key==='utilizacao') && sub){
+      trail.push(`<a href="#/${key}" style="text-decoration:none">${NAMES[key]}</a>`);
+      if(sub2) trail.push(`<a href="#/${key}/${esc(sub)}" style="text-decoration:none">${esc(sub.toUpperCase())}</a>`, '<b>Ciclo</b>'); else trail.push(`<b>${esc(sub.toUpperCase())}</b>`);
+    } else trail.push(`<b>${NAMES[key]}</b>`);
+  }
+  $('#crumb').innerHTML = trail.length ? `<a href="#/" style="text-decoration:none">Início</a> › ${trail.join(' › ')}` : '';
+  if(token===goToken) window.scrollTo(0,0);
+}
+addEventListener('hashchange', ()=>{ if(!$('#app-shell').hidden) go(); });
+
+/* ============================ HOME ============================ */
+function home(){
+  const T = [
+    ['glp', 'Controle GLP', 'Compras de gás, trocas de cilindros e tratamentos por veículo.', GLP_URL],
+    ['trat', 'Tratamentos HT', 'Todos os tratamentos de cada veículo, com cliente, ciclo e as fotos salvas no drive.', '#/tratamentos'],
+    ['os', 'Dedetização', 'Ordens de serviço de dedetização, desratização e fumigação.', OS_URL],
+    ['custos', 'Controle de custos', 'Combustível, hotel, alimentação e demais gastos dos veículos, com a nota de cada um.', '#/custos'],
+    ['km', 'Quilometragem', 'Leituras do odômetro de cada veículo e km rodados por mês.', '#/km'],
+    ['util', 'Utilização de veículos', 'Trajetos dos operadores: saída, chegada, km, origem, destino e as folhas preenchidas.', '#/utilizacao'],
+    ['manut', 'Manutenção do veículo', 'Troca de óleo, revisões e histórico de serviços de cada veículo.', '#/manutencao'],
+    ['suportes', 'Venda de suportes', 'Controle de estoque dos suportes tratados: entradas, saídas e saldo.', '#/suportes']
+  ];
+  $('#app').innerHTML = `
+  <section class="hero"><h2>Controle geral da operação</h2><p>Escolha uma área para trabalhar.</p></section>
+  <div class="tiles">${T.map(t=>`<a class="tile" href="${t[3]}"><div class="ico">${ICON[t[0]]}</div><div><h3>${t[1]}</h3><div class="sub">${t[2]}</div></div></a>`).join('')}</div>`;
+}
+
+/* ============================ CONTROLE DE CUSTOS ============================ */
+const CAT_EXIGE_NF = ['COMBUSTÍVEL','ALIMENTAÇÃO','HOTEL','PEDÁGIO','ESTACIONAMENTO','LAVAGEM','MATERIAIS','MANUTENÇÃO VEICULAR','UBER','PASSAGEM DE ÔNIBUS'];
+const CS = { ano:'', mes:'', veic:'', cat:'', q:'', tab:'resumo', shown:50, fm:'', pend:'semnf' };
+const grupoDe = v => (VEIC_NOME(v).grupo === 'HT') ? 'HT' : 'Outras atividades';
+const veicsGrupo = g => ORDER.filter(v=>VEIC().some(x=>x.cod===v) && grupoDe(v)===g);
+const categorias = () => [...new Set(DB.custos.map(l=>l.cat))].sort();
+const notaUrl = rel => driveUrl('Controle veículos/Notas/' + rel);
+const notaDrive = (rel, label='nota no drive') => `<a class="badge info" href="${notaUrl(rel)}" target="_blank" rel="noopener" style="text-decoration:none" title="Notas\\${esc(rel.replace(/\//g,'\\'))}">${label} ↗</a>`;
+const arqsDe = (tipo, id) => (DB.arqs||[]).filter(a=>a.tipo===tipo && String(a.ref_id)===String(id));
+function notaLinks(l){
+  let h = '';
+  if(l.arq && l.fonte!=='app') h += notaDrive(l.arq);
+  const a = arqsDe('nf', l.id);
+  if(a.length) h += ` <button class="badge good" data-abrir-arq="${esc(a[0].storage_path)}" style="border:0;cursor:pointer">ver nota (foto)</button>`;
+  return h;
+}
+function custosFiltrados(){
+  return DB.custos.filter(l=>(!CS.ano || l.comp.slice(0,4)===CS.ano) && (!CS.mes || l.comp.slice(5,7)===CS.mes) && (!CS.veic || l.veic===CS.veic) &&
+    (!CS.cat || l.cat===CS.cat) && (!CS.q || [l.desc, l.obs, l.nf, l.operador].join(' ').toLowerCase().includes(CS.q.toLowerCase())));
+}
+const mesesDe = rows => [...new Set(rows.map(l=>l.comp))].sort();
+
+function custos(){
+  const anos = [...new Set(DB.custos.map(l=>l.comp.slice(0,4)))].sort();
+  $('#app').innerHTML = `
+  <div class="pagehead"><div><h2>Controle de custos</h2><p>Gastos por veículo: combustível, gás, hotel, alimentação, manutenção e demais despesas, com a nota de cada um.</p></div>
+    <div class="acts"><button class="btn" id="c-xlsx">Exportar Excel</button><button class="btn" id="c-csv">CSV</button><button class="btn" id="c-print">Imprimir</button>
+      <button class="btn" id="c-new">+ Lançamento manual</button><a class="btn primary" href="#/lancar?tipo=nfe" style="text-decoration:none;text-align:center">+ Nota do operador</a></div></div>
+  <div class="filters">
+    <div class="field"><label>Ano</label><select id="c-ano"><option value="">Todos</option>${anos.map(a=>`<option ${CS.ano===a?'selected':''}>${a}</option>`).join('')}</select></div>
+    <div class="field"><label>Mês</label><select id="c-mes"><option value="">Todos</option>${MESES.map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}" ${CS.mes===String(i+1).padStart(2,'0')?'selected':''}>${m}</option>`).join('')}</select></div>
+    <div class="field"><label>Veículo</label><select id="c-veic"><option value="">Todos</option>${VEIC().map(v=>`<option ${CS.veic===v.cod?'selected':''}>${v.cod}</option>`).join('')}</select></div>
+    <div class="field"><label>Categoria</label><select id="c-cat"><option value="">Todas</option>${categorias().map(c=>`<option ${CS.cat===c?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="field"><label>Buscar</label><input id="c-q" type="search" placeholder="Fornecedor, NF, observação…" value="${esc(CS.q)}"></div>
+  </div>
+  <div id="c-body"></div>`;
+  ['ano','mes','veic','cat'].forEach(k=>$('#c-'+k).onchange = e=>{ CS[k] = e.target.value; CS.shown = 50; custosBody(); });
+  $('#c-q').oninput = e=>{ CS.q = e.target.value; CS.shown = 50; custosBody(); };
+  $('#c-new').onclick = openLanc;
+  $('#c-print').onclick = ()=>window.print();
+  $('#c-csv').onclick = ()=>{
+    const rows = custosFiltrados().sort((a,b)=>b.comp.localeCompare(a.comp) || (b.data||'').localeCompare(a.data||''));
+    csvDownload('custos_frota.csv', ['Data','Competência','Veículo','Grupo','Categoria','Descrição','Valor','NF','Empresa','Origem','Observação'],
+      rows.map(l=>[l.data?dBR(l.data):'', mLabel(l.comp), l.veic, grupoDe(l.veic), l.cat, l.desc||'', String(l.valor).replace('.',','), l.nf||'', l.empresa||'', l.fonte||'', l.obs||'']));
+  };
+  $('#c-xlsx').onclick = ()=>{
+    const rows = custosFiltrados().sort((a,b)=>b.comp.localeCompare(a.comp) || (b.data||'').localeCompare(a.data||''));
+    const ms = mesesDe(rows), cats = [...new Set(rows.map(l=>l.cat))].sort(); const vs = ORDER.filter(v=>VEIC().some(x=>x.cod===v));
+    xlsxDownload('custos_frota.xlsx', [
+      { name:'Lançamentos', head:['Data','Competência','Veículo','Grupo','Categoria','Descrição','Valor','NF','Empresa','Origem','Observação'],
+        rows: rows.map(l=>[l.data||'', mLabel(l.comp), l.veic, grupoDe(l.veic), l.cat, l.desc||'', l.valor, l.nf||'', l.empresa||'', l.fonte||'', l.obs||'']) },
+      { name:'Mês x Veículo', head:['Mês', ...vs, 'Total'], rows: ms.map(m=>[mLabel(m), ...vs.map(v=>r2(sum(rows.filter(l=>l.comp===m&&l.veic===v), l=>l.valor))), r2(sum(rows.filter(l=>l.comp===m), l=>l.valor))]) },
+      { name:'Categoria x Veículo', head:['Categoria', ...vs, 'Total'], rows: cats.map(c=>[cap(c), ...vs.map(v=>r2(sum(rows.filter(l=>l.cat===c&&l.veic===v), l=>l.valor))), r2(sum(rows.filter(l=>l.cat===c), l=>l.valor))]) }
+    ]);
+  };
+  custosBody();
+}
+
+function custosBody(){
+  killCharts();
+  const rows = custosFiltrados();
+  const total = sum(rows, l=>l.valor);
+  const tab = (k,t)=>`<button class="${CS.tab===k?'on':''}" data-t="${k}">${t}</button>`;
+  const pendTot = pendencias(rows).total;
+  $('#c-body').innerHTML = `
+  <div class="tabs" id="c-tabs">${tab('resumo','Resumo')}${tab('fechamento','Fechamento mensal')}${tab('veiculo','Veículo × Mês')}${tab('lanc','Lançamentos')}${tab('abast','Abastecimento')}${tab('pend',`Pendências${pendTot?' ('+pendTot+')':''}`)}</div>
+  <div id="c-tab"></div>`;
+  $$('#c-tabs button').forEach(b=>b.onclick = ()=>{ CS.tab = b.dataset.t; custosBody(); });
+  const box = $('#c-tab');
+  if(CS.tab==='resumo') custoResumo(box, rows, total);
+  else if(CS.tab==='fechamento') custoFechamento(box);
+  else if(CS.tab==='veiculo') custoVeiculo(box, rows);
+  else if(CS.tab==='lanc') custoLanc(box, rows, total);
+  else if(CS.tab==='abast') custoAbast(box);
+  else custoPend(box, rows);
+  bindAbrirArq();
+}
+
+function custoResumo(box, rows, total){
+  const ms = mesesDe(rows);
+  const porCat = [...groupSum(rows, l=>l.cat, l=>l.valor)].sort((a,b)=>b[1]-a[1]);
+  const porVeic = [...groupSum(rows, l=>l.veic, l=>l.valor)].sort((a,b)=>b[1]-a[1]);
+  const km = kmMensal(); const kmTot = sum(ORDER, v=>sum(ms, m=>km[v] && km[v][m]));
+  const pal = PALETTE(); const top = porCat.slice(0,6).map(x=>x[0]);
+  const gasGlp = sum(rows.filter(l=>l.fonte==='glp'), l=>l.valor);
+  box.innerHTML = `
+  <div class="cards">
+    <div class="card"><div class="l">Total no filtro</div><div class="v">${R$(total)}</div><div class="s">${N0(rows.length)} lançamentos</div></div>
+    <div class="card"><div class="l">Média por mês</div><div class="v">${R$(ms.length ? total/ms.length : 0)}</div><div class="s">${ms.length} ${ms.length===1?'mês':'meses'} com lançamento</div></div>
+    <div class="card"><div class="l">Maior categoria</div><div class="v" style="font-size:18px;line-height:1.3">${porCat[0]?esc(cap(porCat[0][0])):'–'}</div><div class="s">${porCat[0]?R$(porCat[0][1])+' · '+N0(porCat[0][1]/total*100)+'%':''}</div></div>
+    <div class="card"><div class="l">Custo por km rodado</div><div class="v">${kmTot>0?R$(total/kmTot):'–'}</div><div class="s">${kmTot>0?N0(kmTot)+' km no período':'sem km no período'}</div></div>
+  </div>
+  <p class="fin-note"><b>Como ler:</b> “Competência” é o mês a que o gasto pertence (é por ela que os meses são somados); “Data” é a data da nota. O gás vem automaticamente das compras do Controle GLP${gasGlp?` (${R$(gasGlp)} neste filtro)`:''}.</p>
+  <div class="grid2"><div class="card"><h4>Custo por mês e categoria</h4><div class="chartbox"><canvas id="ch1"></canvas></div></div>
+    <div class="card"><h4>Por veículo</h4><div class="chartbox"><canvas id="ch2"></canvas></div></div></div>
+  <div class="card"><h4>Por categoria</h4><div class="chartbox sm"><canvas id="ch3"></canvas></div></div>`;
+  const ds = top.map((cat,i)=>({ label:cap(cat), data: ms.map(m=>sum(rows.filter(l=>l.comp===m && l.cat===cat), l=>l.valor)), backgroundColor: pal[i], stack:'s' }));
+  ds.push({ label:'Outras', data: ms.map(m=>sum(rows.filter(l=>l.comp===m && !top.includes(l.cat)), l=>l.valor)), backgroundColor: pal[6], stack:'s' });
+  mkChart($('#ch1'), { type:'bar', data:{ labels: ms.map(mLabel), datasets: ds }, options:{ maintainAspectRatio:false,
+    plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, usePointStyle:true } }, tooltip:{ callbacks:{ label:c=>`${c.dataset.label}: ${R$(c.parsed.y)}` } } },
+    scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, ticks:{ callback:v=>v>=1000?(v/1000)+' mil':v } } } } });
+  mkChart($('#ch2'), { type:'bar', data:{ labels: porVeic.map(x=>x[0]), datasets:[{ data: porVeic.map(x=>x[1]), backgroundColor: pal[0], borderRadius:4 }] },
+    options:{ indexAxis:'y', maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:c=>R$(c.parsed.x) } } }, scales:{ x:{ ticks:{ callback:v=>v>=1000?(v/1000)+' mil':v } }, y:{ grid:{ display:false } } } } });
+  mkChart($('#ch3'), { type:'bar', data:{ labels: porCat.map(x=>cap(x[0])), datasets:[{ data: porCat.map(x=>x[1]), backgroundColor: pal[1], borderRadius:4 }] },
+    options:{ maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:c=>R$(c.parsed.y) } } }, scales:{ x:{ grid:{ display:false }, ticks:{ maxRotation:60, minRotation:40, font:{ size:10.5 } } }, y:{ ticks:{ callback:v=>v>=1000?(v/1000)+' mil':v } } } } });
+}
+
+// fechamento do mês: categoria x veículo, com comparação com o mês anterior
+function custoFechamento(box){
+  const base = DB.custos.filter(l=>(!CS.veic || l.veic===CS.veic) && (!CS.cat || l.cat===CS.cat));
+  const todos = mesesDe(base).filter(m=>!CS.ano || m.startsWith(CS.ano));
+  if(!todos.length){ box.innerHTML = '<div class="card empty">Nenhum lançamento neste filtro.</div>'; return; }
+  if(!CS.fm || !todos.includes(CS.fm)) CS.fm = CS.mes && CS.ano ? CS.ano + '-' + CS.mes : todos[todos.length-1];
+  const m = CS.fm, i = todos.indexOf(m), p = i > 0 ? todos[i-1] : null;
+  const cur = base.filter(l=>l.comp===m), prev = p ? base.filter(l=>l.comp===p) : [];
+  const ht = veicsGrupo('HT'), ou = veicsGrupo('Outras atividades');
+  const cats = [...new Set([...cur, ...prev].map(l=>l.cat))].sort((a,b)=>sum(cur.filter(l=>l.cat===b), l=>l.valor) - sum(cur.filter(l=>l.cat===a), l=>l.valor));
+  const val = (arr, c, vs) => sum(arr.filter(l=>l.cat===c && vs.includes(l.veic)), l=>l.valor);
+  const tdn = x => `<td class="num">${x ? BRL(x) : '<span class="muted">–</span>'}</td>`;
+  const varCell = (a, b) => { const d = a - b; if(!b && !a) return '<td class="num"><span class="muted">–</span></td>'; return `<td class="num ${d>0?'up':d<0?'down':''}">${d>0?'+':''}${BRL(d)}</td>`; };
+  const pctCell = (a, b) => b ? `<td class="num ${a>b?'up':a<b?'down':''}">${a>b?'+':''}${N1((a-b)/b*100)}%</td>` : '<td class="num"><span class="muted">–</span></td>';
+  const tot = sum(cur, l=>l.valor), totP = sum(prev, l=>l.valor);
+  const top10 = cur.slice().sort((a,b)=>b.valor-a.valor).slice(0,10);
+  box.innerHTML = `
+  <div class="filters" style="grid-template-columns:minmax(180px,260px)"><div class="field"><label>Mês de fechamento</label><select id="fm">${todos.slice().reverse().map(x=>`<option value="${x}" ${x===m?'selected':''}>${MESES_L[+x.slice(5,7)-1]}/${x.slice(0,4)}</option>`).join('')}</select></div></div>
+  <div class="cards">
+    <div class="card"><div class="l">Total de ${mLabel(m)}</div><div class="v">${R$(tot)}</div><div class="s">${N0(cur.length)} lançamentos</div></div>
+    <div class="card"><div class="l">${p?'Mês anterior ('+mLabel(p)+')':'Mês anterior'}</div><div class="v">${p?R$(totP):'–'}</div><div class="s">${p&&totP?`${tot>=totP?'+':''}${R$(tot-totP)} (${N1((tot-totP)/totP*100)}%)`:''}</div></div>
+    <div class="card"><div class="l">Frota HT</div><div class="v">${R$(sum(cur.filter(l=>ht.includes(l.veic)), l=>l.valor))}</div><div class="s">${ht.join(' · ')}</div></div>
+    <div class="card"><div class="l">Outras atividades</div><div class="v">${R$(sum(cur.filter(l=>ou.includes(l.veic)), l=>l.valor))}</div><div class="s">${ou.join(' · ')}</div></div>
+  </div>
+  <div class="table-wrap"><table class="matrix"><thead>
+    <tr><th rowspan="2">Categoria</th><th class="grp" colspan="${ht.length+1}">Frota HT</th><th class="grp" colspan="${ou.length+1}">Outras atividades</th><th rowspan="2" class="num">Total ${mLabel(m)}</th><th rowspan="2" class="num">${p?mLabel(p):'Anterior'}</th><th rowspan="2" class="num">Variação R$</th><th rowspan="2" class="num">Var. %</th></tr>
+    <tr>${ht.map(v=>`<th class="num">${v}</th>`).join('')}<th class="num">Subtotal</th>${ou.map(v=>`<th class="num">${v}</th>`).join('')}<th class="num">Subtotal</th></tr></thead><tbody>
+    ${cats.map(c=>{ const a = sum(cur.filter(l=>l.cat===c), l=>l.valor), b = sum(prev.filter(l=>l.cat===c), l=>l.valor);
+      return `<tr><td><b>${esc(cap(c))}</b></td>${ht.map(v=>tdn(val(cur,c,[v]))).join('')}<td class="num"><b>${BRL(val(cur,c,ht))}</b></td>${ou.map(v=>tdn(val(cur,c,[v]))).join('')}<td class="num"><b>${BRL(val(cur,c,ou))}</b></td><td class="num"><b>${BRL(a)}</b></td>${tdn(b)}${varCell(a,b)}${pctCell(a,b)}</tr>`; }).join('')}
+    <tr class="tot"><td>TOTAL DO MÊS</td>${ht.map(v=>`<td class="num">${BRL(sum(cur.filter(l=>l.veic===v), l=>l.valor))}</td>`).join('')}<td class="num">${BRL(sum(cur.filter(l=>ht.includes(l.veic)), l=>l.valor))}</td>${ou.map(v=>`<td class="num">${BRL(sum(cur.filter(l=>l.veic===v), l=>l.valor))}</td>`).join('')}<td class="num">${BRL(sum(cur.filter(l=>ou.includes(l.veic)), l=>l.valor))}</td><td class="num">${BRL(tot)}</td><td class="num">${BRL(totP)}</td><td class="num">${(tot-totP>0?'+':'')+BRL(tot-totP)}</td><td class="num">${totP?(tot>totP?'+':'')+N1((tot-totP)/totP*100)+'%':'–'}</td></tr>
+  </tbody></table></div>
+  <p class="fin-note">Variação em vermelho = gasto maior que no mês anterior; em verde = menor. Valores em R$.</p>
+  <h4 class="sechead">10 maiores lançamentos de ${mLabel(m)}</h4>
+  <div class="table-wrap"><table><thead><tr><th>Data</th><th>Veículo</th><th>Categoria</th><th>Descrição</th><th class="num">Valor</th><th>NF</th></tr></thead><tbody>
+    ${top10.map(l=>`<tr><td>${l.data?dBR(l.data):'–'}</td><td><b>${esc(l.veic)}</b></td><td>${esc(cap(l.cat))}</td><td class="wrap">${esc(l.desc)||'–'}</td><td class="num">${BRL(l.valor)}</td><td>${esc(l.nf)||'–'} ${notaLinks(l)}</td></tr>`).join('')}</tbody></table></div>`;
+  $('#fm').onchange = e=>{ CS.fm = e.target.value; custosBody(); };
+}
+
+// veículo x mês + custo por km
+function custoVeiculo(box, rows){
+  const ms = mesesDe(rows), ht = veicsGrupo('HT'), ou = veicsGrupo('Outras atividades');
+  const km = kmMensal();
+  const val = (m, vs) => sum(rows.filter(l=>l.comp===m && vs.includes(l.veic)), l=>l.valor);
+  const vsAll = [...ht, ...ou];
+  box.innerHTML = `
+  <p class="fin-note">Soma por mês de competência, respeitando os filtros acima. Para ver um único ano, escolha o ano no filtro.</p>
+  <div class="table-wrap"><table class="matrix"><thead>
+    <tr><th rowspan="2">Mês</th><th class="grp" colspan="${ht.length+1}">Frota HT</th><th class="grp" colspan="${ou.length+1}">Outras atividades</th><th rowspan="2" class="num">Total geral</th></tr>
+    <tr>${ht.map(v=>`<th class="num">${v}</th>`).join('')}<th class="num">Subtotal</th>${ou.map(v=>`<th class="num">${v}</th>`).join('')}<th class="num">Subtotal</th></tr></thead><tbody>
+    ${ms.slice().reverse().map(m=>`<tr><td><b>${mLabel(m)}</b></td>${ht.map(v=>`<td class="num">${val(m,[v])?BRL(val(m,[v])):'<span class="muted">–</span>'}</td>`).join('')}<td class="num"><b>${BRL(val(m,ht))}</b></td>${ou.map(v=>`<td class="num">${val(m,[v])?BRL(val(m,[v])):'<span class="muted">–</span>'}</td>`).join('')}<td class="num"><b>${BRL(val(m,ou))}</b></td><td class="num"><b>${BRL(val(m,vsAll))}</b></td></tr>`).join('')}
+    <tr class="tot"><td>TOTAL</td>${ht.map(v=>`<td class="num">${BRL(sum(rows.filter(l=>l.veic===v), l=>l.valor))}</td>`).join('')}<td class="num">${BRL(sum(rows.filter(l=>ht.includes(l.veic)), l=>l.valor))}</td>${ou.map(v=>`<td class="num">${BRL(sum(rows.filter(l=>l.veic===v), l=>l.valor))}</td>`).join('')}<td class="num">${BRL(sum(rows.filter(l=>ou.includes(l.veic)), l=>l.valor))}</td><td class="num">${BRL(sum(rows, l=>l.valor))}</td></tr>
+  </tbody></table></div>
+  <h4 class="sechead">Custo por km rodado (mesmos meses e filtros)</h4>
+  <div class="table-wrap"><table class="matrix"><thead><tr><th>Veículo</th><th class="num">Custo total</th><th class="num">Km rodados</th><th class="num">R$ por km</th><th class="num">Combustível</th><th class="num">R$ combustível por km</th></tr></thead><tbody>
+    ${vsAll.map(v=>{ const t = sum(rows.filter(l=>l.veic===v), l=>l.valor), c = sum(rows.filter(l=>l.veic===v && l.cat==='COMBUSTÍVEL'), l=>l.valor), k = sum(ms, m=>km[v] && km[v][m]);
+      return `<tr><td><b>${v}</b></td><td class="num">${BRL(t)}</td><td class="num">${k?N0(k):'<span class="muted">–</span>'}</td><td class="num">${k&&t?BRL(t/k):'<span class="muted">–</span>'}</td><td class="num">${BRL(c)}</td><td class="num">${k&&c?BRL(c/k):'<span class="muted">–</span>'}</td></tr>`; }).join('')}
+  </tbody></table></div>
+  <p class="fin-note">O km vem da quilometragem lançada (leituras e abastecimentos). Custo total inclui equipamento, locação e demais categorias; por isso compare também a coluna de combustível.</p>`;
+}
+
+function custoLanc(box, rows, total){
+  const sorted = rows.slice().sort((a,b)=> b.comp.localeCompare(a.comp) || (b.data||'').localeCompare(a.data||''));
+  const part = sorted.slice(0, CS.shown);
+  box.innerHTML = rows.length ? `
+  <div class="table-wrap"><table><thead><tr><th>Data</th><th>Mês</th><th>Veículo</th><th>Categoria</th><th>Descrição / Fornecedor</th><th class="num">Valor</th><th>NF / nota</th></tr></thead><tbody>
+    ${part.map(l=>`<tr><td>${l.data?dBR(l.data):'<span class="muted">–</span>'}</td><td>${mLabel(l.comp)}</td><td><b>${esc(l.veic)}</b></td><td><span class="badge">${esc(cap(l.cat))}</span></td>
+      <td class="wrap">${esc(l.desc)||'<span class="muted">–</span>'}${l.obs?`<div class="muted" style="font-size:12px">${esc(l.obs)}</div>`:''}${l.fonte==='glp'?'<div style="margin-top:3px"><span class="badge info">Automático · Controle GLP</span></div>':''}${l.fonte==='app'?`<div style="margin-top:3px"><span class="badge good">App · ${esc(l.operador)}</span></div>`:''}</td>
+      <td class="num">${BRL(l.valor)}</td><td>${esc(l.nf)||'<span class="muted">–</span>'}${l.empresa?` <span class="mini">${esc(l.empresa)}</span>`:''}<div style="margin-top:3px">${notaLinks(l)}</div></td></tr>`).join('')}
+    <tr class="tot"><td colspan="5">Total do filtro (${N0(rows.length)} lançamentos)</td><td class="num">${BRL(total)}</td><td></td></tr></tbody></table></div>
+  ${rows.length>CS.shown?`<div class="morebar"><button class="btn" id="c-more">Mostrar mais (${rows.length-CS.shown} restantes)</button></div>`:''}` : '<div class="card empty">Nenhum lançamento neste filtro.</div>';
+  const mb = $('#c-more'); if(mb) mb.onclick = ()=>{ CS.shown += 100; custosBody(); };
+}
+
+function custoAbast(box){
+  const ab = DB.abast.filter(a=>(!CS.veic||a.veic===CS.veic) && (!CS.ano || a.data.startsWith(CS.ano)) && (!CS.mes || a.data.slice(5,7)===CS.mes));
+  const vs = [...new Set(ab.map(a=>a.veic))];
+  box.innerHTML = `
+  <div class="note">Base: litros, valor do litro e km de cada abastecimento (planilha de abastecimento e lançamentos do operador). É daqui que sai o <b>km/L</b>; o custo de combustível continua nos lançamentos.</div>
+  <div class="table-wrap"><table><thead><tr><th>Veículo</th><th class="num">Abast.</th><th class="num">Litros</th><th class="num">Gasto (R$)</th><th class="num">R$/L médio</th><th class="num">Km rodados</th><th class="num">Km/L médio</th></tr></thead><tbody>
+    ${vs.map(v=>{ const r = ab.filter(a=>a.veic===v); const L = sum(r,a=>a.litros), T = sum(r,a=>a.total), K = sum(r,a=>a.kmrod); const kmls = r.filter(a=>a.kml).map(a=>a.kml);
+      return `<tr><td><b>${v}</b></td><td class="num">${r.length}</td><td class="num">${N1(L)}</td><td class="num">${BRL(T)}</td><td class="num">${L?BRL(T/L):'–'}</td><td class="num">${N0(K)}</td><td class="num">${kmls.length?N1(sum(kmls,x=>x)/kmls.length):'–'}</td></tr>`; }).join('') || '<tr><td colspan="7" class="empty">Sem abastecimentos neste filtro.</td></tr>'}</tbody></table></div>
+  <h4 class="sechead">Últimos abastecimentos</h4>
+  <div class="table-wrap"><table><thead><tr><th>Data</th><th>Veículo</th><th>Posto</th><th>Cidade</th><th>Comb.</th><th class="num">Litros</th><th class="num">R$/L</th><th class="num">Total</th><th class="num">Km/L</th></tr></thead><tbody>
+    ${ab.slice().sort((a,b)=>b.data.localeCompare(a.data)).slice(0,30).map(a=>`<tr><td>${dBR(a.data)}</td><td><b>${a.veic}</b></td><td class="wrap">${esc(a.posto)}</td><td>${esc(a.cidade)}</td><td>${esc(a.comb)}</td><td class="num">${N1(a.litros)}</td><td class="num">${BRL(a.vlitro)}</td><td class="num">${BRL(a.total)}</td><td class="num">${a.kml?N1(a.kml):'–'}</td></tr>`).join('')}</tbody></table></div>`;
+}
+
+// pendências para o financeiro conferir
+function pendencias(rows){
+  const semnf = rows.filter(l=>l.fonte!=='glp' && CAT_EXIGE_NF.includes(l.cat) && !String(l.nf||'').trim());
+  const semarq = rows.filter(l=>l.fonte!=='glp' && /\d{3,}/.test(String(l.nf||'')) && !l.arq && !arqsDe('nf', l.id).length);
+  const data = rows.filter(l=>l.fonte!=='glp' && (!l.data || Math.abs(daysBetween(l.data, l.comp + '-15')) > 45) && !['IPVA','LICENCIAMENTO','EQUIPAMENTO','RASTREADOR','LOCAÇÃO DO VEÍCULO'].includes(l.cat));
+  return { semnf, semarq, data, total: semnf.length + semarq.length + data.length };
+}
+function custoPend(box, rows){
+  const p = pendencias(rows);
+  const defs = [
+    ['semnf', 'Sem número de nota', p.semnf, 'Gastos que exigem nota (combustível, alimentação, hotel, pedágio, manutenção…) mas estão sem NF.'],
+    ['semarq', 'NF sem arquivo na pasta', p.semarq, 'Tem número de NF, mas a nota não foi encontrada na pasta Notas do drive.'],
+    ['data', 'Data fora do mês', p.data, 'Sem data, ou data muito distante do mês de competência (possível erro de digitação).']
+  ];
+  if(!defs.find(d=>d[0]===CS.pend)) CS.pend = 'semnf';
+  const cur = defs.find(d=>d[0]===CS.pend);
+  const lst = cur[2].slice().sort((a,b)=>b.comp.localeCompare(a.comp) || (b.data||'').localeCompare(a.data||''));
+  box.innerHTML = `
+  <div class="kpi-row">${defs.map(d=>`<div class="card pend-card ${d[0]===CS.pend?'on':''}" data-p="${d[0]}"><div class="l">${d[1]}</div><div class="v">${d[2].length}</div><div class="s">${R$(sum(d[2], l=>l.valor))}</div></div>`).join('')}</div>
+  <p class="fin-note">${cur[3]} Considera os filtros acima. Clique em um quadro para ver a lista.</p>
+  ${lst.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Mês</th><th>Veículo</th><th>Categoria</th><th>Descrição</th><th class="num">Valor</th><th>NF</th></tr></thead><tbody>
+    ${lst.slice(0,200).map(l=>`<tr><td class="${!l.data?'hl':''}">${l.data?dBR(l.data):'sem data'}</td><td>${mLabel(l.comp)}</td><td><b>${esc(l.veic)}</b></td><td>${esc(cap(l.cat))}</td><td class="wrap">${esc(l.desc)||'–'}</td><td class="num">${BRL(l.valor)}</td><td>${esc(l.nf)||'<span class="muted">–</span>'}</td></tr>`).join('')}</tbody></table></div>${lst.length>200?`<p class="hint">Mostrando 200 de ${lst.length}. Use os filtros para refinar.</p>`:''}`
+    : '<div class="card empty">Nada pendente neste filtro. 👍</div>'}`;
+  $$('.pend-card').forEach(c=>c.onclick = ()=>{ CS.pend = c.dataset.p; custosBody(); });
+}
+
+function bindAbrirArq(){
+  $$('[data-abrir-arq]').forEach(b=>b.onclick = async ()=>{
+    const m = await signedUrls([b.dataset.abrirArq]); const u = m[b.dataset.abrirArq];
+    if(u) window.open(u, '_blank'); else toast('Não foi possível abrir a foto.', true);
+  });
+}
+
+function openLanc(){
+  $('#f-veic').innerHTML = VEIC().map(v=>`<option value="${v.cod}">${v.cod} — ${esc(v.nome)}</option>`).join('');
+  $('#f-cat').innerHTML = categorias().map(c=>`<option>${c}</option>`).join('');
+  const f = $('#form-lanc'); f.reset(); f.data.value = TODAY; f.comp.value = TODAY.slice(0,7);
+  $('#dlg-lanc').showModal();
+}
+$('#form-lanc').addEventListener('submit', async e=>{
+  if(e.submitter && e.submitter.value!=='ok') return;
+  const f = e.target;
+  const valor = Math.round(parseFloat(f.valor.value||0)*100)/100;
+  if(!valor || !f.comp.value){ e.preventDefault(); return; }
+  const row = { id: uid('cu'), data: f.data.value || null, comp: f.comp.value + '-01', veic: f.veic.value, cat: f.cat.value, descr: f.desc.value.trim() || null, valor,
+                nf: f.nf.value.trim() || null, empresa: f.empresa.value || null, obs: f.obs.value.trim() || null, fonte: 'escritório', operador: USER || 'Escritório' };
+  try{
+    await dbInsert('custos', [row]);
+    DB.custos.push({ ...row, desc: row.descr, comp: f.comp.value });
+    toast('Lançamento salvo.');
+    if(location.hash.includes('custos')) custosBody();
+  }catch(err){ toast('Erro ao salvar: ' + err.message, true); }
+});
+
+/* ============================ QUILOMETRAGEM ============================ */
+function km(){
+  const kmM = kmMensal(), ka = kmAtual();
+  const ms = [...new Set(Object.values(kmM).flatMap(o=>Object.keys(o)))].sort();
+  const mesAtual = TODAY.slice(0,7);
+  const mesRef = ms.filter(m=>m < mesAtual).pop() || ms[ms.length-1];
+  const total = sum(Object.values(kmM), o=>o[mesRef]);
+  const totalAtual = sum(Object.values(kmM), o=>o[mesAtual]);
+  const pal = PALETTE();
+  const atrasados = ORDER.filter(v=>VEIC().some(x=>x.cod===v) && (!ka[v] || daysBetween(ka[v].data, TODAY) > 10));
+  const nReg = sum(ORDER, v=>kmRegistros(v).length);
+  $('#app').innerHTML = `
+  <div class="pagehead"><div><h2>Quilometragem</h2><p>Leituras do odômetro de cada veículo. Clique em um veículo para ver todos os registros.</p></div>
+    <div class="acts"><a class="btn primary" href="#/lancar?tipo=km" style="text-decoration:none;text-align:center">+ Nova leitura</a></div></div>
+  <div class="cards">
+    <div class="card"><div class="l">Frota em ${mLabel(mesRef)}</div><div class="v">${N0(total)} km</div><div class="s">soma dos veículos com leitura</div></div>
+    <div class="card"><div class="l">Frota em ${mLabel(mesAtual)} (parcial)</div><div class="v">${N0(totalAtual)} km</div><div class="s">até a última leitura</div></div>
+    <div class="card"><div class="l">Registros de km</div><div class="v">${N0(nReg)}</div><div class="s">leituras e abastecimentos</div></div>
+    <div class="card"><div class="l">Sem leitura há +10 dias</div><div class="v" style="color:${atrasados.length?'var(--warn)':'inherit'}">${atrasados.length}</div><div class="s">${atrasados.join(', ')||'todos em dia'}</div></div>
+  </div>
+  <div class="vgrid">${ORDER.filter(v=>VEIC().some(x=>x.cod===v)).map(v=>{
+    const a = ka[v], nm = VEIC_NOME(v), mm = kmM[v] && kmM[v][mesRef] != null ? kmM[v][mesRef] : null;
+    const dias = a ? daysBetween(a.data, TODAY) : null;
+    return `<a class="vcard link" href="#/km/${v}"><div class="top"><div><div class="code">${v}</div><div class="nm">${nm.nome!==v?esc(nm.nome)+' · ':''}${esc(nm.grupo||'')}</div></div>
+      <span class="badge ${dias==null?'':dias>10?'warn':'good'}">${dias==null?'Sem leitura':dias>10?`há ${dias} dias`:dias===0?'hoje':`há ${dias} d`}</span></div>
+      <div class="row"><span class="muted">Km atual</span><b>${a?N0(a.km):'–'}</b></div>
+      <div class="row"><span class="muted">Última leitura</span><b>${a?dBR(a.data):'–'}</b></div>
+      <div class="row"><span class="muted">Km em ${mLabel(mesRef)}</span><b>${mm!=null?N0(mm):'–'}</b></div>
+      <div class="go">Ver ${kmRegistros(v).length} registros →</div></a>`; }).join('')}</div>
+  <div class="card" style="margin-bottom:14px"><h4>Km rodados por mês</h4><div class="chartbox"><canvas id="k1"></canvas></div></div>
+  <div class="table-wrap"><table><thead><tr><th>Mês</th>${ORDER.map(v=>`<th class="num">${v}</th>`).join('')}<th class="num">Frota</th></tr></thead><tbody>
+    ${ms.slice().reverse().map(m=>`<tr><td><b>${mLabel(m)}</b></td>${ORDER.map(v=>`<td class="num">${kmM[v] && kmM[v][m]!=null ? N0(kmM[v][m]) : '<span class="muted">–</span>'}</td>`).join('')}<td class="num"><b>${N0(sum(ORDER, v=>kmM[v] && kmM[v][m]))}</b></td></tr>`).join('')}
+  </tbody></table></div>
+  <p class="hint">Km do mês = maior leitura do mês menos a maior leitura do mês anterior. As leituras entram pelo operador no celular e pelos abastecimentos.</p>`;
+  const ds = ORDER.filter(v=>kmM[v]).map((v,i)=>({ label:v, data: ms.map(m=>kmM[v][m]||0), backgroundColor: pal[i%pal.length], stack:'k' }));
+  mkChart($('#k1'), { type:'bar', data:{ labels: ms.map(mLabel), datasets: ds }, options:{ maintainAspectRatio:false,
+    plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, usePointStyle:true } }, tooltip:{ callbacks:{ label:c=>`${c.dataset.label}: ${N0(c.parsed.y)} km` } } },
+    scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, ticks:{ callback:v=>N0(v) } } } } });
+}
+
+const KV = { mes:'' };
+function kmVeic(v){
+  const nm = VEIC_NOME(v);
+  if(!nm.cod){ location.hash = '#/km'; return; }
+  const regs = kmRegistros(v);
+  const meses = [...new Set(regs.map(r=>r.data.slice(0,7)))].sort().reverse();
+  const view = regs.filter(r=>!KV.mes || r.data.startsWith(KV.mes)).slice().reverse();
+  const last = regs[regs.length-1], first = regs[0];
+  const ult30 = regs.filter(r=>daysBetween(r.data, TODAY) <= 30);
+  const media30 = ult30.length > 1 ? (ult30[ult30.length-1].km - ult30[0].km) / Math.max(1, daysBetween(ult30[0].data, ult30[ult30.length-1].data)) : null;
+  const maiorSalto = regs.reduce((m, r)=>Math.max(m, r.delta||0), 0);
+  const confer = regs.filter(r=>r.flag).length;
+  $('#app').innerHTML = `
+  <a href="#/km" style="text-decoration:none;color:var(--text-muted);font-size:13px">← Quilometragem</a>
+  <div class="pagehead" style="margin-top:6px"><div><h2>${v} · registros de km</h2><p>${nm.nome!==v?esc(nm.nome)+' · ':''}${esc(nm.grupo)} — todos os registros de quilometragem deste veículo.</p></div>
+    <div class="acts"><button class="btn" id="kv-csv">Exportar CSV</button><a class="btn primary" href="#/lancar?tipo=km&veic=${v}" style="text-decoration:none;text-align:center">+ Nova leitura</a></div></div>
+  <div class="cards">
+    <div class="card"><div class="l">Km atual</div><div class="v">${last?N0(last.km):'–'}</div><div class="s">${last?dBR(last.data)+' · há '+daysBetween(last.data, TODAY)+' dias':''}</div></div>
+    <div class="card"><div class="l">Rodado no período</div><div class="v">${first&&last?N0(last.km-first.km):'–'}</div><div class="s">desde ${first?dBR(first.data):'–'}</div></div>
+    <div class="card"><div class="l">Média últimos 30 dias</div><div class="v">${media30!=null?N0(media30):'–'}</div><div class="s">km por dia</div></div>
+    <div class="card"><div class="l">Registros</div><div class="v">${regs.length}</div><div class="s">${confer?`<span style="color:var(--warn)">${confer} para conferir</span>`:'sem inconsistências'} · maior salto ${N0(maiorSalto)} km</div></div>
+  </div>
+  <div class="card" style="margin-bottom:14px"><h4>Evolução do odômetro</h4><div class="chartbox sm"><canvas id="kv1"></canvas></div></div>
+  <div class="filters" style="grid-template-columns:minmax(160px,240px)"><div class="field"><label>Mês</label><select id="kv-mes"><option value="">Todos os meses (${regs.length})</option>${meses.map(m=>`<option value="${m}" ${KV.mes===m?'selected':''}>${mLabel(m)} (${regs.filter(r=>r.data.startsWith(m)).length})</option>`).join('')}</select></div></div>
+  <div class="table-wrap"><table><thead><tr><th>Data</th><th class="num">Km</th><th class="num">Desde o anterior</th><th class="num">Dias</th><th class="num">Km/dia</th><th>Origem</th><th></th></tr></thead><tbody>
+    ${view.map(r=>`<tr><td>${dBR(r.data)}</td><td class="num"><b>${N0(r.km)}</b></td><td class="num">${r.delta!=null?(r.delta>0?'+':'')+N0(r.delta):'<span class="muted">–</span>'}</td><td class="num">${r.dias!=null?r.dias:'<span class="muted">–</span>'}</td><td class="num">${r.media!=null?N0(r.media):'<span class="muted">–</span>'}</td>
+      <td>${esc(r.origem)}${r.obs?` <span class="muted">· ${esc(r.obs)}</span>`:''}</td><td>${r.flag==='queda'?'<span class="badge bad">Km menor que o anterior</span>':r.flag==='salto'?'<span class="badge warn">Salto grande</span>':''}</td></tr>`).join('')}
+  </tbody></table></div>
+  <p class="hint">Reúne as leituras semanais, os abastecimentos e o que os operadores lançam no app. Linhas marcadas precisam de conferência (km menor que a leitura anterior ou salto acima de 2.500 km).</p>`;
+  $('#kv-mes').onchange = e=>{ KV.mes = e.target.value; kmVeic(v); };
+  $('#kv-csv').onclick = ()=>csvDownload(`km_${v}.csv`, ['Data','Km','Desde o anterior','Dias','Km/dia','Origem'], regs.slice().reverse().map(r=>[dBR(r.data), r.km, r.delta ?? '', r.dias ?? '', r.media!=null?Math.round(r.media):'', r.origem]));
+  mkChart($('#kv1'), { type:'line', data:{ labels: regs.map(r=>dBR(r.data).slice(0,5)+'/'+r.data.slice(2,4)), datasets:[{ data: regs.map(r=>r.km), borderColor: css('--accent'), backgroundColor: css('--accent'), pointRadius:2, tension:.2, fill:false }] },
+    options:{ maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:c=>N0(c.parsed.y)+' km' } } }, scales:{ x:{ grid:{ display:false }, ticks:{ maxTicksLimit:10 } }, y:{ ticks:{ callback:x=>N0(x) } } } } });
+}
+
+/* ============================ MANUTENÇÃO DO VEÍCULO ============================ */
+const MS = { veic:'', q:'' };
+function manutencao(){
+  const vs = ORDER.filter(v=>VEIC().some(x=>x.cod===v));
+  const oleo = vs.map(oleoInfo).filter(Boolean);
+  const venc = oleo.filter(o=>o.nivel==='bad'), prox = oleo.filter(o=>o.nivel==='warn');
+  const gasto = v => sum(DB.custos.filter(l=>l.cat==='MANUTENÇÃO VEICULAR' && l.veic===v), l=>l.valor);
+  const servicos = v => DB.manut.filter(m=>m.veic===v && (m.servico || m.empresa)).length;
+  $('#app').innerHTML = `
+  <div class="pagehead"><div><h2>Manutenção do veículo</h2><p>Troca de óleo, revisões e histórico de serviços de cada veículo.</p></div>
+    <div class="acts"><button class="btn primary" id="m-new">+ Registrar manutenção</button></div></div>
+  <div class="cards">
+    <div class="card"><div class="l">Óleo vencido</div><div class="v" style="color:${venc.length?'var(--bad)':'inherit'}">${venc.length}</div><div class="s">${venc.map(o=>o.veic).join(', ')||'nenhum veículo'}</div></div>
+    <div class="card"><div class="l">Óleo próximo</div><div class="v" style="color:${prox.length?'var(--warn)':'inherit'}">${prox.length}</div><div class="s">${prox.map(o=>`${o.veic} (${N0(o.faltam)} km)`).join(', ')||'abaixo de 1.000 km'}</div></div>
+    <div class="card"><div class="l">Serviços registrados</div><div class="v">${DB.manut.length}</div><div class="s">no histórico</div></div>
+    <div class="card"><div class="l">Gasto com manutenção</div><div class="v">${R$k(sum(vs, gasto))}</div><div class="s">categoria “Manutenção veicular” nos custos</div></div>
+  </div>
+  <h4 class="sechead">Troca de óleo e resumo por veículo</h4>
+  <div class="table-wrap"><table><thead><tr><th>Veículo</th><th>Última troca</th><th class="num">Km atual</th><th class="num">Próxima troca</th><th>Situação</th><th class="num">Serviços</th><th class="num">Gasto manutenção</th></tr></thead><tbody>
+    ${vs.map(v=>{ const o = oleoInfo(v);
+      return `<tr><td><a href="#" data-mv="${v}" style="color:inherit"><b>${v}</b></a></td><td>${o&&o.ultima?dBR(o.ultima):'<span class="muted">sem registro</span>'}</td><td class="num">${o?N0(o.km_atual):'–'}</td><td class="num">${o&&o.proxima?N0(o.proxima):'–'}</td>
+        <td>${o && o.interv && o.ultima ? `<div style="display:flex;align-items:center;gap:8px"><div class="bar ${o.nivel==='good'?'':o.nivel}" style="width:90px"><i style="width:${o.pct}%"></i></div><span class="badge ${o.nivel}">${o.faltam<0?`vencido ${N0(-o.faltam)} km`:`faltam ${N0(o.faltam)} km`}</span></div>` : '<span class="badge">Sem registro de troca</span>'}</td>
+        <td class="num">${servicos(v)}</td><td class="num">${BRL(gasto(v))}</td></tr>`; }).join('')}
+  </tbody></table></div>
+  <h4 class="sechead">Avisos de troca de óleo</h4>
+  <div class="card" id="av-box"></div>
+  <h4 class="sechead">Histórico de manutenção</h4>
+  <div class="filters" style="grid-template-columns:minmax(140px,220px) minmax(200px,1fr)">
+    <div class="field"><label>Veículo</label><select id="m-v"><option value="">Todos</option>${vs.map(v=>`<option ${MS.veic===v?'selected':''}>${v}</option>`).join('')}</select></div>
+    <div class="field"><label>Buscar serviço ou empresa</label><input id="m-q" type="search" value="${esc(MS.q)}" placeholder="Pneu, óleo, freio…"></div></div>
+  <div id="m-hist"></div>`;
+  $('#m-new').onclick = openMan;
+  avisosBox();
+  $$('[data-mv]').forEach(a=>a.onclick = e=>{ e.preventDefault(); MS.veic = a.dataset.mv; manutencao(); window.scrollTo(0, document.body.scrollHeight); });
+  const hist = ()=>{
+    const r = DB.manut.filter(m=>(m.servico||m.empresa||m.nf) && (!MS.veic||m.veic===MS.veic) && (!MS.q || [m.servico,m.empresa,m.obs].join(' ').toLowerCase().includes(MS.q.toLowerCase())))
+      .sort((a,b)=>String(b.data||'').localeCompare(String(a.data||'')));
+    $('#m-hist').innerHTML = r.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Veículo</th><th>Serviço realizado</th><th>Empresa</th><th>Km / obs.</th><th>NF</th></tr></thead><tbody>
+      ${r.map(m=>`<tr><td>${dBR(m.data)}</td><td><b>${m.veic}</b></td><td class="wrap">${esc(m.servico)||'<span class="muted">–</span>'}</td><td class="wrap">${esc(m.empresa)||'<span class="muted">–</span>'}</td><td>${m.km?N0(m.km):esc(m.obs)||'<span class="muted">–</span>'}</td>
+        <td>${esc(m.nf)||'<span class="muted">–</span>'}${m.arq?' '+notaDrive(m.arq,'nota'):''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="card empty">Nenhum serviço encontrado.</div>';
+  };
+  hist();
+  $('#m-v').onchange = e=>{ MS.veic = e.target.value; hist(); };
+  $('#m-q').oninput = e=>{ MS.q = e.target.value; hist(); };
+}
+/* ---- avisos de troca de óleo: contatos e limite ---- */
+const AV_CANAL = { whatsapp:'WhatsApp', email:'E-mail' };
+const avKm = () => Number(((DB.avcfg||[]).find(c=>c.chave==='oleo_km_aviso')||{}).valor) || 1000;
+function avisosBox(){
+  const box = $('#av-box'); if(!box) return;
+  const lst = DB.contatos || [];
+  const ultimos = (DB.avlog||[]).filter(l=>l.tipo==='oleo').slice(0, 4);
+  box.innerHTML = `
+  <p class="fin-note" style="margin-top:0">Todo dia às 19h o sistema confere a troca de óleo de cada veículo. Quando faltar <b>${N0(avKm())} km</b> ou menos (ou já estiver vencida), avisa os contatos abaixo. Cada veículo é reavisado no máximo uma vez por semana.</p>
+  <div class="table-wrap"><table><thead><tr><th>Contato</th><th>Canal</th><th>Destino</th><th>Ativo</th><th></th></tr></thead><tbody>
+    ${lst.map(c=>`<tr><td>${esc(c.nome)}</td><td>${esc(AV_CANAL[c.canal]||c.canal)}</td><td>${esc(c.destino)}</td>
+      <td><input type="checkbox" data-av-ativo="${esc(c.id)}" ${c.ativo?'checked':''} style="width:auto"></td><td><button class="btn sm" data-av-del="${esc(c.id)}">Remover</button></td></tr>`).join('') || '<tr><td colspan="5" class="empty">Nenhum contato cadastrado.</td></tr>'}
+  </tbody></table></div>
+  <form id="av-form" class="filters" style="grid-template-columns:minmax(120px,1fr) 130px minmax(180px,1.4fr) auto;margin-top:12px">
+    <div class="field"><label>Nome</label><input name="nome" required></div>
+    <div class="field"><label>Canal</label><select name="canal"><option value="email">E-mail</option><option value="whatsapp">WhatsApp</option></select></div>
+    <div class="field"><label>E-mail ou telefone (com DDD)</label><input name="destino" required></div>
+    <div class="field"><label>&nbsp;</label><button class="btn primary" type="submit">Adicionar</button></div>
+  </form>
+  <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-top:8px">
+    <div class="field" style="max-width:220px"><label>Avisar quando faltar (km)</label><input id="av-km" type="number" min="100" step="100" value="${avKm()}"></div>
+    <button class="btn" id="av-km-save">Salvar limite</button>
+  </div>
+  <p class="hint">${ultimos.length ? 'Últimos avisos: ' + ultimos.map(l=>`${dBR(String(l.created_at).slice(0,10))} · ${esc(l.ref)} (${esc(l.canal)}: ${esc(l.status)})`).join(' · ') : 'Nenhum aviso enviado ainda.'} O e-mail sai automaticamente; o WhatsApp depende de uma conta de envio (veja com o suporte).</p>`;
+  $$('[data-av-ativo]', box).forEach(i=>i.onchange = async ()=>{ try{ await dbUpdate('avisos_contatos', { ativo: i.checked }, 'id', i.dataset.avAtivo); const c = DB.contatos.find(x=>x.id===i.dataset.avAtivo); if(c) c.ativo = i.checked; toast('Contato atualizado.'); }catch(e){ toast('Erro: ' + e.message, true); } });
+  $$('[data-av-del]', box).forEach(b=>b.onclick = async ()=>{ if(!confirm('Remover este contato dos avisos?')) return; try{ await dbDelete('avisos_contatos', 'id', b.dataset.avDel); DB.contatos = DB.contatos.filter(x=>x.id!==b.dataset.avDel); avisosBox(); }catch(e){ toast('Erro: ' + e.message, true); } });
+  $('#av-form').onsubmit = async e=>{ e.preventDefault(); const f = e.target;
+    const row = { id: uid('av'), nome: f.nome.value.trim(), canal: f.canal.value, destino: f.destino.value.trim(), ativo: true, tipos: 'oleo' };
+    if(row.canal==='email' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(row.destino)){ toast('E-mail inválido.', true); return; }
+    try{ await dbInsert('avisos_contatos', [row]); DB.contatos.push(row); avisosBox(); toast('Contato adicionado.'); }catch(err){ toast('Erro: ' + err.message, true); } };
+  $('#av-km-save').onclick = async ()=>{ const v = String(parseInt($('#av-km').value, 10) || 1000);
+    try{ await dbUpsert('avisos_config', [{ chave:'oleo_km_aviso', valor:v }]); const c = DB.avcfg.find(x=>x.chave==='oleo_km_aviso'); if(c) c.valor = v; else DB.avcfg.push({ chave:'oleo_km_aviso', valor:v }); toast('Limite salvo.'); avisosBox(); }catch(e){ toast('Erro: ' + e.message, true); } };
+}
+function openMan(){
+  const f = $('#form-man'); f.reset();
+  f.veic.innerHTML = ORDER.filter(v=>VEIC().some(x=>x.cod===v)).map(v=>`<option>${v}</option>`).join('');
+  f.data.value = TODAY; $('#dlg-man').showModal();
+}
+$('#form-man').addEventListener('submit', async e=>{
+  if(e.submitter && e.submitter.value!=='ok') return;
+  const f = e.target;
+  if(!f.servico.value.trim() || !f.data.value){ e.preventDefault(); return; }
+  const km = parseInt(f.km.value, 10) || null, valor = parseFloat(f.valor.value);
+  const m = { id: uid('mn'), veic:f.veic.value, data:f.data.value, servico:f.servico.value.trim(), empresa:f.empresa.value.trim()||null, km, nf:f.nf.value.trim()||null,
+              valor: valor > 0 ? r2(valor) : null, obs: km ? 'KM' + km : null, operador: USER || 'Escritório' };
+  try{
+    await dbInsert('manutencoes', [m]); DB.manut.push(m);
+    if(valor > 0){
+      const l = { id: uid('cu'), data:m.data, comp:m.data.slice(0,7)+'-01', veic:m.veic, cat:'MANUTENÇÃO VEICULAR', descr:`${m.servico}${m.empresa?' — '+m.empresa:''}`, valor:r2(valor), nf:m.nf, fonte:'app', operador:USER||'Escritório' };
+      await dbInsert('custos', [l]); if(DB.custos) DB.custos.push({ ...l, desc:l.descr, comp:m.data.slice(0,7) });
+    }
+    if(f.oleo.checked && km){
+      const t = (DB.oleo||[]).find(x=>x.veic===m.veic); const interv = (t && t.intervalo) || 8000;
+      const novo = { veic:m.veic, ultima:m.data, km_troca:km, intervalo:interv, proxima:km + interv };
+      await dbUpsert('troca_oleo', [novo]);
+      if(t) Object.assign(t, novo); else DB.oleo.push(novo);
+    }
+    toast('Manutenção registrada.');
+    if(location.hash.includes('manutencao')) manutencao();
+  }catch(err){ toast('Erro ao salvar: ' + err.message, true); }
+});
+
+/* ============================ VENDA DE SUPORTES (controle de estoque) ============================ */
+const SS = { tab:'estoque', cli:'' };
+const saidaValida = s => s.qtd && !/INATIVA|CANCELADA/i.test(s.cliente || '');
+const cliNome = s => s.cliente || '(sem cliente informado)';
+const normV = s => String(s||'').replace(/\s/g,'');
+function suportesCalc(){
+  const validas = DB.sup_sai.filter(saidaValida);
+  const cont = {}; DB.sup_cont.forEach(c=>cont[normV(c.veic)+'|'+c.ciclo] = c);
+  const ciclos = DB.sup_ent.map(e=>{
+    const sai = validas.filter(s=>s.ciclo===e.chave); const vend = sum(sai, s=>s.qtd);
+    const cic = DB.sup_cic.find(x=>x.chave===e.chave) || {}; const ct = cont[normV(e.veic)+'|'+e.ciclo];
+    return { ...e, temp:cic.temp, vendidos:vend, saldo: e.qtd - vend, saldo_planilha: cic.saldo, fisico: ct ? ct.saldo_fisico : null, contagem: ct ? ct.data_contagem : null };
+  });
+  return { ciclos, validas, ent: sum(DB.sup_ent, e=>e.qtd), sai: sum(validas, s=>s.qtd) };
+}
+function suportes(){
+  const S = suportesCalc();
+  const saldoTot = sum(S.ciclos, c=>c.saldo), fisTot = sum(S.ciclos.filter(c=>c.fisico!=null), c=>c.fisico);
+  const dataCont = (S.ciclos.find(c=>c.contagem)||{}).contagem;
+  const porCli = [...groupSum(S.validas, cliNome, s=>s.qtd)].sort((a,b)=>b[1]-a[1]);
+  const pal = PALETTE();
+  const tab = (k,t)=>`<button class="${SS.tab===k?'on':''}" data-t="${k}">${t}</button>`;
+  $('#app').innerHTML = `
+  <div class="pagehead"><div><h2>Venda de suportes</h2><p>Controle de estoque dos suportes de madeira tratados: entrada por ciclo, saída por cliente e saldo.</p></div>
+    <div class="acts"><button class="btn" id="s-xlsx">Exportar Excel</button><button class="btn" id="s-in">+ Nova entrada</button><button class="btn primary" id="s-out">+ Nova saída</button></div></div>
+  <div class="cards">
+    <div class="card"><div class="l">Entradas</div><div class="v">${N0(S.ent)}</div><div class="s">${DB.sup_ent.length} ciclos tratados</div></div>
+    <div class="card"><div class="l">Saídas</div><div class="v">${N0(S.sai)}</div><div class="s">${S.validas.length} notas · ${porCli.length} clientes</div></div>
+    <div class="card"><div class="l">Saldo no sistema</div><div class="v">${N0(saldoTot)}</div><div class="s">entradas − saídas</div></div>
+    <div class="card"><div class="l">Estoque físico</div><div class="v">${N0(fisTot)}</div><div class="s">${dataCont?'contagem de '+dBR(dataCont):'sem contagem'}${saldoTot-fisTot>0?` · diferença ${N0(saldoTot-fisTot)}`:''}</div></div>
+  </div>
+  <div class="tabs" id="s-tabs">${tab('estoque','Estoque por ciclo')}${tab('saidas','Saídas')}${tab('entradas','Entradas')}</div>
+  <div id="s-body"></div>`;
+  $('#s-in').onclick = ()=>{ const f = $('#form-sup-in'); f.reset(); f.data.value = TODAY; $('#dlg-sup-in').showModal(); };
+  $('#s-out').onclick = ()=>{
+    const abertos = S.ciclos.filter(c=>c.saldo > 0);
+    $('#so-ciclo').innerHTML = abertos.map(c=>`<option value="${esc(c.chave)}">${esc(c.chave)} — saldo ${N0(c.saldo)}</option>`).join('');
+    $('#form-sup-out').reset(); const upd = ()=>{ const c = abertos.find(x=>x.chave===$('#so-ciclo').value); $('#so-saldo').textContent = c ? `Saldo disponível neste ciclo: ${N0(c.saldo)} un.` : ''; };
+    $('#so-ciclo').onchange = upd; upd(); $('#dlg-sup-out').showModal();
+  };
+  $('#s-xlsx').onclick = ()=>xlsxDownload('suportes_estoque.xlsx', [
+    { name:'Estoque por ciclo', head:['Ciclo','Veículo','Entrada','Tratados','Vendidos','Saldo sistema','Físico'], rows:S.ciclos.map(c=>[c.chave, c.veic, c.data, c.qtd, c.vendidos, c.saldo, c.fisico ?? '']) },
+    { name:'Saídas', head:['NF','Ciclo','Cliente','CNPJ','Quantidade','Certificado'], rows:DB.sup_sai.map(s=>[s.nf, s.ciclo||'', s.cliente||'', s.cnpj||'', s.qtd ?? '', s.cert||'']) },
+    { name:'Entradas', head:['Data','Ciclo','Veículo','Fornecedor','NF fornecedor','Material','Quantidade','Comunicado','Certificado'], rows:DB.sup_ent.map(e=>[e.data, e.ciclo, e.veic, e.fornecedor, e.nf, e.material, e.qtd, e.comunicado, e.cert]) }]);
+  $$('#s-tabs button').forEach(b=>b.onclick = ()=>{ SS.tab = b.dataset.t; suportes(); });
+  const body = $('#s-body');
+  if(SS.tab==='estoque'){
+    body.innerHTML = `<div class="grid2"><div class="table-wrap"><table><thead><tr><th>Ciclo</th><th>Veículo</th><th>Entrada</th><th class="num">Tratados</th><th class="num">Temp.</th><th>Vendido</th><th class="num">Saldo sistema</th><th class="num">Físico</th><th class="num">Dif.</th></tr></thead><tbody>
+      ${S.ciclos.map(c=>{ const pct = c.qtd ? Math.min(100, c.vendidos/c.qtd*100) : 0; const dif = c.fisico!=null ? c.fisico - c.saldo : null;
+        return `<tr><td><b>${esc(c.ciclo)}</b></td><td>${esc(c.veic)}</td><td>${dBR(c.data)}</td><td class="num">${N0(c.qtd)}</td><td class="num">${c.temp!=null?c.temp+' °C':'–'}</td>
+          <td><div class="bar" style="min-width:80px"><i style="width:${pct}%"></i></div></td><td class="num">${N0(c.saldo)}</td><td class="num">${c.fisico!=null?N0(c.fisico):'<span class="muted">–</span>'}</td>
+          <td class="num">${dif==null?'–':dif===0?'<span class="badge good">ok</span>':`<span class="badge bad">${dif>0?'+':''}${N0(dif)}</span>`}</td></tr>`; }).join('')}</tbody></table></div>
+      <div class="card"><h4>Vendas por cliente</h4><div class="chartbox" style="height:360px"><canvas id="s1"></canvas></div></div></div>
+      <p class="hint">“Saldo sistema” = entrada do ciclo − saídas lançadas. “Físico” é a última contagem; “Dif.” = físico − sistema (vermelho = conferir).</p>`;
+    const top = porCli.slice(0,10);
+    mkChart($('#s1'), { type:'bar', data:{ labels: top.map(x=>x[0]), datasets:[{ data: top.map(x=>x[1]), backgroundColor: pal[0], borderRadius:4 }] },
+      options:{ indexAxis:'y', maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:c=>N0(c.parsed.x)+' un.' } } }, scales:{ x:{ ticks:{ callback:v=>N0(v) } }, y:{ grid:{ display:false } } } } });
+  } else if(SS.tab==='saidas'){
+    const rows = DB.sup_sai.filter(s=>!SS.cli || cliNome(s)===SS.cli);
+    body.innerHTML = `<div class="filters" style="grid-template-columns:minmax(200px,320px)"><div class="field"><label>Cliente</label><select id="s-cli"><option value="">Todos</option>${porCli.map(x=>`<option ${SS.cli===x[0]?'selected':''}>${esc(x[0])}</option>`).join('')}</select></div></div>
+      <div class="table-wrap"><table><thead><tr><th>NF</th><th>Ciclo</th><th>Cliente</th><th>CNPJ</th><th class="num">Quantidade</th><th>Certificado</th></tr></thead><tbody>
+      ${rows.map(s=>{ const cancel = /INATIVA|CANCELADA/i.test(s.cliente||''); return `<tr><td>${esc(s.nf)}</td><td>${esc(s.ciclo)||'<span class="muted">–</span>'}</td><td>${cancel?`<span class="badge bad">${esc(s.cliente)}</span>`:(s.cliente?`<b>${esc(s.cliente)}</b>`:'<span class="badge warn">sem cliente informado</span>')}</td><td>${esc(s.cnpj)||'<span class="muted">–</span>'}</td><td class="num">${s.qtd!=null?N0(s.qtd):'–'}</td><td>${esc(s.cert)||'<span class="muted">–</span>'}</td></tr>`; }).join('')}</tbody></table></div>`;
+    $('#s-cli').onchange = e=>{ SS.cli = e.target.value; suportes(); };
+  } else {
+    body.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Ciclo</th><th>Veículo</th><th>Fornecedor</th><th>NF fornecedor</th><th>Material</th><th class="num">Qtd.</th><th>Comunicado</th><th>Certificado</th></tr></thead><tbody>
+      ${DB.sup_ent.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data))).map(e=>`<tr><td>${dBR(e.data)}</td><td><b>${esc(e.ciclo)}</b></td><td>${esc(e.veic)}</td><td>${esc(e.fornecedor)}</td><td>${esc(e.nf)}</td><td class="wrap">${esc(e.material)}</td><td class="num">${N0(e.qtd)}</td><td>${esc(e.comunicado)}</td><td>${esc(e.cert)}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+}
+$('#form-sup-in').addEventListener('submit', async e=>{
+  if(e.submitter && e.submitter.value!=='ok') return;
+  const f = e.target; if(!f.ciclo.value || !f.qtd.value){ e.preventDefault(); return; }
+  const row = { id: uid('se'), chave: `${f.ciclo.value.trim()}-${normV(f.veic.value)}`, veic: normV(f.veic.value), ciclo: f.ciclo.value.trim(), comunicado: f.comunicado.value.trim()||null, fornecedor: f.fornecedor.value.trim(),
+                nf: f.nf.value.trim()||null, material: f.material.value.trim()||null, qtd: Number(f.qtd.value), data: f.data.value, cert: f.cert.value.trim()||null };
+  try{ await dbInsert('suportes_entrada', [row]); DB.sup_ent.push(row); toast('Entrada registrada.'); suportes(); }catch(err){ toast('Erro ao salvar: ' + err.message, true); }
+});
+$('#form-sup-out').addEventListener('submit', async e=>{
+  if(e.submitter && e.submitter.value!=='ok') return;
+  const f = e.target; const qtd = Number(f.qtd.value);
+  const c = suportesCalc().ciclos.find(x=>x.chave===f.ciclo.value);
+  if(!c || !qtd || !f.nf.value.trim() || !f.cliente.value.trim()){ e.preventDefault(); return; }
+  if(qtd > c.saldo){ e.preventDefault(); toast(`A quantidade (${N0(qtd)}) é maior que o saldo do ciclo (${N0(c.saldo)}).`, true); return; }
+  const row = { id: uid('ss'), ciclo: c.chave, nf: f.nf.value.trim(), cliente: f.cliente.value.trim(), cnpj: f.cnpj.value.trim()||null, qtd, cert: f.cert.value.trim()||null, tratada: c.qtd };
+  try{ await dbInsert('suportes_saida', [row]); DB.sup_sai.push(row); toast('Saída registrada.'); suportes(); }catch(err){ toast('Erro ao salvar: ' + err.message, true); }
+});
+
+/* ============================ TRATAMENTOS HT ============================ */
+const PASTA_DRIVE = 'Madeireiras 2\\Mann Caminhões Matriz 765\\FOTOS TRATAMENTOS\\';
+const driveUrl = relDocs => 'https://manntratamentos-my.sharepoint.com/personal/felipe_manntratamentos_onmicrosoft_com/_layouts/15/onedrive.aspx?id=' + encodeURIComponent('/personal/felipe_manntratamentos_onmicrosoft_com/Documents/' + relDocs);
+const pasta3 = n => String(n).padStart(3, '0');
+const semBarra = p => p.replace(/\//g, '\\');
+const pastaDoCiclo = (veic, iso, n) => `${iso.slice(0,4)}/${MES_PASTA[+iso.slice(5,7)-1]}/${veic}/${pasta3(n)} - ${iso.slice(8,10)}-${iso.slice(5,7)}`;
+const arqsTrat = t => (DB.arqs||[]).filter(a=>a.tipo==='tratamento' && String(a.ref_id)===String(t.id));
+const fotosDe = t => (t.fotos || 0) + arqsTrat(t).filter(a=>a.operador).length;
+const unidadeDe = v => (VEIC_NOME(v).unidade) || null;
+
+function tratamentos(){
+  $('#app').innerHTML = `
+  <div class="pagehead"><div><h2>Tratamentos HT</h2><p>Escolha o veículo para ver todos os tratamentos: data, cliente atendido, número do ciclo e as fotos salvas no drive.</p></div></div>
+  <div class="vgrid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">${HT.map(v=>{
+    const ts = DB.serv.filter(s=>s.veic===v && s.ciclo!=null); const last = ts.filter(s=>s.data<=TODAY).sort((a,b)=>a.data.localeCompare(b.data)||a.ciclo-b.ciclo).pop();
+    return `<a class="vcard link" href="#/tratamentos/${v}"><div class="top"><div><div class="code">${v}</div><div class="nm">Unidade ${unidadeDe(v)||'–'} · ${esc(VEIC_NOME(v).nome)}</div></div></div>
+      <div class="row"><span class="muted">Tratamentos (2023–hoje)</span><b>${N0(ts.length)}</b></div>
+      <div class="row"><span class="muted">Último tratamento</span><b>${last?dBR(last.data):'–'}</b></div>
+      <div class="row"><span class="muted">Fotos no drive</span><b>${N0(sum(ts, s=>s.fotos))}</b></div>
+      <div class="go">Ver tratamentos →</div></a>`; }).join('')}</div>
+  <p class="hint">Base: planilha <b>Serviços Móvel HT 0765</b> (todos os tratamentos desde fev/2023). As fotos ficam em <b>${esc(PASTA_DRIVE)}</b>, uma pasta por ciclo: <b>ano › mês › veículo › “nº do ciclo - dia-mês”</b>.</p>`;
+}
+const TRS = { ano:String(new Date().getFullYear()), mes:'', q:'', shown:60 };
+function tratVeic(v){
+  if(!HT.includes(v)){ location.hash = '#/tratamentos'; return; }
+  const all = DB.serv.filter(s=>s.veic===v).slice().sort((a,b)=>b.data.localeCompare(a.data) || (b.hora||'').localeCompare(a.hora||''));
+  const anos = [...new Set(all.map(s=>s.data.slice(0,4)))].sort().reverse();
+  if(TRS.ano && !anos.includes(TRS.ano)) TRS.ano = anos[0] || '';
+  const doAno = all.filter(s=>!TRS.ano || s.data.startsWith(TRS.ano));
+  const meses = [...new Set(doAno.map(s=>s.data.slice(0,7)))].sort().reverse();
+  if(TRS.mes && !meses.includes(TRS.mes)) TRS.mes = '';
+  const getRows = ()=>doAno.filter(s=>(!TRS.mes || s.data.startsWith(TRS.mes)) &&
+    (!TRS.q || [s.cliente, s.local, s.aviso, s.operador, s.ciclo, s.material, s.nfe, s.cert].join(' ').toLowerCase().includes(TRS.q.toLowerCase())));
+  const feitos = getRows().filter(s=>s.ciclo!=null);
+  const comFoto = feitos.filter(s=>fotosDe(s)>0).length;
+  const ultimoCiclo = feitos.filter(s=>s.data<=TODAY)[0];
+  $('#app').innerHTML = `
+  <a href="#/tratamentos" style="text-decoration:none;color:var(--text-muted);font-size:13px">← Tratamentos HT</a>
+  <div class="pagehead" style="margin-top:6px"><div><h2>${v} · tratamentos</h2><p>Unidade ${unidadeDe(v)||'–'} · ${esc(VEIC_NOME(v).nome)} — clique em um tratamento para ver as fotos do ciclo.</p></div>
+    <div class="acts"><button class="btn" id="tr-xlsx">Exportar Excel</button><a class="btn primary" href="#/lancar?tipo=fotos&veic=${v}" style="text-decoration:none;text-align:center">+ Adicionar fotos</a></div></div>
+  <div class="cards">
+    <div class="card"><div class="l">Tratamentos no filtro</div><div class="v">${N0(feitos.length)}</div><div class="s">${TRS.ano||'todos os anos'}${TRS.mes?' · '+mLabel(TRS.mes):''}</div></div>
+    <div class="card"><div class="l">Quantidade declarada</div><div class="v">${N0(sum(feitos, s=>s.decl))}</div><div class="s">unidades tratadas</div></div>
+    <div class="card"><div class="l">Com fotos no drive</div><div class="v">${N0(comFoto)}</div><div class="s">${feitos.length?N0(comFoto/feitos.length*100):0}% dos tratamentos</div></div>
+    <div class="card"><div class="l">Último ciclo</div><div class="v">${ultimoCiclo?'#'+ultimoCiclo.ciclo:'–'}</div><div class="s">${ultimoCiclo?dBR(ultimoCiclo.data):''}</div></div>
+  </div>
+  <div class="filters" style="grid-template-columns:minmax(120px,160px) minmax(150px,220px) minmax(220px,1fr)">
+    <div class="field"><label>Ano</label><select id="tr-ano"><option value="">Todos</option>${anos.map(a=>`<option ${TRS.ano===a?'selected':''}>${a}</option>`).join('')}</select></div>
+    <div class="field"><label>Mês</label><select id="tr-mes"><option value="">Todos</option>${meses.map(m=>`<option value="${m}" ${TRS.mes===m?'selected':''}>${mLabel(m)}</option>`).join('')}</select></div>
+    <div class="field"><label>Buscar</label><input id="tr-q" type="search" value="${esc(TRS.q)}" placeholder="Cliente, cidade, ciclo, aviso, NF-e…"></div></div>
+  <div id="tr-list"></div>`;
+  const draw = ()=>{
+    const rows = getRows(); const part = rows.slice(0, TRS.shown);
+    $('#tr-list').innerHTML = rows.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Hora</th><th>Ciclo</th><th>Cliente (para quem foi)</th><th>Material</th><th class="num">Qtd.</th><th>Operador</th><th>Cert.</th><th>NF-e</th><th class="num">Fotos</th></tr></thead><tbody>
+      ${part.map(s=>{ const n = fotosDe(s), futuro = s.data > TODAY;
+        return `<tr class="clk" data-t="${s.id}"><td>${dBR(s.data)}${futuro?' <span class="badge info">programado</span>':''}</td><td>${esc(s.hora)||'–'}</td>
+          <td>${s.ciclo!=null?`<b>#${s.ciclo}</b>${s.pobs?` <span class="badge info">${esc(s.pobs)}</span>`:''}`:(/comunicado/i.test(s.cert||'')?'<span class="badge">comunicado</span>':'<span class="muted">–</span>')}</td>
+          <td class="wrap"><b>${esc(s.cliente)||'–'}</b>${s.local?`<div class="muted" style="font-size:12px">${esc(s.local)}</div>`:''}</td>
+          <td class="wrap" style="max-width:220px">${esc(s.material)||'<span class="muted">–</span>'}</td><td class="num">${s.decl?N0(s.decl):'<span class="muted">–</span>'}</td>
+          <td>${esc(s.operador)||'–'}</td><td>${esc(s.cert)||'–'}</td><td>${esc(s.nfe)||'–'}</td>
+          <td class="num">${n?`<span class="badge good">${n}</span>`:'<span class="muted">–</span>'}</td></tr>`; }).join('')}
+      </tbody></table></div>${rows.length>TRS.shown?`<div class="morebar"><button class="btn" id="tr-more">Mostrar mais (${rows.length-TRS.shown} restantes)</button></div>`:''}` : '<div class="card empty">Nenhum tratamento neste filtro.</div>';
+    $$('#tr-list tr.clk').forEach(tr=>tr.onclick = ()=>{ location.hash = `#/tratamentos/${v}/${tr.dataset.t}`; });
+    const mb = $('#tr-more'); if(mb) mb.onclick = ()=>{ TRS.shown += 100; draw(); };
+  };
+  draw();
+  $('#tr-ano').onchange = e=>{ TRS.ano = e.target.value; TRS.mes = ''; TRS.shown = 60; tratVeic(v); };
+  $('#tr-mes').onchange = e=>{ TRS.mes = e.target.value; TRS.shown = 60; tratVeic(v); };
+  $('#tr-q').oninput = e=>{ TRS.q = e.target.value; TRS.shown = 60; draw(); };
+  $('#tr-xlsx').onclick = ()=>xlsxDownload(`tratamentos_${v}.xlsx`, [{ name:v, head:['Aviso','Data','Hora','Ciclo','Cliente','Local','Material','Quantidade','Declarada','Operador','Certificado','NF-e','Fotos'],
+    rows:getRows().map(s=>[s.aviso||'', s.data, s.hora||'', s.ciclo ?? '', s.cliente||'', s.local||'', s.material||'', s.quant||'', s.decl ?? '', s.operador||'', s.cert||'', s.nfe||'', fotosDe(s)]) }]);
+}
+async function tratDetalhe(v, id){
+  const t = DB.serv.find(x=>String(x.id)===String(id));
+  if(!t){ location.hash = '#/tratamentos/' + v; return; }
+  const arq = arqsTrat(t); const urls = await signedUrls(arq.map(a=>a.storage_path));
+  const total = fotosDe(t);
+  const pasta = t.pasta || (t.ciclo!=null ? pastaDoCiclo(v, t.data, t.ciclo) : null);
+  const tiles = arq.filter(a=>urls[a.storage_path]).map((a,i)=>`<button class="ph" data-src="${urls[a.storage_path]}" data-cap="${esc(a.nome||('Foto '+(i+1)))}${a.operador?' · enviada por '+esc(a.operador):''}"><img src="${urls[a.storage_path]}" alt="" loading="lazy">${a.operador?'<span class="badge good">app</span>':''}</button>`);
+  const hist = Math.max(0, (t.fotos||0) - arq.filter(a=>!a.operador && urls[a.storage_path]).length);
+  $('#app').innerHTML = `
+  <a href="#/tratamentos/${v}" style="text-decoration:none;color:var(--text-muted);font-size:13px">← ${v} · tratamentos</a>
+  <div class="pagehead" style="margin-top:6px"><div><h2>${v} · ${t.ciclo!=null?'ciclo '+t.ciclo:'tratamento'}</h2><p>${dBR(t.data)}${t.hora?' às '+esc(t.hora):''} — ${esc(t.cliente)}</p></div>
+    <div class="acts"><a class="btn primary" href="#/lancar?tipo=fotos&veic=${v}&trat=${t.id}" style="text-decoration:none;text-align:center">+ Adicionar fotos</a></div></div>
+  <div class="cards">
+    <div class="card"><div class="l">Para quem foi</div><div class="v" style="font-size:18px;line-height:1.3;white-space:normal">${esc(t.cliente)}</div><div class="s">${esc(t.local)||''}</div></div>
+    <div class="card"><div class="l">Ciclo</div><div class="v">${t.ciclo!=null?'#'+t.ciclo:'–'}</div><div class="s">${t.pobs?esc(t.pobs):t.unidade?'unidade '+esc(t.unidade):''}</div></div>
+    <div class="card"><div class="l">Operador</div><div class="v" style="font-size:20px">${esc(t.operador)||'–'}</div><div class="s">aviso ${esc(t.aviso)||'–'}</div></div>
+    <div class="card"><div class="l">Fotos</div><div class="v">${total}</div><div class="s">${total?'salvas no drive':'ainda sem fotos'}</div></div>
+  </div>
+  <div class="cards">
+    <div class="card"><div class="l">Material tratado</div><div class="v" style="font-size:16px;line-height:1.3;white-space:normal">${esc(t.material)||'–'}</div></div>
+    <div class="card"><div class="l">Quantidade</div><div class="v" style="font-size:18px;white-space:normal">${esc(t.quant)||'–'}</div><div class="s">declarada: ${t.decl!=null?N0(t.decl):'–'}</div></div>
+    <div class="card"><div class="l">Certificado</div><div class="v" style="font-size:18px">${esc(t.cert)||'–'}</div></div>
+    <div class="card"><div class="l">NF-e</div><div class="v" style="font-size:18px">${esc(t.nfe)||'–'}</div></div>
+  </div>
+  ${pasta?`<div class="note">Pasta no drive: <b>${esc(PASTA_DRIVE + semBarra(pasta))}</b> &nbsp;<a class="badge info" style="text-decoration:none" target="_blank" rel="noopener" href="${driveUrl('Madeireiras 2/Mann Caminhões Matriz 765/FOTOS TRATAMENTOS/' + pasta)}">abrir no drive ↗</a></div>`:'<div class="note">Este tratamento ainda não tem ciclo nem pasta de fotos. Ao adicionar fotos, o sistema cria a pasta do ciclo no drive.</div>'}
+  ${hist>0?`<div class="card" style="margin-bottom:12px"><b>${hist} foto${hist>1?'s':''} deste ciclo ${hist>1?'estão':'está'} na pasta do drive.</b> <span class="muted">A exibição das fotos antigas aqui dentro será ligada junto com a integração do OneDrive; por enquanto abra a pasta pelo botão acima.</span></div>`:''}
+  ${tiles.length?`<div class="gallery">${tiles.join('')}</div>`:(hist>0?'':'<div class="card empty">Nenhuma foto salva para este tratamento.</div>')}`;
+  $$('.gallery button.ph').forEach(b=>b.onclick = ()=>{ $('#foto-big').src = b.dataset.src; $('#foto-open').href = b.dataset.src; $('#foto-cap').textContent = b.dataset.cap; $('#dlg-foto').showModal(); });
+}
+$('#dlg-foto').addEventListener('click', e=>{ if(e.target.id==='dlg-foto' || e.target.closest('[data-close]')) $('#dlg-foto').close(); });
+
+/* ============================ UTILIZAÇÃO DE VEÍCULOS (trajetos e folhas dos operadores) ============================ */
+const US = { mes:'', mot:'', q:'', tab:'trajetos', shown:80 };
+const kmRod = t => (t.km_chegada!=null && t.km_saida!=null && t.km_chegada >= t.km_saida) ? t.km_chegada - t.km_saida : null;
+function utilizacao(){
+  const vs = ORDER.filter(v=>VEIC().some(x=>x.cod===v));
+  $('#app').innerHTML = `
+  <div class="pagehead"><div><h2>Utilização de veículos</h2><p>Trajetos feitos pelos operadores (saída, chegada, km, origem e destino) e as folhas de papel preenchidas.</p></div>
+    <div class="acts"><button class="btn" id="u-import" title="Escolha a pasta “Controle Utilização Veiculo” do drive">Enviar fotos das folhas</button><a class="btn primary" href="#/lancar?tipo=trajeto" style="text-decoration:none;text-align:center">+ Lançar trajeto</a></div></div>
+  <div class="vgrid">${vs.map(v=>{
+    const ts = DB.traj.filter(t=>t.veic===v), fo = DB.folhas.filter(f=>f.veic===v);
+    const lastT = ts.map(t=>String(t.data)).sort().pop(), lastF = fo.map(f=>f.data_ref||'').sort().pop();
+    return `<a class="vcard link" href="#/utilizacao/${v}"><div class="top"><div><div class="code">${v}</div><div class="nm">${esc(VEIC_NOME(v).nome)}</div></div></div>
+      <div class="row"><span class="muted">Trajetos lançados</span><b>${N0(ts.length)}</b></div>
+      <div class="row"><span class="muted">Último trajeto</span><b>${lastT?dBR(lastT):'–'}</b></div>
+      <div class="row"><span class="muted">Folhas (fotos)</span><b>${N0(fo.length)}</b></div>
+      <div class="go">Abrir →</div></a>`; }).join('')}</div>
+  <p class="hint">Hoje os operadores preenchem a folha de papel e a foto vai para <b>Controle veículos › Controle Utilização Veiculo</b>. A partir do app, o operador lança cada trajeto direto no celular (Operador › Veículo › Utilização), sem digitar depois.</p>`;
+  $('#u-import').onclick = importFolhas;
+}
+// importador (administrador): envia as fotos das folhas da pasta do drive para o armazenamento do painel
+function importFolhas(){
+  const inp = document.createElement('input'); inp.type = 'file'; inp.multiple = true; inp.webkitdirectory = true;
+  inp.onchange = async ()=>{
+    const files = [...inp.files].filter(f=>/\.(jpe?g|png)$/i.test(f.name));
+    if(!files.length){ toast('Nenhuma foto encontrada na pasta escolhida.', true); return; }
+    const byArq = {}; DB.folhas.forEach(f=>byArq[f.arquivo] = f);
+    let ok = 0, skip = 0, miss = 0, fail = 0;
+    for(let i = 0; i < files.length; i++){
+      const file = files[i]; const rel = (file.webkitRelativePath || file.name).split('/').slice(1).join('/'); const row = byArq[rel];
+      if(!row){ miss++; continue; }
+      if(row.storage_path){ skip++; continue; }
+      try{
+        const blob = await compressImage(file, 1800, 0.8); const sp = `folhas/${safeName(rel.replace(/\//g,'_'))}.jpg`;
+        await uploadFile(sp, blob); await dbUpdate('utilizacao_folhas', { storage_path: sp }, 'id', row.id); row.storage_path = sp; ok++;
+      }catch(e){ console.error(e); fail++; }
+      toast(`Enviando folhas… ${i+1} de ${files.length}`);
+    }
+    toast(`Folhas: ${ok} enviadas, ${skip} já estavam, ${miss} sem correspondência${fail?`, ${fail} com erro`:''}.`, fail>0);
+    go();
+  };
+  inp.click();
+}
+function utilVeic(v){
+  if(!VEIC_NOME(v).cod){ location.hash = '#/utilizacao'; return; }
+  const all = DB.traj.filter(t=>t.veic===v).slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)) || (b.saida||'').localeCompare(a.saida||'') || (b.km_saida||0)-(a.km_saida||0));
+  const folhas = DB.folhas.filter(f=>f.veic===v);
+  const meses = [...new Set(all.map(t=>String(t.data).slice(0,7)))].sort().reverse();
+  const mots = [...new Set(all.map(t=>t.motorista).filter(Boolean))].sort();
+  const getRows = ()=>all.filter(t=>(!US.mes || String(t.data).startsWith(US.mes)) && (!US.mot || t.motorista===US.mot) &&
+    (!US.q || [t.origem, t.destino, t.obs, t.motorista].join(' ').toLowerCase().includes(US.q.toLowerCase())));
+  const base = getRows();
+  const lastT = all[0] ? String(all[0].data) : null, lastF = folhas.map(f=>f.data_ref||'').sort().pop();
+  $('#app').innerHTML = `
+  <a href="#/utilizacao" style="text-decoration:none;color:var(--text-muted);font-size:13px">← Utilização de veículos</a>
+  <div class="pagehead" style="margin-top:6px"><div><h2>${v} · utilização</h2><p>${esc(VEIC_NOME(v).nome)} — trajetos dos operadores e folhas preenchidas.</p></div>
+    <div class="acts"><button class="btn" id="u-xlsx">Exportar Excel</button><a class="btn primary" href="#/lancar?tipo=trajeto&veic=${v}" style="text-decoration:none;text-align:center">+ Lançar trajeto</a></div></div>
+  <div class="cards">
+    <div class="card"><div class="l">Trajetos no filtro</div><div class="v">${N0(base.length)}</div><div class="s">${mots.length} motorista${mots.length===1?'':'s'}</div></div>
+    <div class="card"><div class="l">Km rodados</div><div class="v">${N0(sum(base, t=>kmRod(t)))}</div><div class="s">km de chegada − km de saída</div></div>
+    <div class="card"><div class="l">Último trajeto lançado</div><div class="v">${lastT?dBR(lastT):'–'}</div><div class="s">${lastF && lastT && lastF > lastT ? `folhas de papel vão até ${dBR(lastF)}` : 'em dia com as folhas'}</div></div>
+    <div class="card"><div class="l">Folhas (fotos)</div><div class="v">${folhas.length}</div><div class="s">${lastF?'última de '+dBR(lastF):''}</div></div>
+  </div>
+  <div class="tabs" id="u-tabs"><button class="${US.tab==='trajetos'?'on':''}" data-t="trajetos">Trajetos</button><button class="${US.tab==='folhas'?'on':''}" data-t="folhas">Folhas (fotos)</button></div>
+  <div id="u-body"></div>`;
+  $$('#u-tabs button').forEach(b=>b.onclick = ()=>{ US.tab = b.dataset.t; utilVeic(v); });
+  $('#u-xlsx').onclick = ()=>xlsxDownload(`utilizacao_${v}.xlsx`, [{ name:v, head:['Data','Saída','Chegada','Km saída','Km chegada','Km rodados','Origem','Destino','Motorista','Observação'],
+    rows:getRows().map(t=>[t.data, t.saida||'', t.chegada||'', t.km_saida ?? '', t.km_chegada ?? '', kmRod(t) ?? '', t.origem||'', t.destino||'', t.motorista||'', t.obs||'']) }]);
+  const body = $('#u-body');
+  if(US.tab==='trajetos'){
+    body.innerHTML = `<div class="filters" style="grid-template-columns:minmax(130px,180px) minmax(130px,180px) minmax(220px,1fr)">
+      <div class="field"><label>Mês</label><select id="u-mes"><option value="">Todos</option>${meses.map(m=>`<option value="${m}" ${US.mes===m?'selected':''}>${mLabel(m)}</option>`).join('')}</select></div>
+      <div class="field"><label>Motorista</label><select id="u-mot"><option value="">Todos</option>${mots.map(m=>`<option ${US.mot===m?'selected':''}>${esc(m)}</option>`).join('')}</select></div>
+      <div class="field"><label>Buscar origem, destino ou observação</label><input id="u-q" type="search" value="${esc(US.q)}"></div></div><div id="u-list"></div>`;
+    const draw = ()=>{
+      const rows = getRows(); const part = rows.slice(0, US.shown);
+      $('#u-list').innerHTML = rows.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Saída</th><th>Chegada</th><th class="num">Km saída</th><th class="num">Km chegada</th><th class="num">Km rodados</th><th>Origem</th><th>Destino</th><th>Motorista</th><th>Obs.</th></tr></thead><tbody>
+        ${part.map(t=>`<tr><td>${dBR(t.data)}</td><td>${esc(t.saida)||'–'}</td><td>${esc(t.chegada)||'–'}</td><td class="num">${t.km_saida!=null?N0(t.km_saida):'–'}</td><td class="num">${t.km_chegada!=null?N0(t.km_chegada):'<span class="muted">–</span>'}</td><td class="num">${kmRod(t)!=null?N0(kmRod(t)):'–'}</td><td class="wrap">${esc(t.origem)||'–'}</td><td class="wrap">${esc(t.destino)||'–'}</td><td>${esc(t.motorista)||'–'}${t.fonte==='app'?' <span class="badge good">app</span>':''}</td><td class="wrap">${esc(t.obs)||''}</td></tr>`).join('')}
+        </tbody></table></div>${rows.length>US.shown?`<div class="morebar"><button class="btn" id="u-more">Mostrar mais (${rows.length-US.shown} restantes)</button></div>`:''}` : '<div class="card empty">Nenhum trajeto neste filtro.</div>';
+      const mb = $('#u-more'); if(mb) mb.onclick = ()=>{ US.shown += 100; draw(); };
+    };
+    draw();
+    $('#u-mes').onchange = e=>{ US.mes = e.target.value; US.shown = 80; utilVeic(v); };
+    $('#u-mot').onchange = e=>{ US.mot = e.target.value; US.shown = 80; utilVeic(v); };
+    $('#u-q').oninput = e=>{ US.q = e.target.value; US.shown = 80; draw(); };
+  } else {
+    utilFolhas(v, folhas);
+  }
+}
+async function utilFolhas(v, folhas){
+  const body = $('#u-body');
+  if(!folhas.length){ body.innerHTML = '<div class="card empty">Nenhuma folha cadastrada para este veículo.</div>'; return; }
+  const urls = await signedUrls(folhas.map(f=>f.storage_path));
+  const porMes = {}; folhas.forEach(f=>{ const k = `${f.ano}-${String(f.mes||0).padStart(2,'0')}`; (porMes[k] = porMes[k] || []).push(f); });
+  body.innerHTML = Object.keys(porMes).sort().reverse().map(k=>{
+    const [a, m] = k.split('-'); const lst = porMes[k].sort((x,y)=>(x.data_ref||x.rotulo).localeCompare(y.data_ref||y.rotulo));
+    return `<h4 class="sechead">${+m ? MESES_L[+m-1] : 'sem mês'} de ${a} · ${lst.length} folha${lst.length>1?'s':''}</h4>
+      <div class="fotos-grid">${lst.map(f=>{ const u = urls[f.storage_path];
+        return u ? `<button class="ph-f" data-src="${u}" data-cap="${esc(v)} · folha ${esc(f.rotulo)}"><img src="${u}" alt="" loading="lazy"><span class="cap">${esc(f.rotulo)}${f.data_ref?' · '+dBR(f.data_ref):''}</span></button>`
+          : `<div class="ph off" style="aspect-ratio:3/4" title="${esc(f.arquivo)}"><div>${ICON.nota}<small>${esc(f.rotulo)}</small><small>(foto ainda não enviada)</small></div></div>`; }).join('')}</div>`; }).join('');
+  $$('.ph-f').forEach(b=>b.onclick = ()=>{ $('#foto-big').src = b.dataset.src; $('#foto-open').href = b.dataset.src; $('#foto-cap').textContent = b.dataset.cap; $('#dlg-foto').showModal(); });
+}
+
+/* ============================ LANÇAMENTO DO OPERADOR (celular) ============================ */
+const COMB_FIXO = { ATU:'Diesel', RHV:'Diesel', RIX:'Diesel', DUCATO:'Diesel', SHINERAY:'Gasolina' };
+const CAT_OPERADOR = ['COMBUSTÍVEL','ALIMENTAÇÃO','HOTEL','PEDÁGIO','ESTACIONAMENTO','LAVAGEM','MATERIAIS','MANUTENÇÃO VEICULAR','UBER','PASSAGEM DE ÔNIBUS'];
+const W = { op: USER || '', veic:'', tipo:'', done:null };
+const FT = { data: TODAY, tid:'', files:[] };
+const ultimaLeitura = v => kmAtual()[v] || null;
+function semanaTxt(iso){ const d = +iso.slice(8,10); return `${Math.ceil(d/7)}ª semana de ${MESES_L[+iso.slice(5,7)-1]}`; }
+function caminhoNota(empresa, dataIso, nf, desc, operador, ext){
+  const pasta = `${empresa}/${dataIso.slice(0,4)}/${MES_PASTA[+dataIso.slice(5,7)-1]}`;
+  const nome = nf ? `NF ${nf}` : `Recibo ${desc||'sem descrição'} - ${operador}`;
+  return `${pasta}/${nome}.${ext||'jpeg'}`;
+}
+function lancar(q){
+  W.veic = (q.veic && VEIC_NOME(q.veic).cod) ? q.veic : ''; W.done = null;
+  W.tipo = ['nfe','km','fotos','trajeto'].includes(q.tipo) ? q.tipo : '';
+  if(W.tipo==='fotos' && W.veic && !HT.includes(W.veic)) W.tipo = '';
+  FT.files = []; FT.data = TODAY; FT.tid = q.trat ? String(q.trat) : '';
+  if(q.trat){ const t = DB.serv.find(x=>String(x.id)===String(q.trat)); if(t) FT.data = t.data; }
+  wiz();
+}
+function stepsBar(){
+  const cur = W.done ? 4 : !W.op ? 1 : !W.veic ? 2 : !W.tipo ? 3 : 4;
+  const lab = { nfe:'NF-e', km:'Quilometragem', fotos:'Fotos', trajeto:'Trajeto' }[W.tipo] || '';
+  const chip = (n, label, act, val)=>`<button class="${cur===n?'on':n<cur?'done':''}" ${n<cur?`data-wiz="${act}"`:'disabled'}>${n} · ${label}${val?': '+esc(val):''}</button>`;
+  return `<div class="steps">${chip(1,'Operador','s1',W.op)}${chip(2,'Veículo','s2',W.veic)}${chip(3,'Lançamento','s3',lab)}</div>`;
+}
+function wiz(){
+  killCharts();
+  let body;
+  if(W.done) body = wizDone();
+  else if(!W.op) body = wizOperador();
+  else if(!W.veic) body = wizVeiculo();
+  else if(!W.tipo) body = wizTipo();
+  else body = { nfe:wizNfe, km:wizKm, fotos:wizFotos, trajeto:wizTrajeto }[W.tipo]();
+  $('#app').innerHTML = `<div class="wiz">${stepsBar()}${body}</div>`;
+  if(!W.done && W.op && W.veic && W.tipo) ({ nfe:bindNfe, km:bindKm, fotos:bindFotos, trajeto:bindTrajeto }[W.tipo])();
+  window.scrollTo(0,0);
+}
+document.addEventListener('click', e=>{
+  const b = e.target.closest('[data-wiz]'); if(!b || b.disabled) return;
+  if(b.tagName==='A') e.preventDefault();
+  const a = b.dataset.wiz, v = b.dataset.v;
+  if(a==='op'){ W.op = v; USER = v; LS.set('hub_op', v); setUserLabel(); }
+  else if(a==='outro'){ const n = ($('#w-outro').value||'').trim(); if(!n){ toast('Digite o nome.', true); return; } W.op = n; USER = n; LS.set('hub_op', n); setUserLabel(); }
+  else if(a==='veic'){ W.veic = v; }
+  else if(a==='tipo'){ W.tipo = v; }
+  else if(a==='s1'){ W.op = ''; W.veic = ''; W.tipo = ''; W.done = null; }
+  else if(a==='s2'){ W.veic = ''; W.tipo = ''; W.done = null; }
+  else if(a==='s3'){ W.tipo = ''; W.done = null; }
+  else if(a==='mesmo'){ W.done = null; W.tipo = v || W.tipo; }
+  else if(a==='fim'){ location.hash = '#/'; return; }
+  wiz();
+});
+
+function wizOperador(){
+  return `<h2>Quem é você?</h2><p class="lead">Escolha o seu nome para começar.</p>
+  <div class="pick">${OPERADORES.map(o=>`<button class="bigbtn" data-wiz="op" data-v="${esc(o)}"><b>${esc(o)}</b></button>`).join('')}</div>
+  <div class="grp">Outro nome</div>
+  <div style="display:flex;gap:8px"><input id="w-outro" placeholder="Digite o nome" style="font-size:16px"><button class="btn primary" data-wiz="outro">Continuar</button></div>`;
+}
+function wizVeiculo(){
+  const card = v=>{ const a = ultimaLeitura(v.cod); return `<button class="bigbtn" data-wiz="veic" data-v="${v.cod}"><b>${v.cod}</b><span>${v.nome!==v.cod?esc(v.nome)+(a?' · ':''):''}${a?N0(a.km)+' km':''}</span></button>`; };
+  return `<h2>Qual veículo?</h2><p class="lead">Olá, <b>${esc(W.op)}</b>. Escolha o veículo.</p>
+  <div class="grp">HT</div><div class="pick">${VEIC().filter(v=>v.grupo==='HT').map(card).join('')}</div>
+  <div class="grp">Outras atividades</div><div class="pick">${VEIC().filter(v=>v.grupo!=='HT').map(card).join('')}</div>`;
+}
+function wizTipo(){
+  return `<h2>O que vai lançar?</h2><p class="lead">Veículo <b>${esc(W.veic)}</b> · operador <b>${esc(W.op)}</b></p>
+  <div style="display:grid;gap:10px">
+    <button class="bigbtn opt" data-wiz="tipo" data-v="nfe"><div class="ico">${ICON.nota}</div><div><b>Nota fiscal (NF-e)</b><span>Combustível, alimentação, hotel, pedágio, manutenção…</span></div></button>
+    <button class="bigbtn opt" data-wiz="tipo" data-v="trajeto"><div class="ico">${ICON.util}</div><div><b>Utilização do veículo</b><span>Trajeto: saída, chegada, km, origem e destino</span></div></button>
+    <button class="bigbtn opt" data-wiz="tipo" data-v="km"><div class="ico">${ICON.km}</div><div><b>Controle de quilometragem</b><span>Leitura do odômetro do veículo</span></div></button>
+    ${HT.includes(W.veic) ? `<button class="bigbtn opt" data-wiz="tipo" data-v="fotos"><div class="ico">${ICON.trat}</div><div><b>Fotos do tratamento</b><span>Enviar as fotos do ciclo para o drive</span></div></button>` : ''}
+  </div>`;
+}
+const msgBox = (t, k)=>{ const m = $('#w-msg'); m.className = 'hintbox ' + (k||''); m.textContent = t; m.hidden = !t; };
+function setSending(on, txt){ const b = $('#w-send'); if(!b) return; b.disabled = on; if(txt) b.textContent = txt; }
+
+/* ---- NF-e ---- */
+function wizNfe(){
+  const fixo = COMB_FIXO[W.veic];
+  const combOpts = fixo ? `<option>${fixo}</option>` : '<option>Gasolina</option><option>Etanol</option>';
+  return `<h2>Nota fiscal</h2><p class="lead">${esc(W.veic)} · ${esc(W.op)}</p>
+  <form class="wform" id="w-form" novalidate>
+    <div class="field"><label>Data</label><input type="date" name="data" value="${TODAY}" required></div>
+    <div class="field"><label>Categoria</label><select name="cat" id="w-cat">${CAT_OPERADOR.map(c=>`<option value="${c}">${cap(c)}</option>`).join('')}</select></div>
+    <div class="field full"><label>Fornecedor / descrição</label><input name="desc" placeholder="Ex.: Posto Estrela" required></div>
+    <div class="field"><label>Nº da NF-e</label><input name="nf" inputmode="numeric" required></div>
+    <div class="field"><label>Valor total (R$)</label><input name="valor" type="number" step="0.01" min="0" inputmode="decimal" required></div>
+    <div class="sect fuel">Abastecimento</div>
+    <div class="field fuel"><label>Combustível${fixo?' (fixo do veículo)':''}</label><select name="comb" ${fixo?'disabled':''}>${combOpts}</select></div>
+    <div class="field fuel"><label>Litros</label><input name="litros" type="number" step="0.001" min="0" inputmode="decimal"></div>
+    <div class="field fuel"><label>Valor do litro (R$)</label><input name="vlitro" readonly placeholder="calculado"></div>
+    <div class="field fuel"><label>Km atual (odômetro)</label><input name="km" type="number" inputmode="numeric"></div>
+    <div class="field fuel"><label>Cidade</label><input name="cidade"></div>
+    <div class="field fuel" style="justify-content:flex-end"><label class="checkrow"><input type="checkbox" name="cheio" checked> Completou o tanque</label></div>
+    <div class="field"><label>Empresa da nota (CNPJ)</label><select name="empresa"><option>MANN</option><option>EXATA SC</option></select></div>
+    <div class="field full"><label>Foto da nota</label><div class="photo"><input type="file" name="foto" accept="image/*,application/pdf" capture="environment"><img id="w-prev" alt="" hidden></div></div>
+    <div class="hintbox" id="w-path">A nota será arquivada na pasta Notas do drive.</div>
+    <div class="field full"><label>Observação (opcional)</label><input name="obs"></div>
+    <div class="hintbox" id="w-msg" hidden></div>
+    <div class="wactions"><button type="button" class="btn" data-wiz="s3">Voltar</button><button class="btn primary" type="submit" id="w-send">Salvar nota</button></div>
+  </form>`;
+}
+function bindNfe(){
+  const f = $('#w-form'); const fuel = $$('.fuel', f);
+  const toggle = ()=>{ const on = f.cat.value==='COMBUSTÍVEL'; fuel.forEach(el=>el.hidden = !on); };
+  const calc = ()=>{ const L = parseFloat(f.litros.value), V = parseFloat(f.valor.value); f.vlitro.value = (L>0 && V>0) ? BRL(V/L) : ''; };
+  const extDe = ()=>{ const n = f.foto.files[0] ? f.foto.files[0].name : ''; const m = n.match(/\.(\w+)$/); return m ? (m[1].toLowerCase()==='pdf' ? 'pdf' : 'jpeg') : 'jpeg'; };
+  const path = ()=>{ if(!f.data.value) return; const p = caminhoNota(f.empresa.value, f.data.value, f.nf.value.trim(), f.desc.value.trim(), W.op, extDe()); $('#w-path').innerHTML = `Arquivo da nota: <b>Notas\\${esc(p.replace(/\//g,'\\'))}</b>`; };
+  f.cat.onchange = toggle; f.litros.oninput = calc; f.valor.oninput = calc; toggle();
+  ['data','nf','desc','empresa'].forEach(k=>{ f[k].oninput = path; f[k].onchange = path; }); path();
+  f.foto.onchange = ()=>{ const file = f.foto.files[0]; const im = $('#w-prev'); if(file && file.type.startsWith('image/')){ im.src = URL.createObjectURL(file); im.hidden = false; } else im.hidden = true; path(); };
+  f.onsubmit = async e=>{
+    e.preventDefault();
+    const cat = f.cat.value, v = parseFloat(f.valor.value), isF = cat==='COMBUSTÍVEL';
+    if(!f.data.value || !f.desc.value.trim() || !f.nf.value.trim() || !(v>0)){ msgBox('Preencha data, fornecedor, nº da NF-e e valor.', 'bad'); return; }
+    let L = 0, km = 0;
+    if(isF){
+      L = parseFloat(f.litros.value); km = parseInt(f.km.value, 10);
+      if(!(L>0) || !(km>0)){ msgBox('No abastecimento, informe os litros e o km atual.', 'bad'); return; }
+      const last = ultimaLeitura(W.veic);
+      if(last && km < last.km){ msgBox(`O km informado (${N0(km)}) é menor que a última leitura (${N0(last.km)} km em ${dBR(last.data)}). Confira o odômetro.`, 'bad'); return; }
+      if(!f.dataset.warned){
+        const prev = DB.abast.filter(a=>a.veic===W.veic && a.km).sort((a,b)=>String(b.data).localeCompare(String(a.data)))[0];
+        const kml = prev ? (km - prev.km) / L : null;
+        if(kml!=null && f.cheio.checked && (kml < 2 || kml > 25)){ f.dataset.warned = '1'; msgBox(`Isso dá ${N1(kml)} km/L (${N0(km - prev.km)} km desde o último abastecimento, em ${dBR(prev.data)}). Confira os litros e o km. Para salvar assim mesmo, toque em “Salvar nota” de novo.`, 'warn'); return; }
+      }
+    }
+    setSending(true, 'Salvando…'); msgBox('');
+    try{
+      const file = f.foto.files[0]; const ext = extDe();
+      const drivePath = caminhoNota(f.empresa.value, f.data.value, f.nf.value.trim(), f.desc.value.trim(), W.op, ext);
+      const custoId = uid('cu');
+      let stPath = null;
+      if(file){
+        const blob = await compressImage(file);
+        stPath = 'notas/' + safeName(drivePath.replace(/\//g,'_')) ; if(!/\.(jpe?g|pdf)$/i.test(stPath)) stPath += '.jpg';
+        stPath = `notas/${f.data.value.slice(0,7)}/${custoId}_${safeName(drivePath.split('/').pop())}`;
+        await uploadFile(stPath, blob);
+      }
+      const desc = f.desc.value.trim() + (isF && f.cidade.value.trim() ? ' — ' + f.cidade.value.trim() : '');
+      const custo = { id: custoId, data: f.data.value, comp: f.data.value.slice(0,7) + '-01', veic: W.veic, cat, descr: desc, valor: r2(v), nf: f.nf.value.trim(), empresa: f.empresa.value,
+                      arq: file ? drivePath : null, obs: f.obs.value.trim() || null, fonte: 'app', operador: W.op };
+      await dbInsert('custos', [custo]);
+      if(DB.custos) DB.custos.push({ ...custo, desc, comp: f.data.value.slice(0,7) });
+      if(file){ const ar = { id: uid('ar'), tipo:'nf', ref_id: custoId, veic: W.veic, nome: drivePath.split('/').pop(), caminho_drive: 'Controle veículos\\Notas\\' + drivePath.replace(/\//g,'\\'), storage_path: stPath, operador: W.op }; await dbInsert('arquivos_painel', [ar]); if(DB.arqs) DB.arqs.push(ar); }
+      let extra = file ? 'Foto da nota enviada e arquivada.' : 'Sem foto da nota.';
+      if(isF){
+        const prev = DB.abast.filter(a=>a.veic===W.veic && a.km).sort((a,b)=>String(b.data).localeCompare(String(a.data)))[0];
+        const kmrod = prev ? km - prev.km : null;
+        const ab = { id: uid('ab'), data: f.data.value, veic: W.veic, nfe: custo.nf, posto: f.desc.value.trim(), cidade: f.cidade.value.trim() || null, comb: COMB_FIXO[W.veic] || f.comb.value, litros: L, vlitro: r2(v/L), total: custo.valor,
+                     km, kmrod: kmrod>0 ? kmrod : null, kml: (kmrod>0 && f.cheio.checked) ? Math.round(kmrod/L*100)/100 : null, cheio: f.cheio.checked, operador: W.op, custo_id: custoId, fonte: 'app' };
+        await dbInsert('abastecimentos', [ab]); DB.abast.push(ab);
+        const lr = { id: uid('kl'), veic: W.veic, data: f.data.value, km, origem: 'abastecimento', operador: W.op }; await dbInsert('km_leituras', [lr]); DB.leit.push(lr);
+        extra += ` Também registrado: abastecimento de ${N1(L)} L${ab.kml?` (${N1(ab.kml)} km/L)`:''} e leitura de ${N0(km)} km.`;
+      }
+      W.done = { titulo:'Nota lançada', resumo:`${cap(cat)} · R$ ${BRL(custo.valor)} · NF ${custo.nf}`, extra, tipo:'nfe' };
+      wiz();
+    }catch(err){ console.error(err); setSending(false, 'Salvar nota'); msgBox('Não foi possível salvar: ' + err.message, 'bad'); }
+  };
+}
+
+/* ---- Quilometragem ---- */
+function wizKm(){
+  const last = ultimaLeitura(W.veic);
+  return `<h2>Controle de quilometragem</h2><p class="lead">${esc(W.veic)} · ${esc(W.op)}</p>
+  <form class="wform" id="w-form" novalidate>
+    <div class="hintbox">${last ? `Última leitura: <b>${N0(last.km)} km</b> em ${dBR(last.data)}.` : 'Ainda não há leitura deste veículo.'}</div>
+    <div class="field"><label>Data da leitura</label><input type="date" name="data" value="${TODAY}" required></div>
+    <div class="field"><label>Semana</label><input name="semana" readonly value="${semanaTxt(TODAY)}"></div>
+    <div class="field full"><label>Km atual (odômetro)</label><input name="km" type="number" inputmode="numeric" placeholder="Ex.: ${last ? (last.km + 400) : 10000}" required></div>
+    <div class="field full"><label>Observação (opcional)</label><input name="obs"></div>
+    <div class="hintbox" id="w-msg" hidden></div>
+    <div class="wactions"><button type="button" class="btn" data-wiz="s3">Voltar</button><button class="btn primary" type="submit" id="w-send">Salvar leitura</button></div>
+  </form>`;
+}
+function bindKm(){
+  const f = $('#w-form'); const last = ultimaLeitura(W.veic);
+  f.data.onchange = ()=>{ f.semana.value = f.data.value ? semanaTxt(f.data.value) : ''; };
+  f.km.oninput = ()=>{
+    const km = parseInt(f.km.value, 10);
+    if(!(km>0) || !last){ msgBox(''); return; }
+    if(km < last.km) msgBox(`Menor que a última leitura (${N0(last.km)} km). Confira o odômetro.`, 'bad');
+    else if(km - last.km > 2000) msgBox(`Salto de ${N0(km-last.km)} km desde a última leitura. Confirme antes de salvar.`, 'warn');
+    else msgBox(`Rodou ${N0(km-last.km)} km desde a última leitura.`, '');
+  };
+  f.onsubmit = async e=>{
+    e.preventDefault();
+    const km = parseInt(f.km.value, 10);
+    if(!f.data.value || !(km>0)){ msgBox('Informe a data e o km atual.', 'bad'); return; }
+    if(last && km < last.km){ msgBox(`Menor que a última leitura (${N0(last.km)} km). Confira o odômetro.`, 'bad'); return; }
+    setSending(true, 'Salvando…');
+    try{
+      const r = { id: uid('kl'), veic: W.veic, data: f.data.value, km, origem: 'leitura', operador: W.op, obs: f.obs.value.trim() || null };
+      await dbInsert('km_leituras', [r]); DB.leit.push(r);
+      W.done = { titulo:'Leitura salva', resumo:`${N0(km)} km em ${dBR(r.data)}`, extra: last ? `Rodou ${N0(km-last.km)} km desde a última leitura.` : '', tipo:'km' };
+      wiz();
+    }catch(err){ console.error(err); setSending(false, 'Salvar leitura'); msgBox('Não foi possível salvar: ' + err.message, 'bad'); }
+  };
+}
+
+/* ---- Utilização: trajeto ---- */
+const TJ = { origem:'', kmSaida:'' };
+function wizTrajeto(){
+  const lastT = DB.traj.filter(t=>t.veic===W.veic).sort((a,b)=>String(b.data).localeCompare(String(a.data)) || (b.km_chegada||b.km_saida||0)-(a.km_chegada||a.km_saida||0))[0];
+  const last = ultimaLeitura(W.veic);
+  const kmIni = TJ.kmSaida || (lastT && lastT.km_chegada) || (last && last.km) || '';
+  const lugares = [...new Set(DB.traj.flatMap(t=>[t.origem, t.destino]).filter(Boolean).map(s=>s.toUpperCase()))].sort();
+  return `<h2>Utilização do veículo</h2><p class="lead">${esc(W.veic)} · ${esc(W.op)} — um trajeto por vez</p>
+  <form class="wform" id="w-form" novalidate>
+    <div class="hintbox">${kmIni ? `Km de saída sugerido: <b>${N0(kmIni)}</b> (fim do último trajeto/leitura).` : 'Informe o km de saída.'}</div>
+    <div class="field full"><label>Data</label><input type="date" name="data" value="${TODAY}" required></div>
+    <div class="field"><label>Horário de saída</label><input type="time" name="saida"></div>
+    <div class="field"><label>Horário de chegada</label><input type="time" name="chegada"></div>
+    <div class="field"><label>Km de saída</label><input name="kms" type="number" inputmode="numeric" value="${kmIni}" required></div>
+    <div class="field"><label>Km de chegada</label><input name="kmc" type="number" inputmode="numeric"></div>
+    <div class="field"><label>Origem</label><input name="origem" list="w-lugares" value="${esc(TJ.origem)}" required></div>
+    <div class="field"><label>Destino</label><input name="destino" list="w-lugares" required></div>
+    <datalist id="w-lugares">${lugares.map(l=>`<option value="${esc(l)}">`).join('')}</datalist>
+    <div class="field full"><label>Observação (opcional)</label><input name="obs"></div>
+    <div class="hintbox" id="w-msg" hidden></div>
+    <div class="wactions"><button type="button" class="btn" data-wiz="s3">Voltar</button><button class="btn primary" type="submit" id="w-send">Salvar trajeto</button></div>
+  </form>`;
+}
+function bindTrajeto(){
+  const f = $('#w-form');
+  const chk = ()=>{ const a = parseInt(f.kms.value,10), b = parseInt(f.kmc.value,10); if(a>0 && b>0){ if(b<a) msgBox('O km de chegada é menor que o km de saída.', 'bad'); else msgBox(`Rodou ${N0(b-a)} km neste trajeto.`, ''); } else msgBox(''); };
+  f.kms.oninput = chk; f.kmc.oninput = chk;
+  f.onsubmit = async e=>{
+    e.preventDefault();
+    const a = parseInt(f.kms.value,10), b = f.kmc.value ? parseInt(f.kmc.value,10) : null;
+    if(!f.data.value || !(a>0) || !f.origem.value.trim() || !f.destino.value.trim()){ msgBox('Preencha data, km de saída, origem e destino.', 'bad'); return; }
+    if(b!=null && b < a){ msgBox('O km de chegada é menor que o km de saída.', 'bad'); return; }
+    setSending(true, 'Salvando…');
+    try{
+      const t = { id: uid('ut'), veic: W.veic, data: f.data.value, saida: f.saida.value || null, chegada: f.chegada.value || null, km_saida: a, km_chegada: b,
+                  origem: f.origem.value.trim(), destino: f.destino.value.trim(), motorista: W.op, obs: f.obs.value.trim() || null, fonte: 'app' };
+      await dbInsert('utilizacao_trajetos', [t]); DB.traj.push(t);
+      if(b){ const lr = { id: uid('kl'), veic: W.veic, data: f.data.value, km: b, origem: 'trajeto', operador: W.op }; await dbInsert('km_leituras', [lr]); DB.leit.push(lr); }
+      TJ.origem = t.destino; TJ.kmSaida = b || '';
+      W.done = { titulo:'Trajeto salvo', resumo:`${t.origem} → ${t.destino}${b?` · ${N0(b-a)} km`:''}`, extra: b ? `Leitura de ${N0(b)} km também registrada na quilometragem.` : 'Lembre de lançar o km de chegada depois.', tipo:'trajeto' };
+      wiz();
+    }catch(err){ console.error(err); setSending(false, 'Salvar trajeto'); msgBox('Não foi possível salvar: ' + err.message, 'bad'); }
+  };
+}
+
+/* ---- Fotos do tratamento ---- */
+function tratamentosDoDia(v, iso){
+  const ts = DB.serv.filter(s=>s.veic===v && s.data===iso && s.cliente && !/comunicado/i.test(s.cert||'')).sort((a,b)=>(a.hora||'99').localeCompare(b.hora||'99') || (a.ciclo||1e9)-(b.ciclo||1e9));
+  const ult = DB.serv.filter(s=>s.veic===v && s.ciclo!=null && s.data<=iso).sort((a,b)=>a.data.localeCompare(b.data) || a.ciclo-b.ciclo).pop();
+  let prox = ult ? ult.ciclo + 1 : 1;
+  return ts.map(t=> t.ciclo!=null ? { ...t, novo:false } : { ...t, ciclo: prox++, novo:true });
+}
+function wizFotos(){
+  const lst = tratamentosDoDia(W.veic, FT.data);
+  if(!lst.find(t=>String(t.id)===String(FT.tid))) FT.tid = lst[0] ? String(lst[0].id) : '';
+  const sel = lst.find(t=>String(t.id)===String(FT.tid));
+  const alvo = sel ? PASTA_DRIVE + semBarra(sel.pasta || pastaDoCiclo(W.veic, sel.data, sel.ciclo)) + '\\' : null;
+  return `<h2>Fotos do tratamento</h2><p class="lead">${esc(W.veic)} · ${esc(W.op)}</p>
+  <form class="wform" id="w-form" novalidate>
+    <div class="field full"><label>Data do tratamento</label><input type="date" name="data" value="${FT.data}"></div>
+    <div class="full"><div class="grp" style="margin:0 0 8px">Qual tratamento?</div>
+      ${lst.length ? `<div style="display:grid;gap:8px">${lst.map(t=>`<label class="bigbtn ${String(t.id)===FT.tid?'sel':''}" style="cursor:pointer;flex-direction:row;align-items:center;gap:12px"><input type="radio" name="trat" value="${esc(t.id)}" ${String(t.id)===FT.tid?'checked':''} style="width:auto"><div><b>${esc(t.hora)||'–'} · ${esc(t.cliente)}</b><span>Ciclo ${t.ciclo}${t.novo?' (pasta nova)':''}${t.local?' · '+esc(t.local):''}${fotosDe(t)?` · ${fotosDe(t)} fotos já salvas`:''}</span></div></label>`).join('')}</div>`
+        : '<div class="hintbox warn">Não há tratamento desse veículo nesta data na planilha de Serviços. Escolha outra data.</div>'}</div>
+    <div class="field full"><label>Fotos (câmera ou galeria)</label><input type="file" name="fotos" accept="image/*" multiple capture="environment"></div>
+    <div class="full" id="w-ph" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    <div class="hintbox" id="w-path">${alvo ? 'As fotos serão salvas em: <b>'+esc(alvo)+'</b>' : 'Escolha um tratamento.'}</div>
+    <div class="hintbox" id="w-msg" hidden></div>
+    <div id="w-prog" class="full" hidden><div class="bar" style="width:100%"><i id="w-prog-i" style="width:0%"></i></div><div class="hint" id="w-prog-t"></div></div>
+    <div class="wactions"><button type="button" class="btn" data-wiz="s3">Voltar</button><button class="btn primary" type="submit" id="w-send">Enviar para o drive</button></div>
+  </form>`;
+}
+function bindFotos(){
+  const f = $('#w-form');
+  f.data.onchange = ()=>{ FT.data = f.data.value || TODAY; FT.tid = ''; FT.files = []; wiz(); };
+  $$('input[name="trat"]', f).forEach(r=>r.onchange = ()=>{ FT.tid = r.value; wiz(); });
+  f.fotos.onchange = ()=>{
+    FT.files = [...f.fotos.files];
+    $('#w-ph').innerHTML = FT.files.map(x=>`<img src="${URL.createObjectURL(x)}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">`).join('');
+    $('#w-send').textContent = FT.files.length ? `Enviar ${FT.files.length} foto${FT.files.length>1?'s':''} para o drive` : 'Enviar para o drive';
+  };
+  f.onsubmit = async e=>{
+    e.preventDefault();
+    if(!FT.tid){ msgBox('Escolha o tratamento.', 'bad'); return; }
+    if(!FT.files.length){ msgBox('Selecione pelo menos uma foto.', 'bad'); return; }
+    const lst = tratamentosDoDia(W.veic, FT.data); const sel = lst.find(t=>String(t.id)===String(FT.tid));
+    const pasta = sel.pasta || pastaDoCiclo(W.veic, sel.data, sel.ciclo);
+    $('#w-prog').hidden = false; setSending(true); msgBox('');
+    try{
+      const rows = []; const total = FT.files.length;
+      for(let i = 0; i < total; i++){
+        $('#w-prog-t').textContent = `Enviando ${i+1} de ${total}…`; $('#w-prog-i').style.width = Math.round(i/total*100) + '%';
+        const blob = await compressImage(FT.files[i], 1800, 0.82);
+        const nome = `${Date.now()}_${i+1}.jpg`; const sp = `tratamentos/${safeName(pasta.replace(/\//g,'_'))}/${nome}`;
+        await uploadFile(sp, blob);
+        rows.push({ id: uid('ar'), tipo:'tratamento', ref_id: sel.id, veic: W.veic, nome, caminho_drive: PASTA_DRIVE + semBarra(pasta) + '\\' + nome, storage_path: sp, operador: W.op });
+      }
+      await dbInsert('arquivos_painel', rows); DB.arqs.push(...rows);
+      const real = DB.serv.find(x=>String(x.id)===String(sel.id));
+      if(real && real.ciclo==null){ await dbUpdate('servicos_ht', { ciclo: sel.ciclo, pasta }, 'id', real.id); real.ciclo = sel.ciclo; real.pasta = pasta; }
+      $('#w-prog-i').style.width = '100%';
+      W.done = { titulo:'Fotos enviadas', resumo:`${total} foto${total>1?'s':''} · ciclo ${sel.ciclo} · ${sel.cliente}`, extra:`Registradas em ${PASTA_DRIVE}${semBarra(pasta)}\\`, tipo:'fotos', link:`#/tratamentos/${W.veic}/${sel.id}` };
+      FT.files = []; wiz();
+    }catch(err){ console.error(err); setSending(false); $('#w-prog').hidden = true; msgBox('Não foi possível enviar: ' + err.message, 'bad'); }
+  };
+}
+
+function wizDone(){
+  const d = W.done;
+  return `<div class="okbox"><div class="check">✓</div><h2 style="font-size:26px">${esc(d.titulo)}</h2><p class="lead" style="margin:6px 0 0">${esc(d.resumo)}</p>
+    ${d.extra ? `<p class="hint">${esc(d.extra)}</p>` : ''}
+    <div style="display:grid;gap:8px;margin-top:18px">
+      ${d.link ? `<a class="btn primary" href="${d.link}" style="padding:13px;text-decoration:none">Ver o tratamento e as fotos</a>` : ''}
+      <button class="btn ${d.link?'':'primary'}" data-wiz="mesmo" data-v="${d.tipo}" style="padding:13px">Lançar ${d.tipo==='fotos'?'mais fotos':d.tipo==='trajeto'?'o próximo trajeto':d.tipo==='nfe'?'outra nota':'outra leitura'} (${esc(W.veic)})</button>
+      <button class="btn" data-wiz="s3" style="padding:13px">Lançar outra coisa para ${esc(W.veic)}</button>
+      <button class="btn" data-wiz="s2" style="padding:13px">Trocar de veículo</button>
+      <button class="btn ghost" data-wiz="fim">Concluir</button>
+    </div></div>`;
+}
+
+</script>
+</body>
+</html>

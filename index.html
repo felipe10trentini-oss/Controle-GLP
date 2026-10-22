@@ -345,6 +345,7 @@ footer.note{margin-top:34px;font-size:12px;color:var(--text-muted);border-top:1p
     <button data-view="ordemservico">Ordem de Serviço</button>
     <button data-view="config">Configurações</button>
   </nav>
+  <a class="sync-pill" href="painel.html" title="Voltar ao Painel Geral" style="text-decoration:none;color:inherit;">← Painel Geral</a>
   <div class="sync-pill" id="btn-user" title="Clique para definir seu nome">👤 <span id="user-name-label">Definir nome</span></div>
   <div class="sync-pill" id="btn-logout" title="Clique para sair"><span class="sync-dot off" id="sync-dot"></span><span id="sync-text">conectando…</span></div>
 </div>
@@ -1576,6 +1577,8 @@ async function startApp(){
   try{
     await loadAllAndRender();
     setupRealtime();
+    // o Painel Geral abre direto a aba de Dedetização com index.html#ordemservico
+    if(location.hash === '#ordemservico'){ const b = document.querySelector('#tabs button[data-view="ordemservico"]'); if(b) b.click(); }
   }catch(e){
     console.error('startApp', e);
     setSync(false, 'erro: ' + (e && e.message ? e.message : String(e)));
