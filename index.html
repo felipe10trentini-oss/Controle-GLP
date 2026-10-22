@@ -315,8 +315,8 @@ footer.note{margin-top:34px;font-size:12px;color:var(--text-muted);border-top:1p
     </div>
     <h1>Controle GLP</h1>
     <form id="form-login">
-      <div class="field"><label>E-mail de acesso</label><input type="email" id="login-email" required autocomplete="username"></div>
-      <div class="field"><label>Senha da equipe</label><input type="password" id="login-senha" required autocomplete="current-password"></div>
+      <div class="field"><label>Usuário ou e-mail</label><input type="text" id="login-email" required autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
+      <div class="field"><label>Senha</label><input type="password" id="login-senha" required autocomplete="current-password"></div>
       <button type="submit" class="btn primary" style="width:100%;">Entrar</button>
       <div class="login-error" id="login-error"></div>
     </form>
@@ -345,7 +345,7 @@ footer.note{margin-top:34px;font-size:12px;color:var(--text-muted);border-top:1p
     <button data-view="ordemservico">Ordem de Serviço</button>
     <button data-view="config">Configurações</button>
   </nav>
-  <a class="sync-pill" href="painel.html" title="Voltar ao Painel Geral" style="text-decoration:none;color:inherit;">← Painel Geral</a>
+  <a class="sync-pill" href="painel.html" title="Voltar ao Controle Geral" style="text-decoration:none;color:inherit;">← Controle Geral</a>
   <div class="sync-pill" id="btn-user" title="Clique para definir seu nome">👤 <span id="user-name-label">Definir nome</span></div>
   <div class="sync-pill" id="btn-logout" title="Clique para sair"><span class="sync-dot off" id="sync-dot"></span><span id="sync-text">conectando…</span></div>
 </div>
@@ -1569,7 +1569,18 @@ function updateUserLabel(){
   document.getElementById('user-name-label').textContent = USER_NAME || 'Definir nome';
 }
 
+// permissões do Controle Geral: quem não tem "glp" nem "os" volta para o painel; quem tem só uma das duas vê só ela
+async function checarAcesso(){
+  const { data, error } = await sb.rpc('painel_meu_perfil');
+  if(error) return true;   // controle de acesso ainda não ativado no banco: segue como antes
+  const p = data, ok = k => !!(p && p.ativo !== false && (p.tipo === 'admin' || (p.abas || []).includes(k)));
+  if(!ok('glp') && !ok('os')){ location.replace('painel.html'); return false; }
+  if(!ok('os')){ const b = document.querySelector('#tabs button[data-view="ordemservico"]'); if(b) b.hidden = true; }
+  if(!ok('glp')){ document.querySelectorAll('#tabs button[data-view]').forEach(b=>{ if(b.dataset.view !== 'ordemservico') b.hidden = true; }); location.hash = '#ordemservico'; }
+  return true;
+}
 async function startApp(){
+  if(!(await checarAcesso())) return;
   authGate.hidden = true;
   appRoot.hidden = false;
   setSync(true, 'sincronizado');
@@ -1577,7 +1588,7 @@ async function startApp(){
   try{
     await loadAllAndRender();
     setupRealtime();
-    // o Painel Geral abre direto a aba de Dedetização com index.html#ordemservico
+    // o Controle Geral abre direto a aba de Dedetização com index.html#ordemservico
     if(location.hash === '#ordemservico'){ const b = document.querySelector('#tabs button[data-view="ordemservico"]'); if(b) b.click(); }
   }catch(e){
     console.error('startApp', e);
@@ -1606,12 +1617,13 @@ document.getElementById('form-nome').addEventListener('submit', e=>{
 
 document.getElementById('form-login').addEventListener('submit', async e=>{
   e.preventDefault();
-  const email = document.getElementById('login-email').value.trim();
+  let email = document.getElementById('login-email').value.trim().toLowerCase();
   const senha = document.getElementById('login-senha').value;
   const errEl = document.getElementById('login-error');
   errEl.textContent = '';
+  if(email && !email.includes('@')) email += '@usuario.controle-geral.app';   // login simples cadastrado em Configurações
   const { error } = await sb.auth.signInWithPassword({ email, password: senha });
-  if(error){ errEl.textContent = 'E-mail ou senha incorretos.'; return; }
+  if(error){ errEl.textContent = 'Usuário ou senha incorretos.'; return; }
   startApp();
 });
 

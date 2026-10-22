@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Painel Geral · MANN &amp; EXATA</title>
+<title>Controle Geral · MANN &amp; EXATA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -225,7 +225,7 @@ tr.clk{cursor:pointer;}
 
 
 /* ===== painel real: ajustes ===== */
-.tiles{display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:16px;}
+.tiles{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:16px;}
 .tile,.tile.t3,.tile.t4,.tile.half{grid-column:auto!important;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start;gap:14px!important;min-height:176px;padding:22px!important;}
 .tile .ico{width:56px;height:56px;}
 .tile h3{font-size:24px;}
@@ -272,10 +272,10 @@ tr.clk{cursor:pointer;}
 <div id="auth-gate">
   <div class="login-card">
     <div class="login-logos"><img src="logo-mann.png" alt="MANN"><span class="sep" style="width:1px;height:22px;background:#d2d2cf"></span><img src="logo-exata.png" alt="EXATA"></div>
-    <h1>Painel Geral</h1>
+    <h1>Controle Geral</h1>
     <form id="form-login">
-      <div class="field"><label>E-mail de acesso</label><input type="email" id="login-email" required autocomplete="username"></div>
-      <div class="field"><label>Senha da equipe</label><input type="password" id="login-senha" required autocomplete="current-password"></div>
+      <div class="field"><label>Usuário ou e-mail</label><input type="text" id="login-email" required autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
+      <div class="field"><label>Senha</label><input type="password" id="login-senha" required autocomplete="current-password"></div>
       <button type="submit" class="btn primary" style="width:100%;padding:11px">Entrar</button>
       <div class="login-error" id="login-error"></div>
     </form>
@@ -284,17 +284,20 @@ tr.clk{cursor:pointer;}
 
 <div id="app-shell" hidden>
 <header class="topbar">
-  <a class="logos" href="#/" title="Painel geral"><img src="logo-mann.png" alt="MANN"><span class="sep"></span><img src="logo-exata.png" alt="EXATA"></a>
-  <div class="brand"><h1>Painel Geral</h1><span>Frota · Tratamentos · Dedetização · Suportes</span></div>
+  <a class="logos" href="#/" title="Controle Geral"><img src="logo-mann.png" alt="MANN"><span class="sep"></span><img src="logo-exata.png" alt="EXATA"></a>
+  <div class="brand"><h1>Controle Geral</h1><span>Frota · Tratamentos · Dedetização · Suportes</span></div>
   <div class="top-right">
     <div class="crumb" id="crumb"></div>
-    <a class="btn primary" href="#/lancar" style="text-decoration:none">+ Lançar</a>
+    <a class="btn primary" id="btn-lancar" href="#/lancar" style="text-decoration:none" hidden>+ Lançar</a>
     <button class="sync-pill" id="btn-logout" title="Clique para sair"><span class="sync-dot"></span><span id="user-label">sair</span></button>
   </div>
 </header>
 <main id="app"></main>
 </div>
 <div id="toast" class="toast" hidden></div>
+
+<dialog id="dlg-user"></dialog>
+<dialog id="dlg-veic"></dialog>
 
 <dialog id="dlg-foto">
   <img id="foto-big" alt="">
@@ -435,6 +438,7 @@ const ICON = {
   nota:'<svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>',
   manut:'<svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3.5 17.5a1.8 1.8 0 0 0 2.5 2.5l5.8-5.8a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.2-.5-.5-2.2z"/></svg>',
   trat:'<svg viewBox="0 0 24 24"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z"/><path d="M12 9v7"/></svg>',
+  config:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
   util:'<svg viewBox="0 0 24 24"><path d="M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm10 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0z"/><path d="M3 17V7a1 1 0 0 1 1-1h9v11M13 9h4l3 3v5h-1M9 17h6"/></svg>'
 };
 
@@ -451,7 +455,7 @@ async function fetchAll(table, order='id'){
 }
 const num = v => v==null ? null : Number(v);
 const LOADERS = {
-  veiculos: async()=> (await fetchAll('veiculos','ordem')),
+  veiculos: async()=> { const r = await fetchAll('veiculos','ordem'); DB.veiculos = r; syncVeic(); return r; },
   custos: async()=> (await fetchAll('custos_painel','id')).map(r=>({ ...r, desc:r.descr, comp:String(r.comp).slice(0,7), valor:Number(r.valor) })),
   abast: async()=> (await fetchAll('abastecimentos','data')).map(r=>({ ...r, litros:num(r.litros), vlitro:num(r.vlitro), total:num(r.total), kml:num(r.kml) })),
   leit: async()=> await fetchAll('km_leituras','data'),
@@ -478,6 +482,26 @@ const VEIC_NOME = v => (VEIC().find(x=>x.cod===v) || {});
 const ORDER = ['RHV','ATU','JCV','RIX','TQV','MONTANA','DUCATO','SHINERAY'];
 const HT = ['ATU','JCV','RHV','RIX','TQV'];
 const OPERADORES = ['Max','Rodrigo','João','Ageu','Sidney','Willian','Antonio','Felipe'];
+// a lista de veículos vem da tela Configurações: mantém ORDER e HT atualizados
+const ORDER_BASE = new Set(ORDER), HT_BASE = HT.slice();
+function syncVeic(){
+  const ativos = VEIC().filter(v=>v.ativo !== false).sort((a,b)=>(a.ordem||99)-(b.ordem||99));
+  if(!ativos.length) return;
+  const cods = new Set(ativos.map(v=>v.cod));
+  // veículos novos entram em HT se o grupo for “HT”; os originais mantêm a regra de sempre (a Shineray, por exemplo, não faz tratamento)
+  const ht = [...HT_BASE.filter(c=>cods.has(c)), ...ativos.filter(v=>!ORDER_BASE.has(v.cod) && v.grupo==='HT').map(v=>v.cod)];
+  ORDER.splice(0, ORDER.length, ...ativos.map(v=>v.cod)); HT.splice(0, HT.length, ...ht);
+}
+
+/* ============================ perfil e permissões ============================ */
+const AREAS = [['glp','Controle GLP'],['tratamentos','Tratamentos HT'],['os','Dedetização'],['custos','Controle de custos'],['km','Quilometragem'],['utilizacao','Utilização de veículos'],['manutencao','Manutenção do veículo'],['suportes','Venda de suportes'],['configuracoes','Configurações']];
+const CAPS = [['lancar_nfe','Lançar nota fiscal (NF-e)'],['lancar_folha','Enviar foto da folha de quilometragem'],['lancar_fotos','Enviar fotos dos tratamentos'],['lancar_trajeto','Lançar trajeto (utilização)'],['lancar_km','Lançar leitura de km']];
+const CAP_AREA = { lancar_nfe:'custos', lancar_folha:'utilizacao', lancar_fotos:'tratamentos', lancar_trajeto:'utilizacao', lancar_km:'km' };
+let PERFIL = null;
+const pode = k => !!(PERFIL && PERFIL.ativo !== false && (PERFIL.tipo === 'admin' || (PERFIL.abas || []).includes(k)));
+const podeLancar = cap => pode(cap) || pode(CAP_AREA[cap]);
+const temArea = () => AREAS.some(a=>a[0] !== 'configuracoes' && pode(a[0]));
+const soOperador = () => !temArea();
 
 /* ---- arquivos (Storage) ---- */
 async function signedUrls(paths){
@@ -498,7 +522,7 @@ async function compressImage(file, max=1600, q=0.8){
   }catch(e){ return file; }
 }
 async function uploadFile(path, blob){
-  const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || 'image/jpeg', upsert: true });
+  const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || 'image/jpeg', upsert: false });
   if(error) throw new Error('envio da foto: ' + error.message);
 }
 const safeName = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w.\- ]+/g,'_').trim();
@@ -551,22 +575,44 @@ function oleoInfo(v){
 }
 
 /* ============================ autenticação ============================ */
-let USER = LS.get('hub_op', '');
+const DOM_LOGIN = '@usuario.controle-geral.app';
+let USER = '';
 function setUserLabel(){ $('#user-label').textContent = USER ? USER + ' · sair' : 'sair'; }
+// carrega o perfil (nome, tipo e abas liberadas) do usuário que entrou
+async function carregarPerfil(){
+  const { data, error } = await sb.rpc('painel_meu_perfil');
+  if(error){
+    // controle de acesso ainda não ativado no banco: mantém o funcionamento anterior (todos os logins ativos veem tudo)
+    if(/painel_meu_perfil|schema cache|does not exist/i.test(error.message || '')){ PERFIL = { nome: '', tipo:'admin', abas:[], ativo:true, legado:true }; return true; }
+    throw error;
+  }
+  if(!data || data.ativo === false){ PERFIL = null; return false; }
+  PERFIL = data; return true;
+}
 $('#form-login').addEventListener('submit', async e=>{
   e.preventDefault();
-  const email = $('#login-email').value.trim(), senha = $('#login-senha').value, err = $('#login-error');
+  let email = $('#login-email').value.trim().toLowerCase(); const senha = $('#login-senha').value, err = $('#login-error');
   err.textContent = '';
+  if(email && !email.includes('@')) email += DOM_LOGIN;
   const { error } = await sb.auth.signInWithPassword({ email, password: senha });
-  if(error){ err.textContent = 'E-mail ou senha incorretos.'; return; }
+  if(error){ err.textContent = 'Usuário ou senha incorretos.'; return; }
   startApp();
 });
 $('#btn-logout').addEventListener('click', async ()=>{
-  if(!confirm('Sair do painel?')) return;
+  if(!confirm('Sair do Controle Geral?')) return;
   await sb.auth.signOut(); location.reload();
 });
-function startApp(){
-  $('#auth-gate').hidden = true; $('#app-shell').hidden = false; setUserLabel(); go();
+async function startApp(){
+  try{
+    if(!(await carregarPerfil())){
+      await sb.auth.signOut(); $('#auth-gate').hidden = false; $('#app-shell').hidden = true;
+      $('#login-error').textContent = 'Este usuário não tem acesso ao Controle Geral. Fale com o administrador.'; return;
+    }
+  }catch(e){ console.error(e); $('#login-error').textContent = 'Não foi possível verificar o seu acesso: ' + (e.message || e); return; }
+  USER = PERFIL.nome || ((await sb.auth.getUser()).data.user || {}).email || '';
+  $('#auth-gate').hidden = true; $('#app-shell').hidden = false; setUserLabel();
+  $('#btn-lancar').hidden = !CAPS.some(c=>podeLancar(c[0])) || soOperador();
+  go();
 }
 (async function initAuth(){
   const { data } = await sb.auth.getSession();
@@ -574,7 +620,10 @@ function startApp(){
 })();
 
 /* ============================ roteamento ============================ */
-const NAMES = { custos:'Controle de custos', km:'Quilometragem', manutencao:'Manutenção do veículo', suportes:'Venda de suportes', tratamentos:'Tratamentos HT', utilizacao:'Utilização de veículos', lancar:'Lançamento do operador' };
+const NAMES = { custos:'Controle de custos', km:'Quilometragem', manutencao:'Manutenção do veículo', suportes:'Venda de suportes', tratamentos:'Tratamentos HT', utilizacao:'Utilização de veículos', lancar:'Lançamento', configuracoes:'Configurações' };
+function semAcesso(){
+  $('#app').innerHTML = '<div class="card empty" style="padding:40px;text-align:center"><b>Você não tem acesso a esta área.</b><br><span class="mini">Fale com o administrador para liberar.</span><br><br><a class="btn" href="#/" style="text-decoration:none">Voltar ao início</a></div>';
+}
 let goToken = 0;
 async function go(){
   killCharts();
@@ -583,15 +632,22 @@ async function go(){
   const [path, qs] = raw.split('?'); const q = Object.fromEntries(new URLSearchParams(qs||''));
   const [key, sub, sub2] = path.split('/');
   $('#app').innerHTML = '<div class="loading">Carregando…</div>';
+  if(key && key !== 'lancar' && NAMES[key] && !pode(key)){ semAcesso(); $('#crumb').innerHTML = ''; return; }
+  if(key === 'lancar' && !CAPS.some(c=>podeLancar(c[0]))){ semAcesso(); $('#crumb').innerHTML = ''; return; }
   try{
     if(!key) home();
+    else if(key==='configuracoes'){ await need('veiculos','contatos','avcfg','avlog'); if(token===goToken) await configuracoes(); }
     else if(key==='custos'){ await need('veiculos','custos','abast','leit','arqs'); if(token===goToken) custos(); }
     else if(key==='km'){ await need('veiculos','leit','abast'); if(token===goToken) (sub ? kmVeic(decodeURIComponent(sub).toUpperCase()) : km()); }
     else if(key==='manutencao'){ await need('veiculos','manut','oleo','leit','abast','custos','contatos','avcfg','avlog'); if(token===goToken) manutencao(); }
     else if(key==='suportes'){ await need('sup_ent','sup_sai','sup_cic','sup_cont'); if(token===goToken) suportes(); }
     else if(key==='tratamentos'){ await need('veiculos','serv','arqs'); if(token===goToken) (sub && sub2 ? tratDetalhe(decodeURIComponent(sub).toUpperCase(), sub2) : sub ? tratVeic(decodeURIComponent(sub).toUpperCase()) : tratamentos()); }
     else if(key==='utilizacao'){ await need('veiculos','traj','folhas','leit'); if(token===goToken) (sub ? utilVeic(decodeURIComponent(sub).toUpperCase()) : utilizacao()); }
-    else if(key==='lancar'){ await need('veiculos','leit','abast','serv','traj','arqs','custos'); if(token===goToken) lancar(q); }
+    else if(key==='lancar'){
+      // operador só lê veículos e os tratamentos dos últimos dias; os demais dados chegam pela função protegida do banco
+      if(soOperador()) await need('veiculos','serv'); else await need('veiculos','leit','abast','serv','traj','arqs','custos');
+      if(token===goToken) await lancar(q);
+    }
     else home();
   }catch(e){
     console.error(e);
@@ -611,19 +667,35 @@ addEventListener('hashchange', ()=>{ if(!$('#app-shell').hidden) go(); });
 
 /* ============================ HOME ============================ */
 function home(){
+  // [ícone, título, descrição, endereço, área que libera o quadro]
   const T = [
-    ['glp', 'Controle GLP', 'Compras de gás, trocas de cilindros e tratamentos por veículo.', GLP_URL],
-    ['trat', 'Tratamentos HT', 'Todos os tratamentos de cada veículo, com cliente, ciclo e as fotos salvas no drive.', '#/tratamentos'],
-    ['os', 'Dedetização', 'Ordens de serviço de dedetização, desratização e fumigação.', OS_URL],
-    ['custos', 'Controle de custos', 'Combustível, hotel, alimentação e demais gastos dos veículos, com a nota de cada um.', '#/custos'],
-    ['km', 'Quilometragem', 'Leituras do odômetro de cada veículo e km rodados por mês.', '#/km'],
-    ['util', 'Utilização de veículos', 'Trajetos dos operadores: saída, chegada, km, origem, destino e as folhas preenchidas.', '#/utilizacao'],
-    ['manut', 'Manutenção do veículo', 'Troca de óleo, revisões e histórico de serviços de cada veículo.', '#/manutencao'],
-    ['suportes', 'Venda de suportes', 'Controle de estoque dos suportes tratados: entradas, saídas e saldo.', '#/suportes']
-  ];
+    ['glp', 'Controle GLP', 'Compras de gás, trocas de cilindros e tratamentos por veículo.', GLP_URL, 'glp'],
+    ['trat', 'Tratamentos HT', 'Todos os tratamentos de cada veículo, com cliente, ciclo e as fotos salvas no drive.', '#/tratamentos', 'tratamentos'],
+    ['os', 'Dedetização', 'Ordens de serviço de dedetização, desratização e fumigação.', OS_URL, 'os'],
+    ['custos', 'Controle de custos', 'Combustível, hotel, alimentação e demais gastos dos veículos, com a nota de cada um.', '#/custos', 'custos'],
+    ['km', 'Quilometragem', 'Leituras do odômetro de cada veículo e km rodados por mês.', '#/km', 'km'],
+    ['util', 'Utilização de veículos', 'Trajetos dos operadores: saída, chegada, km, origem, destino e as folhas preenchidas.', '#/utilizacao', 'utilizacao'],
+    ['manut', 'Manutenção do veículo', 'Troca de óleo, revisões e histórico de serviços de cada veículo.', '#/manutencao', 'manutencao'],
+    ['suportes', 'Venda de suportes', 'Controle de estoque dos suportes tratados: entradas, saídas e saldo.', '#/suportes', 'suportes'],
+    ['config', 'Configurações', 'Operadores, usuários e senhas, abas liberadas para cada pessoa e lista de veículos.', '#/configuracoes', 'configuracoes']
+  ].filter(t=>pode(t[4]));
+  if(soOperador()) return homeOperador();
   $('#app').innerHTML = `
-  <section class="hero"><h2>Controle geral da operação</h2><p>Escolha uma área para trabalhar.</p></section>
+  <section class="hero"><h2>Olá, ${esc((PERFIL.nome||'').split(' ')[0] || 'bem-vindo')}</h2><p>Escolha uma área para trabalhar.</p></section>
   <div class="tiles">${T.map(t=>`<a class="tile" href="${t[3]}"><div class="ico">${ICON[t[0]]}</div><div><h3>${t[1]}</h3><div class="sub">${t[2]}</div></div></a>`).join('')}</div>`;
+}
+// tela do operador: só os botões de lançamento liberados para o login dele
+function homeOperador(){
+  const B = [
+    ['lancar_nfe', 'nota', 'Nova nota fiscal', 'Foto da nota, valor e dados do abastecimento ou despesa.'],
+    ['lancar_folha', 'km', 'Foto da folha de quilometragem', 'Tire a foto da folha de utilização preenchida.'],
+    ['lancar_fotos', 'trat', 'Fotos dos tratamentos', 'Envie as fotos do tratamento realizado.'],
+    ['lancar_trajeto', 'util', 'Lançar trajeto', 'Saída, chegada, km, origem e destino.'],
+    ['lancar_km', 'km', 'Leitura de quilometragem', 'Km atual do odômetro do veículo.']
+  ].filter(b=>podeLancar(b[0]));
+  $('#app').innerHTML = `
+  <section class="hero"><h2>Olá, ${esc((PERFIL.nome||'').split(' ')[0])}</h2><p>O que você vai enviar agora?</p></section>
+  <div class="wiz" style="max-width:520px"><div style="display:grid;gap:12px">${B.map(b=>`<a class="bigbtn opt" href="#/lancar?tipo=${{lancar_nfe:'nfe',lancar_folha:'folha',lancar_fotos:'fotos',lancar_trajeto:'trajeto',lancar_km:'km'}[b[0]]}" style="text-decoration:none;color:inherit"><div class="ico">${ICON[b[1]]}</div><div><b>${b[2]}</b><span>${b[3]}</span></div></a>`).join('') || '<div class="card empty">Seu acesso ainda não tem nenhuma função liberada. Fale com o administrador.</div>'}</div></div>`;
 }
 
 /* ============================ CONTROLE DE CUSTOS ============================ */
@@ -1346,53 +1418,235 @@ async function utilFolhas(v, folhas){
   $$('.ph-f').forEach(b=>b.onclick = ()=>{ $('#foto-big').src = b.dataset.src; $('#foto-open').href = b.dataset.src; $('#foto-cap').textContent = b.dataset.cap; $('#dlg-foto').showModal(); });
 }
 
+/* ============================ CONFIGURAÇÕES ============================ */
+// Operadores, usuários e permissões (gravados pelas funções protegidas do banco), veículos e avisos.
+const CF = { tab:'operadores', users:null, erro:'' };
+const TIPO_NOME = { admin:'Administrador', usuario:'Usuário', operador:'Operador' };
+const nomeAba = k => (AREAS.concat(CAPS).find(a=>a[0]===k) || [k, k])[1];
+const loginDe = u => u.login || String(u.email||'').split('@')[0];
+const rpcErro = e => String((e && e.message) || e).replace(/^.*?:\s*/, '');
+
+async function carregarUsuarios(){
+  CF.erro = '';
+  const { data, error } = await sb.rpc('painel_listar_usuarios');
+  if(error){ CF.users = []; CF.erro = error.message; return; }
+  CF.users = data || [];
+}
+async function configuracoes(){
+  if(!pode('configuracoes')){ semAcesso(); return; }
+  if(CF.users === null) await carregarUsuarios();
+  const tabs = [['operadores','Operadores'],['usuarios','Usuários e acessos'],['veiculos','Veículos'],['avisos','Avisos']];
+  $('#app').innerHTML = `
+  <div class="pagehead"><div><h2>Configurações</h2><p>Quem acessa o Controle Geral, o que cada pessoa pode fazer e a lista de veículos.</p></div></div>
+  <div class="tabs">${tabs.map(t=>`<button data-cft="${t[0]}" class="${CF.tab===t[0]?'on':''}">${t[1]}</button>`).join('')}</div>
+  <div id="cf-body"></div>`;
+  $$('[data-cft]').forEach(b=>b.onclick = ()=>{ CF.tab = b.dataset.cft; configuracoes(); });
+  ({ operadores:cfUsuarios, usuarios:cfUsuarios, veiculos:cfVeiculos, avisos:cfAvisos }[CF.tab])();
+}
+
+/* ---- operadores e usuários ---- */
+function cfUsuarios(){
+  const op = CF.tab === 'operadores';
+  const lst = (CF.users||[]).filter(u=> op ? u.tipo === 'operador' : u.tipo !== 'operador');
+  const body = $('#cf-body');
+  if(CF.erro){
+    body.innerHTML = `<div class="errbox"><b>O cadastro de usuários ainda não está ativo no banco de dados.</b><br>${esc(CF.erro)}<br><span class="mini">Peça a liberação do controle de acesso para habilitar esta tela.</span></div>`;
+    return;
+  }
+  const perm = u => u.tipo === 'admin' ? '<span class="badge info">Acesso total</span>' :
+    (u.abas||[]).length ? (u.abas||[]).map(k=>`<span class="badge" style="margin:1px 3px 1px 0">${esc(nomeAba(k))}</span>`).join('') : '<span class="muted">nenhuma</span>';
+  body.innerHTML = `
+  <div class="pagehead" style="margin-bottom:10px"><div><p style="margin:0">${op ? 'Quem lança notas, fotos de folhas e fotos de tratamentos pelo celular. Cada operador tem o seu login e senha e só enxerga o que for liberado aqui.' : 'Quem entra no painel para consultar as áreas liberadas. Marque as abas que cada pessoa pode abrir.'}</p></div>
+    <div class="acts"><button class="btn primary" id="cf-new">+ ${op ? 'Novo operador' : 'Novo usuário'}</button></div></div>
+  <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Login</th>${op ? '' : '<th>Tipo</th>'}<th>${op ? 'Pode fazer' : 'Abas liberadas'}</th><th>Último acesso</th><th>Situação</th><th></th></tr></thead><tbody>
+    ${lst.map(u=>`<tr><td><b>${esc(u.nome)}</b></td><td>${esc(loginDe(u))}</td>${op ? '' : `<td>${esc(TIPO_NOME[u.tipo]||u.tipo)}</td>`}<td class="wrap">${perm(u)}</td>
+      <td>${u.ultimo_acesso ? dBR(String(u.ultimo_acesso).slice(0,10)) : '<span class="muted">nunca</span>'}</td>
+      <td><span class="badge ${u.ativo ? 'good' : 'bad'}">${u.ativo ? 'Ativo' : 'Bloqueado'}</span></td>
+      <td><button class="btn sm" data-cf-ed="${esc(u.id)}">Editar</button></td></tr>`).join('') || `<tr><td colspan="7" class="empty">Nenhum ${op ? 'operador' : 'usuário'} cadastrado.</td></tr>`}
+  </tbody></table></div>
+  <p class="hint">${op ? 'O operador entra no mesmo endereço do painel, com o login e a senha que você definir aqui, e vê só os botões de lançamento.' : 'Administradores acessam tudo, inclusive esta tela. Para bloquear alguém sem apagar o histórico, edite e desmarque “Acesso ativo”.'}</p>`;
+  $('#cf-new').onclick = ()=>editarUsuario(null, op ? 'operador' : 'usuario');
+  $$('[data-cf-ed]').forEach(b=>b.onclick = ()=>editarUsuario(CF.users.find(u=>u.id===b.dataset.cfEd)));
+}
+function permBoxes(tipo, abas){
+  if(tipo === 'admin') return '<div class="hintbox">Administrador acessa todas as áreas e pode cadastrar usuários.</div>';
+  const lst = tipo === 'operador' ? CAPS : AREAS;
+  return `<div class="grp" style="margin:0 0 6px">${tipo === 'operador' ? 'O operador pode' : 'Abas que pode acessar'}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px">${lst.map(a=>`<label class="checkrow"><input type="checkbox" name="perm" value="${a[0]}" ${abas.includes(a[0]) ? 'checked' : ''}> ${esc(a[1])}</label>`).join('')}</div>`;
+}
+function editarUsuario(u, tipoNovo){
+  const novo = !u;
+  u = u || { tipo: tipoNovo || 'operador', abas: tipoNovo === 'operador' ? ['lancar_nfe','lancar_folha','lancar_fotos'] : [], ativo: true, nome:'', login:'' };
+  const d = $('#dlg-user');
+  d.innerHTML = `<form id="form-user" autocomplete="off">
+    <h3>${novo ? 'Novo cadastro' : 'Editar: ' + esc(u.nome)}</h3>
+    <div class="fgrid">
+      <div class="field"><label>Nome</label><input name="nome" value="${esc(u.nome)}" required></div>
+      <div class="field"><label>Login (usuário)</label><input name="login" value="${esc(loginDe(u))}" ${novo ? '' : 'readonly'} placeholder="ex.: joao" autocapitalize="none" required></div>
+      <div class="field"><label>${novo ? 'Senha (mín. 6 caracteres)' : 'Nova senha (opcional)'}</label><input name="senha" type="text" autocomplete="new-password" ${novo ? 'required' : ''} placeholder="${novo ? '' : 'deixe em branco para manter'}"></div>
+      <div class="field"><label>Tipo de acesso</label><select name="tipo"><option value="operador" ${u.tipo==='operador'?'selected':''}>Operador (só lança)</option><option value="usuario" ${u.tipo==='usuario'?'selected':''}>Usuário (consulta abas)</option><option value="admin" ${u.tipo==='admin'?'selected':''}>Administrador (tudo)</option></select></div>
+      <div class="full" id="uf-perm">${permBoxes(u.tipo, u.abas||[])}</div>
+      <div class="field full"><label class="checkrow" style="text-transform:none;letter-spacing:0;font-size:14px;color:var(--text)"><input type="checkbox" name="ativo" ${u.ativo ? 'checked' : ''}> Acesso ativo (desmarque para bloquear o login)</label></div>
+    </div>
+    <div class="hintbox" id="uf-msg" hidden></div>
+    <div class="dlg-actions">${novo ? '' : '<button type="button" class="btn ghost" id="uf-del" style="margin-right:auto;color:var(--bad)">Excluir</button>'}<button type="button" class="btn" id="uf-cancel">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div>
+  </form>`;
+  const f = $('#form-user', d);
+  const msg = (t)=>{ const m = $('#uf-msg'); m.textContent = t; m.className = 'hintbox bad'; m.hidden = !t; };
+  f.tipo.onchange = ()=>{ const t = f.tipo.value; const padrao = t === 'operador' ? ['lancar_nfe','lancar_folha','lancar_fotos'] : []; $('#uf-perm').innerHTML = permBoxes(t, padrao); };
+  $('#uf-cancel').onclick = ()=>d.close();
+  if(!novo) $('#uf-del').onclick = async ()=>{
+    if(!confirm(`Excluir o acesso de ${u.nome}? Os lançamentos já feitos continuam no histórico.`)) return;
+    const { error } = await sb.rpc('painel_excluir_usuario', { p_id: u.id });
+    if(error){ msg(rpcErro(error)); return; }
+    d.close(); await carregarUsuarios(); configuracoes(); toast('Acesso excluído.');
+  };
+  f.onsubmit = async e=>{
+    e.preventDefault(); msg('');
+    const nome = f.nome.value.trim(), tipo = f.tipo.value, ativo = f.ativo.checked, senha = f.senha.value;
+    const abas = tipo === 'admin' ? [] : $$('input[name="perm"]:checked', f).map(i=>i.value);
+    const login = f.login.value.trim().toLowerCase();
+    if(!nome || !login){ msg('Informe o nome e o login.'); return; }
+    if(novo && !/^[a-z0-9._-]+$|^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(login)){ msg('O login deve ter só letras, números, ponto ou traço (sem espaços).'); return; }
+    if(tipo === 'operador' && !abas.length){ msg('Marque pelo menos uma permissão para o operador.'); return; }
+    if((novo || senha) && senha.length < 6){ msg('A senha precisa ter 6 ou mais caracteres.'); return; }
+    const btn = $('button[type=submit]', f); btn.disabled = true;
+    try{
+      if(novo){
+        const { error } = await sb.rpc('painel_criar_usuario', { p_nome: nome, p_login: login, p_senha: senha, p_tipo: tipo, p_abas: abas });
+        if(error) throw error;
+      }else{
+        const r1 = await sb.rpc('painel_atualizar_usuario', { p_id: u.id, p_nome: nome, p_tipo: tipo, p_abas: abas, p_ativo: ativo });
+        if(r1.error) throw r1.error;
+        if(senha){ const r2 = await sb.rpc('painel_definir_senha', { p_id: u.id, p_senha: senha }); if(r2.error) throw r2.error; }
+      }
+      d.close(); CF.tab = tipo === 'operador' ? 'operadores' : 'usuarios'; await carregarUsuarios(); configuracoes();
+      toast(novo ? `Cadastro criado. Login: ${login}` : 'Cadastro atualizado.');
+    }catch(err){ btn.disabled = false; msg(rpcErro(err)); }
+  };
+  d.showModal();
+}
+
+/* ---- veículos ---- */
+function cfVeiculos(){
+  const vs = VEIC().slice().sort((a,b)=>(a.ordem||99)-(b.ordem||99));
+  $('#cf-body').innerHTML = `
+  <div class="pagehead" style="margin-bottom:10px"><div><p style="margin:0">Veículos que aparecem nos lançamentos, na quilometragem, nos custos e nas manutenções. Para tirar um veículo de uso, edite e desmarque “Em uso”.</p></div>
+    <div class="acts"><button class="btn primary" id="cv-new">+ Novo veículo</button></div></div>
+  <div class="table-wrap"><table><thead><tr><th>Código</th><th>Nome / descrição</th><th>Grupo</th><th>Placa</th><th>Combustível</th><th class="num">Ordem</th><th>Situação</th><th></th></tr></thead><tbody>
+    ${vs.map(v=>`<tr><td><b>${esc(v.cod)}</b></td><td>${esc(v.nome)||''}</td><td>${v.grupo==='HT' ? 'Tratamento HT' : 'Outras atividades'}</td><td>${esc(v.placa)||'<span class="muted">–</span>'}</td><td>${esc(v.combustivel)||'<span class="muted">–</span>'}</td><td class="num">${v.ordem ?? ''}</td>
+      <td><span class="badge ${v.ativo === false ? 'bad' : 'good'}">${v.ativo === false ? 'Fora de uso' : 'Em uso'}</span></td><td><button class="btn sm" data-cv-ed="${esc(v.cod)}">Editar</button></td></tr>`).join('') || '<tr><td colspan="8" class="empty">Nenhum veículo.</td></tr>'}
+  </tbody></table></div>`;
+  $('#cv-new').onclick = ()=>editarVeiculo(null);
+  $$('[data-cv-ed]').forEach(b=>b.onclick = ()=>editarVeiculo(VEIC().find(v=>v.cod===b.dataset.cvEd)));
+}
+function editarVeiculo(v){
+  const novo = !v; v = v || { cod:'', nome:'', grupo:'HT', placa:'', combustivel:'Diesel', ordem:(Math.max(0, ...VEIC().map(x=>x.ordem||0)) + 1), ativo:true };
+  const temAtivo = VEIC().some(x=>'ativo' in x);
+  const d = $('#dlg-veic');
+  d.innerHTML = `<form id="form-veic" autocomplete="off">
+    <h3>${novo ? 'Novo veículo' : 'Editar ' + esc(v.cod)}</h3>
+    <div class="fgrid">
+      <div class="field"><label>Código (curto, ex.: RHV)</label><input name="cod" value="${esc(v.cod)}" ${novo ? '' : 'readonly'} required style="text-transform:uppercase"></div>
+      <div class="field"><label>Nome / descrição</label><input name="nome" value="${esc(v.nome)}"></div>
+      <div class="field"><label>Grupo</label><select name="grupo"><option value="HT" ${v.grupo==='HT'?'selected':''}>Tratamento HT</option><option value="OUTROS" ${v.grupo!=='HT'?'selected':''}>Outras atividades</option></select></div>
+      <div class="field"><label>Placa</label><input name="placa" value="${esc(v.placa)}"></div>
+      <div class="field"><label>Combustível</label><select name="combustivel">${['Diesel','Gasolina','Etanol','Flex'].map(c=>`<option ${v.combustivel===c?'selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="field"><label>Ordem na lista</label><input name="ordem" type="number" value="${v.ordem ?? ''}"></div>
+      ${temAtivo ? `<div class="field full"><label class="checkrow" style="text-transform:none;letter-spacing:0;font-size:14px;color:var(--text)"><input type="checkbox" name="ativo" ${v.ativo !== false ? 'checked' : ''}> Em uso</label></div>` : ''}
+    </div>
+    <div class="hintbox" id="vf-msg" hidden></div>
+    <div class="dlg-actions"><button type="button" class="btn" id="vf-cancel">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div>
+  </form>`;
+  const f = $('#form-veic', d); const msg = t=>{ const m = $('#vf-msg'); m.textContent = t; m.className = 'hintbox bad'; m.hidden = !t; };
+  $('#vf-cancel').onclick = ()=>d.close();
+  f.onsubmit = async e=>{
+    e.preventDefault();
+    const cod = f.cod.value.trim().toUpperCase().replace(/\s+/g, '');
+    if(!cod){ msg('Informe o código do veículo.'); return; }
+    if(novo && VEIC().some(x=>x.cod === cod)){ msg('Já existe um veículo com este código.'); return; }
+    const row = { cod, nome: f.nome.value.trim() || cod, grupo: f.grupo.value, placa: f.placa.value.trim() || null, combustivel: f.combustivel.value, ordem: parseInt(f.ordem.value, 10) || null };
+    if(temAtivo) row.ativo = f.ativo.checked;
+    try{
+      if(novo) await dbInsert('veiculos', [row]); else await dbUpdate('veiculos', row, 'cod', cod);
+      d.close(); await reload('veiculos'); configuracoes(); toast('Veículo salvo.');
+    }catch(err){ msg(rpcErro(err)); }
+  };
+  d.showModal();
+}
+
+/* ---- avisos (contatos da troca de óleo) ---- */
+function cfAvisos(){
+  $('#cf-body').innerHTML = '<div class="card" id="av-box"></div>';
+  avisosBox();
+}
+
 /* ============================ LANÇAMENTO DO OPERADOR (celular) ============================ */
 const COMB_FIXO = { ATU:'Diesel', RHV:'Diesel', RIX:'Diesel', DUCATO:'Diesel', SHINERAY:'Gasolina' };
 const CAT_OPERADOR = ['COMBUSTÍVEL','ALIMENTAÇÃO','HOTEL','PEDÁGIO','ESTACIONAMENTO','LAVAGEM','MATERIAIS','MANUTENÇÃO VEICULAR','UBER','PASSAGEM DE ÔNIBUS'];
-const W = { op: USER || '', veic:'', tipo:'', done:null };
+const W = { op: '', veic:'', tipo:'', done:null };
 const FT = { data: TODAY, tid:'', files:[] };
-const ultimaLeitura = v => kmAtual()[v] || null;
+const FH = { data: TODAY, files:[] };
+const TIPOS = { nfe:'lancar_nfe', folha:'lancar_folha', fotos:'lancar_fotos', trajeto:'lancar_trajeto', km:'lancar_km' };
+const tipoLiberado = t => podeLancar(TIPOS[t]);
+// o operador não lê as tabelas: o km atual e o último abastecimento vêm de uma função protegida do banco
+const KMC = {};
+async function carregarDadosVeic(v){
+  if(!v || KMC[v]) return;
+  const { data, error } = await sb.rpc('painel_dados_veiculo', { p_veic: v });
+  KMC[v] = (!error && data) ? data : { semrpc:true };
+}
+function ultimaLeitura(v){
+  const a = kmAtual()[v], c = KMC[v];
+  const b = c && c.km_atual ? { veic:v, km:c.km_atual, data:String(c.km_data||'') } : null;
+  return a && b ? (b.km > a.km ? b : a) : (a || b || null);
+}
+function ultimoAbast(v){
+  const p = (DB.abast||[]).filter(a=>a.veic===v && a.km).sort((a,b)=>String(b.data).localeCompare(String(a.data)) || b.km - a.km)[0];
+  const c = KMC[v];
+  const q = c && c.abast_km ? { km:c.abast_km, data:String(c.abast_data) } : null;
+  return p && q ? (String(q.data) > String(p.data) ? q : p) : (p || q || null);
+}
+const addDB = (nome, ...rows) => { if(DB[nome]) DB[nome].push(...rows); };
 function semanaTxt(iso){ const d = +iso.slice(8,10); return `${Math.ceil(d/7)}ª semana de ${MESES_L[+iso.slice(5,7)-1]}`; }
 function caminhoNota(empresa, dataIso, nf, desc, operador, ext){
   const pasta = `${empresa}/${dataIso.slice(0,4)}/${MES_PASTA[+dataIso.slice(5,7)-1]}`;
   const nome = nf ? `NF ${nf}` : `Recibo ${desc||'sem descrição'} - ${operador}`;
   return `${pasta}/${nome}.${ext||'jpeg'}`;
 }
-function lancar(q){
-  W.veic = (q.veic && VEIC_NOME(q.veic).cod) ? q.veic : ''; W.done = null;
-  W.tipo = ['nfe','km','fotos','trajeto'].includes(q.tipo) ? q.tipo : '';
+async function lancar(q){
+  W.op = USER; W.done = null;
+  W.veic = (q.veic && VEIC_NOME(q.veic).cod) ? q.veic : '';
+  W.tipo = TIPOS[q.tipo] && tipoLiberado(q.tipo) ? q.tipo : '';
   if(W.tipo==='fotos' && W.veic && !HT.includes(W.veic)) W.tipo = '';
-  FT.files = []; FT.data = TODAY; FT.tid = q.trat ? String(q.trat) : '';
-  if(q.trat){ const t = DB.serv.find(x=>String(x.id)===String(q.trat)); if(t) FT.data = t.data; }
+  FT.files = []; FT.data = TODAY; FT.tid = q.trat ? String(q.trat) : ''; FH.files = []; FH.data = TODAY;
+  if(q.trat){ const t = (DB.serv||[]).find(x=>String(x.id)===String(q.trat)); if(t) FT.data = t.data; }
+  if(W.veic) await carregarDadosVeic(W.veic);
   wiz();
 }
 function stepsBar(){
-  const cur = W.done ? 4 : !W.op ? 1 : !W.veic ? 2 : !W.tipo ? 3 : 4;
-  const lab = { nfe:'NF-e', km:'Quilometragem', fotos:'Fotos', trajeto:'Trajeto' }[W.tipo] || '';
+  const cur = W.done ? 3 : !W.veic ? 1 : !W.tipo ? 2 : 3;
+  const lab = { nfe:'NF-e', folha:'Folha de km', km:'Quilometragem', fotos:'Fotos', trajeto:'Trajeto' }[W.tipo] || '';
   const chip = (n, label, act, val)=>`<button class="${cur===n?'on':n<cur?'done':''}" ${n<cur?`data-wiz="${act}"`:'disabled'}>${n} · ${label}${val?': '+esc(val):''}</button>`;
-  return `<div class="steps">${chip(1,'Operador','s1',W.op)}${chip(2,'Veículo','s2',W.veic)}${chip(3,'Lançamento','s3',lab)}</div>`;
+  return `<div class="steps">${chip(1,'Veículo','s2',W.veic)}${chip(2,'Lançamento','s3',lab)}</div>`;
 }
 function wiz(){
   killCharts();
   let body;
   if(W.done) body = wizDone();
-  else if(!W.op) body = wizOperador();
   else if(!W.veic) body = wizVeiculo();
   else if(!W.tipo) body = wizTipo();
-  else body = { nfe:wizNfe, km:wizKm, fotos:wizFotos, trajeto:wizTrajeto }[W.tipo]();
+  else body = { nfe:wizNfe, folha:wizFolha, km:wizKm, fotos:wizFotos, trajeto:wizTrajeto }[W.tipo]();
   $('#app').innerHTML = `<div class="wiz">${stepsBar()}${body}</div>`;
-  if(!W.done && W.op && W.veic && W.tipo) ({ nfe:bindNfe, km:bindKm, fotos:bindFotos, trajeto:bindTrajeto }[W.tipo])();
+  if(!W.done && W.veic && W.tipo) ({ nfe:bindNfe, folha:bindFolha, km:bindKm, fotos:bindFotos, trajeto:bindTrajeto }[W.tipo])();
   window.scrollTo(0,0);
 }
-document.addEventListener('click', e=>{
+document.addEventListener('click', async e=>{
   const b = e.target.closest('[data-wiz]'); if(!b || b.disabled) return;
   if(b.tagName==='A') e.preventDefault();
   const a = b.dataset.wiz, v = b.dataset.v;
-  if(a==='op'){ W.op = v; USER = v; LS.set('hub_op', v); setUserLabel(); }
-  else if(a==='outro'){ const n = ($('#w-outro').value||'').trim(); if(!n){ toast('Digite o nome.', true); return; } W.op = n; USER = n; LS.set('hub_op', n); setUserLabel(); }
-  else if(a==='veic'){ W.veic = v; }
-  else if(a==='tipo'){ W.tipo = v; }
-  else if(a==='s1'){ W.op = ''; W.veic = ''; W.tipo = ''; W.done = null; }
+  if(a==='veic'){ W.veic = v; await carregarDadosVeic(v); }
+  else if(a==='tipo'){ if(!tipoLiberado(v)) return; W.tipo = v; }
   else if(a==='s2'){ W.veic = ''; W.tipo = ''; W.done = null; }
   else if(a==='s3'){ W.tipo = ''; W.done = null; }
   else if(a==='mesmo'){ W.done = null; W.tipo = v || W.tipo; }
@@ -1400,25 +1654,23 @@ document.addEventListener('click', e=>{
   wiz();
 });
 
-function wizOperador(){
-  return `<h2>Quem é você?</h2><p class="lead">Escolha o seu nome para começar.</p>
-  <div class="pick">${OPERADORES.map(o=>`<button class="bigbtn" data-wiz="op" data-v="${esc(o)}"><b>${esc(o)}</b></button>`).join('')}</div>
-  <div class="grp">Outro nome</div>
-  <div style="display:flex;gap:8px"><input id="w-outro" placeholder="Digite o nome" style="font-size:16px"><button class="btn primary" data-wiz="outro">Continuar</button></div>`;
-}
 function wizVeiculo(){
+  const ativos = VEIC().filter(v=>v.ativo !== false).sort((a,b)=>(a.ordem||99)-(b.ordem||99));
+  const soFoto = W.tipo === 'fotos';
   const card = v=>{ const a = ultimaLeitura(v.cod); return `<button class="bigbtn" data-wiz="veic" data-v="${v.cod}"><b>${v.cod}</b><span>${v.nome!==v.cod?esc(v.nome)+(a?' · ':''):''}${a?N0(a.km)+' km':''}</span></button>`; };
   return `<h2>Qual veículo?</h2><p class="lead">Olá, <b>${esc(W.op)}</b>. Escolha o veículo.</p>
-  <div class="grp">HT</div><div class="pick">${VEIC().filter(v=>v.grupo==='HT').map(card).join('')}</div>
-  <div class="grp">Outras atividades</div><div class="pick">${VEIC().filter(v=>v.grupo!=='HT').map(card).join('')}</div>`;
+  <div class="grp">HT</div><div class="pick">${ativos.filter(v=>v.grupo==='HT').map(card).join('')}</div>
+  ${soFoto ? '' : `<div class="grp">Outras atividades</div><div class="pick">${ativos.filter(v=>v.grupo!=='HT').map(card).join('')}</div>`}`;
 }
 function wizTipo(){
-  return `<h2>O que vai lançar?</h2><p class="lead">Veículo <b>${esc(W.veic)}</b> · operador <b>${esc(W.op)}</b></p>
+  const opt = (t, ico, titulo, sub)=> tipoLiberado(t) ? `<button class="bigbtn opt" data-wiz="tipo" data-v="${t}"><div class="ico">${ICON[ico]}</div><div><b>${titulo}</b><span>${sub}</span></div></button>` : '';
+  return `<h2>O que vai lançar?</h2><p class="lead">Veículo <b>${esc(W.veic)}</b> · ${esc(W.op)}</p>
   <div style="display:grid;gap:10px">
-    <button class="bigbtn opt" data-wiz="tipo" data-v="nfe"><div class="ico">${ICON.nota}</div><div><b>Nota fiscal (NF-e)</b><span>Combustível, alimentação, hotel, pedágio, manutenção…</span></div></button>
-    <button class="bigbtn opt" data-wiz="tipo" data-v="trajeto"><div class="ico">${ICON.util}</div><div><b>Utilização do veículo</b><span>Trajeto: saída, chegada, km, origem e destino</span></div></button>
-    <button class="bigbtn opt" data-wiz="tipo" data-v="km"><div class="ico">${ICON.km}</div><div><b>Controle de quilometragem</b><span>Leitura do odômetro do veículo</span></div></button>
-    ${HT.includes(W.veic) ? `<button class="bigbtn opt" data-wiz="tipo" data-v="fotos"><div class="ico">${ICON.trat}</div><div><b>Fotos do tratamento</b><span>Enviar as fotos do ciclo para o drive</span></div></button>` : ''}
+    ${opt('nfe','nota','Nota fiscal (NF-e)','Combustível, alimentação, hotel, pedágio, manutenção…')}
+    ${opt('folha','km','Foto da folha de quilometragem','Foto da folha de utilização preenchida à mão')}
+    ${HT.includes(W.veic) ? opt('fotos','trat','Fotos do tratamento','Enviar as fotos do ciclo para o drive') : ''}
+    ${opt('trajeto','util','Utilização do veículo','Trajeto: saída, chegada, km, origem e destino')}
+    ${opt('km','km','Controle de quilometragem','Leitura do odômetro do veículo')}
   </div>`;
 }
 const msgBox = (t, k)=>{ const m = $('#w-msg'); m.className = 'hintbox ' + (k||''); m.textContent = t; m.hidden = !t; };
@@ -1470,7 +1722,7 @@ function bindNfe(){
       const last = ultimaLeitura(W.veic);
       if(last && km < last.km){ msgBox(`O km informado (${N0(km)}) é menor que a última leitura (${N0(last.km)} km em ${dBR(last.data)}). Confira o odômetro.`, 'bad'); return; }
       if(!f.dataset.warned){
-        const prev = DB.abast.filter(a=>a.veic===W.veic && a.km).sort((a,b)=>String(b.data).localeCompare(String(a.data)))[0];
+        const prev = ultimoAbast(W.veic);
         const kml = prev ? (km - prev.km) / L : null;
         if(kml!=null && f.cheio.checked && (kml < 2 || kml > 25)){ f.dataset.warned = '1'; msgBox(`Isso dá ${N1(kml)} km/L (${N0(km - prev.km)} km desde o último abastecimento, em ${dBR(prev.data)}). Confira os litros e o km. Para salvar assim mesmo, toque em “Salvar nota” de novo.`, 'warn'); return; }
       }
@@ -1491,16 +1743,17 @@ function bindNfe(){
       const custo = { id: custoId, data: f.data.value, comp: f.data.value.slice(0,7) + '-01', veic: W.veic, cat, descr: desc, valor: r2(v), nf: f.nf.value.trim(), empresa: f.empresa.value,
                       arq: file ? drivePath : null, obs: f.obs.value.trim() || null, fonte: 'app', operador: W.op };
       await dbInsert('custos', [custo]);
-      if(DB.custos) DB.custos.push({ ...custo, desc, comp: f.data.value.slice(0,7) });
-      if(file){ const ar = { id: uid('ar'), tipo:'nf', ref_id: custoId, veic: W.veic, nome: drivePath.split('/').pop(), caminho_drive: 'Controle veículos\\Notas\\' + drivePath.replace(/\//g,'\\'), storage_path: stPath, operador: W.op }; await dbInsert('arquivos_painel', [ar]); if(DB.arqs) DB.arqs.push(ar); }
+      addDB('custos', { ...custo, desc, comp: f.data.value.slice(0,7) });
+      if(file){ const ar = { id: uid('ar'), tipo:'nf', ref_id: custoId, veic: W.veic, nome: drivePath.split('/').pop(), caminho_drive: 'Controle veículos\\Notas\\' + drivePath.replace(/\//g,'\\'), storage_path: stPath, operador: W.op }; await dbInsert('arquivos_painel', [ar]); addDB('arqs', ar); }
       let extra = file ? 'Foto da nota enviada e arquivada.' : 'Sem foto da nota.';
       if(isF){
-        const prev = DB.abast.filter(a=>a.veic===W.veic && a.km).sort((a,b)=>String(b.data).localeCompare(String(a.data)))[0];
+        const prev = ultimoAbast(W.veic);
         const kmrod = prev ? km - prev.km : null;
         const ab = { id: uid('ab'), data: f.data.value, veic: W.veic, nfe: custo.nf, posto: f.desc.value.trim(), cidade: f.cidade.value.trim() || null, comb: COMB_FIXO[W.veic] || f.comb.value, litros: L, vlitro: r2(v/L), total: custo.valor,
                      km, kmrod: kmrod>0 ? kmrod : null, kml: (kmrod>0 && f.cheio.checked) ? Math.round(kmrod/L*100)/100 : null, cheio: f.cheio.checked, operador: W.op, custo_id: custoId, fonte: 'app' };
-        await dbInsert('abastecimentos', [ab]); DB.abast.push(ab);
-        const lr = { id: uid('kl'), veic: W.veic, data: f.data.value, km, origem: 'abastecimento', operador: W.op }; await dbInsert('km_leituras', [lr]); DB.leit.push(lr);
+        await dbInsert('abastecimentos', [ab]); addDB('abast', ab);
+        const lr = { id: uid('kl'), veic: W.veic, data: f.data.value, km, origem: 'abastecimento', operador: W.op }; await dbInsert('km_leituras', [lr]); addDB('leit', lr);
+        KMC[W.veic] = { ...(KMC[W.veic]||{}), km_atual: Math.max(km, (KMC[W.veic]||{}).km_atual||0), km_data: f.data.value, abast_km: km, abast_data: f.data.value };
         extra += ` Também registrado: abastecimento de ${N1(L)} L${ab.kml?` (${N1(ab.kml)} km/L)`:''} e leitura de ${N0(km)} km.`;
       }
       W.done = { titulo:'Nota lançada', resumo:`${cap(cat)} · R$ ${BRL(custo.valor)} · NF ${custo.nf}`, extra, tipo:'nfe' };
@@ -1541,7 +1794,8 @@ function bindKm(){
     setSending(true, 'Salvando…');
     try{
       const r = { id: uid('kl'), veic: W.veic, data: f.data.value, km, origem: 'leitura', operador: W.op, obs: f.obs.value.trim() || null };
-      await dbInsert('km_leituras', [r]); DB.leit.push(r);
+      await dbInsert('km_leituras', [r]); addDB('leit', r);
+      KMC[W.veic] = { ...(KMC[W.veic]||{}), km_atual: Math.max(km, (KMC[W.veic]||{}).km_atual||0), km_data: r.data };
       W.done = { titulo:'Leitura salva', resumo:`${N0(km)} km em ${dBR(r.data)}`, extra: last ? `Rodou ${N0(km-last.km)} km desde a última leitura.` : '', tipo:'km' };
       wiz();
     }catch(err){ console.error(err); setSending(false, 'Salvar leitura'); msgBox('Não foi possível salvar: ' + err.message, 'bad'); }
@@ -1551,10 +1805,10 @@ function bindKm(){
 /* ---- Utilização: trajeto ---- */
 const TJ = { origem:'', kmSaida:'' };
 function wizTrajeto(){
-  const lastT = DB.traj.filter(t=>t.veic===W.veic).sort((a,b)=>String(b.data).localeCompare(String(a.data)) || (b.km_chegada||b.km_saida||0)-(a.km_chegada||a.km_saida||0))[0];
+  const lastT = (DB.traj||[]).filter(t=>t.veic===W.veic).sort((a,b)=>String(b.data).localeCompare(String(a.data)) || (b.km_chegada||b.km_saida||0)-(a.km_chegada||a.km_saida||0))[0];
   const last = ultimaLeitura(W.veic);
   const kmIni = TJ.kmSaida || (lastT && lastT.km_chegada) || (last && last.km) || '';
-  const lugares = [...new Set(DB.traj.flatMap(t=>[t.origem, t.destino]).filter(Boolean).map(s=>s.toUpperCase()))].sort();
+  const lugares = [...new Set((DB.traj||[]).flatMap(t=>[t.origem, t.destino]).filter(Boolean).map(s=>s.toUpperCase()))].sort();
   return `<h2>Utilização do veículo</h2><p class="lead">${esc(W.veic)} · ${esc(W.op)} — um trajeto por vez</p>
   <form class="wform" id="w-form" novalidate>
     <div class="hintbox">${kmIni ? `Km de saída sugerido: <b>${N0(kmIni)}</b> (fim do último trajeto/leitura).` : 'Informe o km de saída.'}</div>
@@ -1584,8 +1838,8 @@ function bindTrajeto(){
     try{
       const t = { id: uid('ut'), veic: W.veic, data: f.data.value, saida: f.saida.value || null, chegada: f.chegada.value || null, km_saida: a, km_chegada: b,
                   origem: f.origem.value.trim(), destino: f.destino.value.trim(), motorista: W.op, obs: f.obs.value.trim() || null, fonte: 'app' };
-      await dbInsert('utilizacao_trajetos', [t]); DB.traj.push(t);
-      if(b){ const lr = { id: uid('kl'), veic: W.veic, data: f.data.value, km: b, origem: 'trajeto', operador: W.op }; await dbInsert('km_leituras', [lr]); DB.leit.push(lr); }
+      await dbInsert('utilizacao_trajetos', [t]); addDB('traj', t);
+      if(b){ const lr = { id: uid('kl'), veic: W.veic, data: f.data.value, km: b, origem: 'trajeto', operador: W.op }; await dbInsert('km_leituras', [lr]); addDB('leit', lr); KMC[W.veic] = { ...(KMC[W.veic]||{}), km_atual: Math.max(b, (KMC[W.veic]||{}).km_atual||0), km_data: f.data.value }; }
       TJ.origem = t.destino; TJ.kmSaida = b || '';
       W.done = { titulo:'Trajeto salvo', resumo:`${t.origem} → ${t.destino}${b?` · ${N0(b-a)} km`:''}`, extra: b ? `Leitura de ${N0(b)} km também registrada na quilometragem.` : 'Lembre de lançar o km de chegada depois.', tipo:'trajeto' };
       wiz();
@@ -1597,7 +1851,8 @@ function bindTrajeto(){
 function tratamentosDoDia(v, iso){
   const ts = DB.serv.filter(s=>s.veic===v && s.data===iso && s.cliente && !/comunicado/i.test(s.cert||'')).sort((a,b)=>(a.hora||'99').localeCompare(b.hora||'99') || (a.ciclo||1e9)-(b.ciclo||1e9));
   const ult = DB.serv.filter(s=>s.veic===v && s.ciclo!=null && s.data<=iso).sort((a,b)=>a.data.localeCompare(b.data) || a.ciclo-b.ciclo).pop();
-  let prox = ult ? ult.ciclo + 1 : 1;
+  const cm = (KMC[v] && KMC[v].ciclo_max) || 0;   // maior ciclo do veículo, vindo do banco (o operador só vê os últimos dias)
+  let prox = Math.max(ult ? ult.ciclo : 0, cm) + 1;
   return ts.map(t=> t.ciclo!=null ? { ...t, novo:false } : { ...t, ciclo: prox++, novo:true });
 }
 function wizFotos(){
@@ -1644,13 +1899,58 @@ function bindFotos(){
         await uploadFile(sp, blob);
         rows.push({ id: uid('ar'), tipo:'tratamento', ref_id: sel.id, veic: W.veic, nome, caminho_drive: PASTA_DRIVE + semBarra(pasta) + '\\' + nome, storage_path: sp, operador: W.op });
       }
-      await dbInsert('arquivos_painel', rows); DB.arqs.push(...rows);
+      await dbInsert('arquivos_painel', rows); addDB('arqs', ...rows);
       const real = DB.serv.find(x=>String(x.id)===String(sel.id));
       if(real && real.ciclo==null){ await dbUpdate('servicos_ht', { ciclo: sel.ciclo, pasta }, 'id', real.id); real.ciclo = sel.ciclo; real.pasta = pasta; }
       $('#w-prog-i').style.width = '100%';
-      W.done = { titulo:'Fotos enviadas', resumo:`${total} foto${total>1?'s':''} · ciclo ${sel.ciclo} · ${sel.cliente}`, extra:`Registradas em ${PASTA_DRIVE}${semBarra(pasta)}\\`, tipo:'fotos', link:`#/tratamentos/${W.veic}/${sel.id}` };
+      W.done = { titulo:'Fotos enviadas', resumo:`${total} foto${total>1?'s':''} · ciclo ${sel.ciclo} · ${sel.cliente}`, extra:`Registradas em ${PASTA_DRIVE}${semBarra(pasta)}\\`, tipo:'fotos', link: pode('tratamentos') ? `#/tratamentos/${W.veic}/${sel.id}` : '' };
       FT.files = []; wiz();
     }catch(err){ console.error(err); setSending(false); $('#w-prog').hidden = true; msgBox('Não foi possível enviar: ' + err.message, 'bad'); }
+  };
+}
+
+/* ---- Foto da folha de quilometragem (operador) ---- */
+function wizFolha(){
+  return `<h2>Foto da folha de quilometragem</h2><p class="lead">${esc(W.veic)} · ${esc(W.op)}</p>
+  <form class="wform" id="w-form" novalidate>
+    <div class="hintbox">Fotografe a folha de utilização preenchida, com todas as linhas legíveis. Se a folha tiver mais de uma página, envie todas.</div>
+    <div class="field full"><label>Data da folha (último dia preenchido)</label><input type="date" name="data" value="${FH.data}" required></div>
+    <div class="field full"><label>Fotos da folha (câmera ou galeria)</label><input type="file" name="fotos" accept="image/*" multiple capture="environment"></div>
+    <div class="full" id="w-ph" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    <div class="field full"><label>Observação (opcional)</label><input name="obs" placeholder="Ex.: folha da semana de 13 a 17/10"></div>
+    <div class="hintbox" id="w-msg" hidden></div>
+    <div id="w-prog" class="full" hidden><div class="bar" style="width:100%"><i id="w-prog-i" style="width:0%"></i></div><div class="hint" id="w-prog-t"></div></div>
+    <div class="wactions"><button type="button" class="btn" data-wiz="s3">Voltar</button><button class="btn primary" type="submit" id="w-send">Enviar folha</button></div>
+  </form>`;
+}
+function bindFolha(){
+  const f = $('#w-form');
+  f.fotos.onchange = ()=>{
+    FH.files = [...f.fotos.files];
+    $('#w-ph').innerHTML = FH.files.map(x=>`<img src="${URL.createObjectURL(x)}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">`).join('');
+    $('#w-send').textContent = FH.files.length ? `Enviar ${FH.files.length} foto${FH.files.length>1?'s':''}` : 'Enviar folha';
+  };
+  f.onsubmit = async e=>{
+    e.preventDefault();
+    if(!f.data.value){ msgBox('Informe a data da folha.', 'bad'); return; }
+    if(!FH.files.length){ msgBox('Selecione pelo menos uma foto da folha.', 'bad'); return; }
+    $('#w-prog').hidden = false; setSending(true); msgBox('');
+    try{
+      const total = FH.files.length, ano = +f.data.value.slice(0,4), mes = +f.data.value.slice(5,7);
+      const pasta = `${ano}/${MES_PASTA[mes-1]}`;
+      for(let i = 0; i < total; i++){
+        $('#w-prog-t').textContent = `Enviando ${i+1} de ${total}…`; $('#w-prog-i').style.width = Math.round(i/total*100) + '%';
+        const blob = await compressImage(FH.files[i], 2000, 0.85);
+        const id = uid('fo'), nome = `${W.veic}_${f.data.value}_${safeName(W.op).replace(/\s+/g,'')}_${i+1}.jpg`, sp = `folhas/app/${f.data.value.slice(0,7)}/${id}_${nome}`;
+        await uploadFile(sp, blob);
+        const row = { id, veic: W.veic, ano, mes, rotulo: f.obs.value.trim() || `Folha enviada por ${W.op}`, arquivo: 'app/' + pasta + '/' + nome, data_ref: f.data.value, storage_path: sp, status: 'pendente', operador: W.op };
+        await dbInsert('utilizacao_folhas', [row]); addDB('folhas', row);
+        await dbInsert('arquivos_painel', [{ id: uid('ar'), tipo:'folha', ref_id: id, veic: W.veic, nome, caminho_drive: 'Controle veículos\\Controle Utilização Veiculo\\' + pasta.replace('/','\\') + '\\' + nome, storage_path: sp, operador: W.op }]);
+      }
+      $('#w-prog-i').style.width = '100%'; FH.files = [];
+      W.done = { titulo:'Folha enviada', resumo:`${total} foto${total>1?'s':''} · ${W.veic} · ${dBR(f.data.value)}`, extra:'Os trajetos serão lidos da foto e lançados pelo escritório.', tipo:'folha' };
+      wiz();
+    }catch(err){ console.error(err); setSending(false, 'Enviar folha'); $('#w-prog').hidden = true; msgBox('Não foi possível enviar: ' + err.message, 'bad'); }
   };
 }
 
@@ -1660,7 +1960,7 @@ function wizDone(){
     ${d.extra ? `<p class="hint">${esc(d.extra)}</p>` : ''}
     <div style="display:grid;gap:8px;margin-top:18px">
       ${d.link ? `<a class="btn primary" href="${d.link}" style="padding:13px;text-decoration:none">Ver o tratamento e as fotos</a>` : ''}
-      <button class="btn ${d.link?'':'primary'}" data-wiz="mesmo" data-v="${d.tipo}" style="padding:13px">Lançar ${d.tipo==='fotos'?'mais fotos':d.tipo==='trajeto'?'o próximo trajeto':d.tipo==='nfe'?'outra nota':'outra leitura'} (${esc(W.veic)})</button>
+      <button class="btn ${d.link?'':'primary'}" data-wiz="mesmo" data-v="${d.tipo}" style="padding:13px">Lançar ${d.tipo==='fotos'?'mais fotos':d.tipo==='trajeto'?'o próximo trajeto':d.tipo==='nfe'?'outra nota':d.tipo==='folha'?'outra folha':'outra leitura'} (${esc(W.veic)})</button>
       <button class="btn" data-wiz="s3" style="padding:13px">Lançar outra coisa para ${esc(W.veic)}</button>
       <button class="btn" data-wiz="s2" style="padding:13px">Trocar de veículo</button>
       <button class="btn ghost" data-wiz="fim">Concluir</button>
