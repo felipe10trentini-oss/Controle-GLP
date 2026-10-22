@@ -1,9 +1,9 @@
 # Controle Geral (antes "Controle GLP")
 
-Páginas estáticas publicadas na Vercel em https://controle-glp.vercel.app/ (publica sozinha a cada envio para o GitHub). O endereço raiz abre o **Controle Geral** (`painel.html`) pelo redirecionamento do `vercel.json`.
+Páginas estáticas publicadas na Vercel em https://controle-geral-mann-exata.vercel.app/ (o endereço antigo controle-glp.vercel.app continua funcionando; publica sozinha a cada envio para o GitHub). O endereço raiz abre o **Controle Geral** (`painel.html`) pelo redirecionamento do `vercel.json`.
 
 - `painel.html`: Controle Geral (página inicial): custos, quilometragem, utilização, manutenção, tratamentos HT, suportes e Configurações (usuários, operadores, veículos).
-- `index.html`: Controle GLP e Dedetização (OS), aberto a partir do Controle Geral.
+- `index.html`: Controle GLP e Dedetização (OS). Abre dentro do Controle Geral (iframe, `?embed=1`) e usa a mesma sessão; `#ordemservico` mostra só a Dedetização e o resto só o Controle GLP.
 - Banco: Supabase `vjbyyjfmilmeyzeiinxf`. Cada pessoa tem login e senha próprios (cadastrados em Configurações) e o banco libera só as abas permitidas (RLS). Não existe mais login único da equipe.
 - O Controle de Curvas saiu daqui e tem repositório e link próprios: github.com/felipe10trentini-oss/controle-curvas → https://controle-curvas.vercel.app/. O `vercel.json` redireciona o endereço antigo `/curvas.html` para lá; não recriar `curvas.html` neste repositório.
 

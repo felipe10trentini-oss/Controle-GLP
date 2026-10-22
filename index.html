@@ -205,6 +205,14 @@ nav.tabs button:not(.active):hover{color:var(--text);}
   .os-kpis .kpi-sub{font-size:11px;}
 }
 
+/* modos: Controle GLP (sem a Ordem de Serviço) e Dedetização (só a Ordem de Serviço); "embed" = dentro do Controle Geral */
+body.modo-glp #tabs button[data-view="ordemservico"]{display:none;}
+body.modo-os #tabs{display:none;}
+body.embed .topbar .brand-logos, body.embed .topbar .brand, body.embed .topbar .sync-pill{display:none;}
+body.embed .topbar{padding-top:0;padding-bottom:6px;min-height:0;border-bottom:none;background:transparent;}
+body.embed.modo-os .topbar{display:none;}
+body.embed{padding-top:0;}
+
 /* navegação: em telas estreitas vira uma faixa rolável de uma linha só */
 @media (max-width:820px){
   nav.tabs{flex-wrap:nowrap;overflow-x:auto;width:100%;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
@@ -346,7 +354,7 @@ footer.note{margin-top:34px;font-size:12px;color:var(--text-muted);border-top:1p
     <button data-view="config">Configurações</button>
   </nav>
   <a class="sync-pill" href="painel.html" title="Voltar ao Controle Geral" style="text-decoration:none;color:inherit;">← Controle Geral</a>
-  <div class="sync-pill" id="btn-user" title="Clique para definir seu nome">👤 <span id="user-name-label">Definir nome</span></div>
+  <div class="sync-pill" id="btn-user" title="Usuário logado" style="cursor:default">👤 <span id="user-name-label">Definir nome</span></div>
   <div class="sync-pill" id="btn-logout" title="Clique para sair"><span class="sync-dot off" id="sync-dot"></span><span id="sync-text">conectando…</span></div>
 </div>
 
@@ -1565,18 +1573,23 @@ async function saveConfig(){
 const authGate = document.getElementById('auth-gate');
 const appRoot = document.getElementById('app');
 
+// Não há mais tela de entrada aqui: o login é o do Controle Geral (painel.html), que usa a mesma sessão.
+const EMBED = new URLSearchParams(location.search).has('embed');
+const MODO = location.hash === '#ordemservico' ? 'os' : 'glp';   // Dedetização = só a Ordem de Serviço; Controle GLP = o resto
+document.body.classList.add('modo-' + MODO); if(EMBED) document.body.classList.add('embed');
+const irParaPainel = ()=>{ (EMBED ? window.top : window).location.replace('painel.html'); };
+
 function updateUserLabel(){
-  document.getElementById('user-name-label').textContent = USER_NAME || 'Definir nome';
+  document.getElementById('user-name-label').textContent = USER_NAME || '';
 }
 
-// permissões do Controle Geral: quem não tem "glp" nem "os" volta para o painel; quem tem só uma das duas vê só ela
+// permissões do Controle Geral: Controle GLP exige "glp"; Dedetização exige "os". O nome vem do cadastro do usuário.
 async function checarAcesso(){
   const { data, error } = await sb.rpc('painel_meu_perfil');
   if(error) return true;   // controle de acesso ainda não ativado no banco: segue como antes
   const p = data, ok = k => !!(p && p.ativo !== false && (p.tipo === 'admin' || (p.abas || []).includes(k)));
-  if(!ok('glp') && !ok('os')){ location.replace('painel.html'); return false; }
-  if(!ok('os')){ const b = document.querySelector('#tabs button[data-view="ordemservico"]'); if(b) b.hidden = true; }
-  if(!ok('glp')){ document.querySelectorAll('#tabs button[data-view]').forEach(b=>{ if(b.dataset.view !== 'ordemservico') b.hidden = true; }); location.hash = '#ordemservico'; }
+  if(p && p.nome) USER_NAME = p.nome;
+  if(!ok(MODO === 'os' ? 'os' : 'glp')){ irParaPainel(); return false; }
   return true;
 }
 async function startApp(){
@@ -1588,54 +1601,23 @@ async function startApp(){
   try{
     await loadAllAndRender();
     setupRealtime();
-    // o Controle Geral abre direto a aba de Dedetização com index.html#ordemservico
-    if(location.hash === '#ordemservico'){ const b = document.querySelector('#tabs button[data-view="ordemservico"]'); if(b) b.click(); }
+    if(MODO === 'os'){ const b = document.querySelector('#tabs button[data-view="ordemservico"]'); if(b) b.click(); }
   }catch(e){
     console.error('startApp', e);
     setSync(false, 'erro: ' + (e && e.message ? e.message : String(e)));
     toast('Erro ao carregar dados: ' + (e && e.message ? e.message : String(e)), true);
   }
-  if(!USER_NAME) openNomeModal();
 }
-
-/* ---------------- nome do usuário ---------------- */
-const modalNome = document.getElementById('modal-nome');
-function openNomeModal(){
-  document.getElementById('nome-input').value = USER_NAME;
-  modalNome.classList.add('open');
-}
-document.getElementById('btn-user').addEventListener('click', openNomeModal);
-document.getElementById('nome-cancel').onclick = ()=>modalNome.classList.remove('open');
-document.getElementById('form-nome').addEventListener('submit', e=>{
-  e.preventDefault();
-  USER_NAME = document.getElementById('nome-input').value.trim();
-  try{ localStorage.setItem('glp_nome', USER_NAME); }catch(err){}
-  updateUserLabel();
-  modalNome.classList.remove('open');
-  toast('Nome salvo. Seus próximos lançamentos serão identificados como ' + USER_NAME + '.');
-});
-
-document.getElementById('form-login').addEventListener('submit', async e=>{
-  e.preventDefault();
-  let email = document.getElementById('login-email').value.trim().toLowerCase();
-  const senha = document.getElementById('login-senha').value;
-  const errEl = document.getElementById('login-error');
-  errEl.textContent = '';
-  if(email && !email.includes('@')) email += '@usuario.controle-geral.app';   // login simples cadastrado em Configurações
-  const { error } = await sb.auth.signInWithPassword({ email, password: senha });
-  if(error){ errEl.textContent = 'Usuário ou senha incorretos.'; return; }
-  startApp();
-});
 
 document.getElementById('btn-logout').addEventListener('click', async ()=>{
-  if(!confirm('Sair do painel?')) return;
+  if(!confirm('Sair do Controle Geral?')) return;
   await sb.auth.signOut();
-  location.reload();
+  irParaPainel();
 });
 
 (async function initAuth(){
   const { data } = await sb.auth.getSession();
-  if(data && data.session){ startApp(); }
+  if(data && data.session){ startApp(); } else { irParaPainel(); }
 })();
 
 /* ---------------- nav ---------------- */

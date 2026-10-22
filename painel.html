@@ -233,6 +233,10 @@ tr.clk{cursor:pointer;}
 @media (max-width:1000px){ .tiles{grid-template-columns:repeat(2,1fr)!important;} }
 @media (max-width:560px){ .tiles{grid-template-columns:1fr!important;} .tile{min-height:0;flex-direction:row!important;align-items:center!important;} }
 
+/* GLP e Dedetização dentro do painel */
+iframe.embed{width:100%;height:calc(100vh - 150px);min-height:620px;border:0;border-radius:12px;background:transparent;display:block;}
+@media print{ iframe.embed{height:auto;} }
+
 /* login */
 #auth-gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100;}
 .login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:28px;width:100%;max-width:380px;text-align:center;}
@@ -381,8 +385,11 @@ const SUPABASE_URL = "https://vjbyyjfmilmeyzeiinxf.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_HgnI-KSEvq1PJet6fmrV_g_MRf6HK4M";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const BUCKET = 'painel-arquivos';
-const GLP_URL = 'index.html';
-const OS_URL = 'index.html#ordemservico';
+const GLP_URL = '#/glp';
+const OS_URL = '#/dedetizacao';
+// o Controle GLP e a Dedetização abrem dentro do Controle Geral (mesma sessão, sem outro login)
+const EMBED = { glp:'index.html?embed=1', dedetizacao:'index.html?embed=1#ordemservico' };
+const AREA_DE = { glp:'glp', dedetizacao:'os' };
 const NOTAS_BASE = 'https://manntratamentos-my.sharepoint.com/personal/felipe_manntratamentos_onmicrosoft_com/Documents/Controle%20ve%C3%ADculos/Notas/';
 
 const $ = (s, el=document)=>el.querySelector(s);
@@ -623,7 +630,7 @@ async function startApp(){
 })();
 
 /* ============================ roteamento ============================ */
-const NAMES = { custos:'Controle de custos', km:'Quilometragem', manutencao:'Manutenção do veículo', suportes:'Venda de suportes', tratamentos:'Tratamentos HT', utilizacao:'Utilização de veículos', lancar:'Lançamento', configuracoes:'Configurações' };
+const NAMES = { glp:'Controle GLP', dedetizacao:'Dedetização', custos:'Controle de custos', km:'Quilometragem', manutencao:'Manutenção do veículo', suportes:'Venda de suportes', tratamentos:'Tratamentos HT', utilizacao:'Utilização de veículos', lancar:'Lançamento', configuracoes:'Configurações' };
 function semAcesso(){
   $('#app').innerHTML = '<div class="card empty" style="padding:40px;text-align:center"><b>Você não tem acesso a esta área.</b><br><span class="mini">Fale com o administrador para liberar.</span><br><br><a class="btn" href="#/" style="text-decoration:none">Voltar ao início</a></div>';
 }
@@ -635,10 +642,13 @@ async function go(){
   const [path, qs] = raw.split('?'); const q = Object.fromEntries(new URLSearchParams(qs||''));
   const [key, sub, sub2] = path.split('/');
   $('#app').innerHTML = '<div class="loading">Carregando…</div>';
-  if(key && key !== 'lancar' && NAMES[key] && !pode(key)){ semAcesso(); $('#crumb').innerHTML = ''; return; }
+  if(key && key !== 'lancar' && NAMES[key] && !pode(AREA_DE[key] || key)){ semAcesso(); $('#crumb').innerHTML = ''; return; }
   if(key === 'lancar' && !CAPS.some(c=>podeLancar(c[0]))){ semAcesso(); $('#crumb').innerHTML = ''; return; }
   try{
     if(!key) home();
+    else if(key==='glp' || key==='dedetizacao'){
+      $('#app').innerHTML = `<iframe class="embed" title="${NAMES[key]}" src="${EMBED[key]}"></iframe>`;
+    }
     else if(key==='configuracoes'){ await need('veiculos','contatos','avcfg','avlog'); if(token===goToken) await configuracoes(); }
     else if(key==='custos'){ await need('veiculos','custos','abast','leit','traj','manut','arqs'); if(token===goToken) custos(); }
     else if(key==='km'){ await need('veiculos','leit','abast','traj'); if(token===goToken) (sub ? kmVeic(decodeURIComponent(sub).toUpperCase()) : km()); }
