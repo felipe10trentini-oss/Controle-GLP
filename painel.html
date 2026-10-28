@@ -237,6 +237,9 @@ tr.clk{cursor:pointer;}
 iframe.embed{width:100%;height:calc(100vh - 150px);min-height:620px;border:0;border-radius:12px;background:transparent;display:block;}
 @media print{ iframe.embed{height:auto;} }
 
+/* campos preenchidos pela leitura automática da nota */
+.auto{background:color-mix(in srgb, var(--warn) 18%, transparent)!important;border-color:var(--warn)!important;}
+
 /* login */
 #auth-gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100;}
 .login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:28px;width:100%;max-width:380px;text-align:center;}
@@ -313,6 +316,9 @@ iframe.embed{width:100%;height:calc(100vh - 150px);min-height:620px;border:0;bor
   <form method="dialog" id="form-lanc">
     <h3>Lançamento de custo (escritório)</h3>
     <div class="fgrid">
+      <div class="field full"><label>Carregar a nota (foto ou PDF) — preenche os campos sozinho (a imagem é só lida, não é guardada)</label><input type="file" name="foto" accept="image/*,application/pdf"></div>
+      <div class="hintbox" id="l-read" hidden></div>
+      <input type="hidden" name="chave">
       <div class="field"><label>Data</label><input type="date" name="data" required></div>
       <div class="field"><label>Competência (mês)</label><input type="month" name="comp" required></div>
       <div class="field"><label>Veículo</label><select name="veic" id="f-veic" required></select></div>
@@ -320,6 +326,7 @@ iframe.embed{width:100%;height:calc(100vh - 150px);min-height:620px;border:0;bor
       <div class="field full"><label>Descrição / Fornecedor</label><input name="desc" placeholder="Ex.: Posto Estrela — Curitiba"></div>
       <div class="field"><label>Valor (R$)</label><input type="number" step="0.01" min="0" name="valor" required></div>
       <div class="field"><label>Nº da NF</label><input name="nf"></div>
+      <div class="field"><label>CNPJ do fornecedor</label><input name="cnpj" inputmode="numeric" placeholder="00.000.000/0000-00"></div>
       <div class="field"><label>Empresa da nota</label><select name="empresa"><option value="">—</option><option>MANN</option><option>EXATA SC</option></select></div>
       <div class="field full"><label>Observação</label><input name="obs"></div>
     </div>
@@ -753,15 +760,15 @@ function custos(){
   $('#c-print').onclick = ()=>window.print();
   $('#c-csv').onclick = ()=>{
     const rows = custosFiltrados().sort((a,b)=>b.comp.localeCompare(a.comp) || (b.data||'').localeCompare(a.data||''));
-    csvDownload('custos_frota.csv', ['Data','Competência','Veículo','Grupo','Categoria','Descrição','Valor','NF','Empresa','Origem','Observação'],
-      rows.map(l=>[l.data?dBR(l.data):'', mLabel(l.comp), l.veic, grupoDe(l.veic), l.cat, l.desc||'', String(l.valor).replace('.',','), l.nf||'', l.empresa||'', l.fonte||'', l.obs||'']));
+    csvDownload('custos_frota.csv', ['Data','Competência','Veículo','Grupo','Categoria','Descrição','Valor','NF','CNPJ fornecedor','Empresa','Origem','Observação'],
+      rows.map(l=>[l.data?dBR(l.data):'', mLabel(l.comp), l.veic, grupoDe(l.veic), l.cat, l.desc||'', String(l.valor).replace('.',','), l.nf||'', l.cnpj_fornecedor?fmtCnpj(l.cnpj_fornecedor):'', l.empresa||'', l.fonte||'', l.obs||'']));
   };
   $('#c-xlsx').onclick = ()=>{
     const rows = custosFiltrados().sort((a,b)=>b.comp.localeCompare(a.comp) || (b.data||'').localeCompare(a.data||''));
     const ms = mesesDe(rows), cats = [...new Set(rows.map(l=>l.cat))].sort(); const vs = ORDER.filter(v=>VEIC().some(x=>x.cod===v));
     xlsxDownload('custos_frota.xlsx', [
-      { name:'Lançamentos', head:['Data','Competência','Veículo','Grupo','Categoria','Descrição','Valor','NF','Empresa','Origem','Observação'],
-        rows: rows.map(l=>[l.data||'', mLabel(l.comp), l.veic, grupoDe(l.veic), l.cat, l.desc||'', l.valor, l.nf||'', l.empresa||'', l.fonte||'', l.obs||'']) },
+      { name:'Lançamentos', head:['Data','Competência','Veículo','Grupo','Categoria','Descrição','Valor','NF','CNPJ fornecedor','Empresa','Origem','Observação'],
+        rows: rows.map(l=>[l.data||'', mLabel(l.comp), l.veic, grupoDe(l.veic), l.cat, l.desc||'', l.valor, l.nf||'', l.cnpj_fornecedor?fmtCnpj(l.cnpj_fornecedor):'', l.empresa||'', l.fonte||'', l.obs||'']) },
       { name:'Mês x Veículo', head:['Mês', ...vs, 'Total'], rows: ms.map(m=>[mLabel(m), ...vs.map(v=>r2(sum(rows.filter(l=>l.comp===m&&l.veic===v), l=>l.valor))), r2(sum(rows.filter(l=>l.comp===m), l=>l.valor))]) },
       { name:'Categoria x Veículo', head:['Categoria', ...vs, 'Total'], rows: cats.map(c=>[cap(c), ...vs.map(v=>r2(sum(rows.filter(l=>l.cat===c&&l.veic===v), l=>l.valor))), r2(sum(rows.filter(l=>l.cat===c), l=>l.valor))]) }
     ]);
@@ -885,7 +892,7 @@ function custoLanc(box, rows, total){
   <div class="table-wrap"><table><thead><tr><th>Data</th><th>Mês</th><th>Veículo</th><th>Categoria</th><th>Descrição / Fornecedor</th><th class="num">Valor</th><th>NF / nota</th><th></th></tr></thead><tbody>
     ${part.map(l=>`<tr><td>${l.data?dBR(l.data):'<span class="muted">–</span>'}</td><td>${mLabel(l.comp)}</td><td><b>${esc(l.veic)}</b></td><td><span class="badge">${esc(cap(l.cat))}</span></td>
       <td class="wrap">${esc(l.desc)||'<span class="muted">–</span>'}${l.obs?`<div class="muted" style="font-size:12px">${esc(l.obs)}</div>`:''}${l.fonte==='glp'?'<div style="margin-top:3px"><span class="badge info">Automático · Controle GLP</span></div>':''}${l.fonte==='app'?`<div style="margin-top:3px"><span class="badge good">App · ${esc(l.operador)}</span></div>`:''}</td>
-      <td class="num">${BRL(l.valor)}</td><td>${esc(l.nf)||'<span class="muted">–</span>'}${l.empresa?` <span class="mini">${esc(l.empresa)}</span>`:''}<div style="margin-top:3px">${notaLinks(l)}</div></td><td>${l.fonte==='glp' ? '<span class="mini">no GLP</span>' : btnEd('cu', l.id)}</td></tr>`).join('')}
+      <td class="num">${BRL(l.valor)}</td><td>${esc(l.nf)||'<span class="muted">–</span>'}${l.empresa?` <span class="mini">${esc(l.empresa)}</span>`:''}${l.cnpj_fornecedor?`<div class="mini">CNPJ ${esc(fmtCnpj(l.cnpj_fornecedor))}</div>`:''}<div style="margin-top:3px">${notaLinks(l)}</div></td><td>${l.fonte==='glp' ? '<span class="mini">no GLP</span>' : btnEd('cu', l.id)}</td></tr>`).join('')}
     <tr class="tot"><td colspan="5">Total do filtro (${N0(rows.length)} lançamentos)</td><td class="num">${BRL(total)}</td><td></td><td></td></tr></tbody></table></div>
   ${rows.length>CS.shown?`<div class="morebar"><button class="btn" id="c-more">Mostrar mais (${rows.length-CS.shown} restantes)</button></div>`:''}` : '<div class="card empty">Nenhum lançamento neste filtro.</div>';
   const mb = $('#c-more'); if(mb) mb.onclick = ()=>{ CS.shown += 100; custosBody(); };
@@ -949,7 +956,8 @@ $('#form-lanc').addEventListener('submit', async e=>{
   const valor = Math.round(parseFloat(f.valor.value||0)*100)/100;
   if(!valor || !f.comp.value){ e.preventDefault(); return; }
   const row = { id: uid('cu'), data: f.data.value || null, comp: f.comp.value + '-01', veic: f.veic.value, cat: f.cat.value, descr: f.desc.value.trim() || null, valor,
-                nf: f.nf.value.trim() || null, empresa: f.empresa.value || null, obs: f.obs.value.trim() || null, fonte: 'escritório', operador: USER || 'Escritório' };
+                nf: f.nf.value.trim() || null, empresa: f.empresa.value || null, obs: f.obs.value.trim() || null, fonte: 'escritório', operador: USER || 'Escritório',
+                cnpj_fornecedor: onlyDig(f.cnpj.value) || null, chave_nfe: f.chave.value || null };
   try{
     await dbInsert('custos', [row]);
     DB.custos.push({ ...row, desc: row.descr, comp: f.comp.value });
@@ -957,6 +965,14 @@ $('#form-lanc').addEventListener('submit', async e=>{
     if(location.hash.includes('custos')) custosBody();
   }catch(err){ toast('Erro ao salvar: ' + err.message, true); }
 });
+// leitura automática da nota no lançamento do escritório
+(function(){
+  const f = $('#form-lanc'); if(!f) return;
+  const aviso = (t, k)=>{ const b = $('#l-read'); b.className = 'hintbox ' + (k||''); b.textContent = t; b.hidden = !t; };
+  ligarLeituraNota(f, f.elements.foto, aviso);
+  f.elements.cnpj.addEventListener('input', ()=>{ const d = onlyDig(f.elements.cnpj.value).slice(0, 14); f.elements.cnpj.value = d.length === 14 ? fmtCnpj(d) : d; });
+  f.addEventListener('reset', ()=>aviso('', ''));
+})();
 
 /* ============================ QUILOMETRAGEM ============================ */
 function km(){
@@ -1664,9 +1680,9 @@ function editarCusto(id){
     { k:'data', label:'Data', type:'date' }, { k:'comp', label:'Mês de competência', type:'month', required:true },
     { k:'veic', label:'Veículo', type:'select', opts: VEIC().map(v=>v.cod) }, { k:'cat', label:'Categoria', type:'select', opts: cats },
     { k:'desc', label:'Descrição / fornecedor', full:true }, { k:'valor', label:'Valor (R$)', type:'number', step:'0.01', required:true },
-    { k:'nf', label:'Nº da NF' }, { k:'empresa', label:'Empresa da nota', type:'select', opts:['','MANN','EXATA SC'] }, { k:'obs', label:'Observação', full:true }
+    { k:'nf', label:'Nº da NF' }, { k:'cnpj_fornecedor', label:'CNPJ do fornecedor' }, { k:'empresa', label:'Empresa da nota', type:'select', opts:['','MANN','EXATA SC'] }, { k:'obs', label:'Observação', full:true }
   ];
-  const valores = { ...l, desc: l.desc, comp: String(l.comp).slice(0,7), data: ymd(l.data) };
+  const valores = { ...l, desc: l.desc, comp: String(l.comp).slice(0,7), data: ymd(l.data), cnpj_fornecedor: l.cnpj_fornecedor ? fmtCnpj(l.cnpj_fornecedor) : null };
   if(ab){
     campos.push({ sect:'Abastecimento ligado a esta nota' }, { k:'litros', label:'Litros', type:'number', step:'0.001' }, { k:'km', label:'Km do odômetro', type:'number' }, { k:'cheio', label:'Completou o tanque', type:'checkbox' });
     Object.assign(valores, { litros: ab.litros, km: ab.km, cheio: ab.cheio });
@@ -1677,7 +1693,7 @@ function editarCusto(id){
     confirmaExcluir: ab ? 'Excluir este custo e o abastecimento ligado a ele?' : 'Excluir este lançamento de custo?',
     onSave: async v=>{
       if(!(v.valor >= 0) || !v.comp) throw new Error('Informe o valor e o mês de competência.');
-      const row = { data: v.data, comp: v.comp + '-01', veic: v.veic, cat: v.cat, descr: v.desc, valor: r2(v.valor), nf: v.nf, empresa: v.empresa, obs: v.obs };
+      const row = { data: v.data, comp: v.comp + '-01', veic: v.veic, cat: v.cat, descr: v.desc, valor: r2(v.valor), nf: v.nf, empresa: v.empresa, obs: v.obs, cnpj_fornecedor: onlyDig(v.cnpj_fornecedor) || null };
       await dbUpdate('custos', { ...row, ...carimbo() }, 'id', id);
       Object.assign(l, row, { desc: v.desc, comp: v.comp });
       if(ab){
@@ -1835,6 +1851,152 @@ function editarSupSaida(id){
   });
 }
 
+/* ============================ LEITURA AUTOMÁTICA DA NOTA ============================ */
+// Foto ou PDF da nota → texto (PDF: texto do próprio arquivo; foto: OCR no navegador) → campos pré-preenchidos.
+// Nada é enviado a servidores de leitura: o OCR roda no aparelho. Tudo que for lido pode ser corrigido na tela.
+const onlyDig = s => String(s||'').replace(/\D/g, '');
+const fmtCnpj = d => d.length === 14 ? `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12)}` : d;
+function cnpjValido(c){
+  c = onlyDig(c); if(c.length !== 14 || /^(\d)\1+$/.test(c)) return false;
+  const dv = n => { let s = 0, p = n - 7; for(let i = 0; i < n; i++){ s += +c[i] * p--; if(p < 2) p = 9; } const r = s % 11; return r < 2 ? 0 : 11 - r; };
+  return dv(12) === +c[12] && dv(13) === +c[13];
+}
+function chaveValida(k){
+  if(k.length !== 44) return false; let s = 0, p = 2;
+  for(let i = 42; i >= 0; i--){ s += +k[i] * p; p = p === 9 ? 2 : p + 1; }
+  const r = s % 11, dv = r < 2 ? 0 : 11 - r; return dv === +k[43];
+}
+// OCR confunde alguns dígitos; tenta corrigir 1 dígito para fechar o dígito verificador da chave
+function consertaChave(k){
+  if(k.length !== 44 || chaveValida(k)) return k;
+  for(let i = 0; i < 44; i++) for(let d = 0; d <= 9; d++){ const t = k.slice(0, i) + d + k.slice(i + 1); if(chaveValida(t) && cnpjValido(t.slice(6, 20))) return t; }
+  return k;
+}
+const brNum = s => { const n = parseFloat(String(s).replace(/\./g, '').replace(',', '.')); return isNaN(n) ? null : n; };
+const CAT_PALAVRAS = [
+  ['COMBUSTÍVEL', /DIESEL|GASOLINA|ETANOL|ALCOOL|ÁLCOOL|COMBUST|POSTO\b|AUTO\s*POSTO/i], ['HOTEL', /HOTEL|POUSADA|HOSPEDAGEM|MOTEL/i], ['PEDÁGIO', /PEDAGIO|PEDÁGIO|CONCESSION|SEM PARAR|VELOE/i],
+  ['ESTACIONAMENTO', /ESTACIONAMENTO|PARKING/i], ['LAVAGEM', /LAVA[\s-]?(JATO|RAPIDO|RÁPIDO)|LAVAGEM/i], ['ALIMENTAÇÃO', /RESTAURANTE|LANCHONETE|PADARIA|CHURRASC|PIZZARIA|REFEI|ALIMENT|SUPERMERCADO|MERCADO|CAFE|CAFÉ/i],
+  ['MANUTENÇÃO VEICULAR', /AUTO\s*PE[CÇ]AS|MEC[AÂ]NICA|BORRACHARIA|PNEU|OFICINA|AUTO\s*EL[EÉ]TRICA|FILTRO|OLEO|ÓLEO/i]
+];
+function interpretarNota(texto){
+  const t = String(texto || ''), T = t.toUpperCase(), r = { achou:{} };
+  // chave de acesso (44 dígitos, pode vir com espaços)
+  let chave = null;
+  const ls = t.split(/\n/).map(onlyDig), blocos = [...ls, ...ls.slice(1).map((x, i)=>ls[i] + x)];   // cada linha e pares de linhas (a chave às vezes quebra em duas)
+  for(const d of blocos){
+    if(d.length < 44) continue;
+    for(let i = 0; i + 44 <= d.length && !chave; i++){ const c = d.slice(i, i + 44); if(chaveValida(c)) chave = c; }
+    if(!chave && d.length <= 50){ const c = consertaChave(d.slice(0, 44)); if(chaveValida(c)) chave = c; }
+    if(chave) break;
+  }
+  if(chave) r.chave = chave;
+  // CNPJs
+  const cands = [...new Set((t.match(/\d{2}\.?\d{3}\.?\d{3}\s?\/\s?\d{4}\s?-?\s?\d{2}/g) || []).map(onlyDig).filter(cnpjValido))];
+  const daChave = chave ? chave.slice(6, 20) : null;
+  r.cnpjs = cands; r.cnpj = daChave && cnpjValido(daChave) ? daChave : (cands[0] || null);
+  if(r.cnpj) r.achou.cnpj = true;
+  // número da nota
+  let nf = null;
+  if(chave){ nf = String(parseInt(chave.slice(25, 34), 10)); }
+  if(!nf){ const m = t.match(/(?:NF-?E|NFC-?E|NOTA\s+FISCAL|CUPOM)[^\d\n]{0,40}(?:N[º°o.]*|N[ÚU]MERO)?\s*[:.]?\s*0*(\d{1,9})/i) || t.match(/\bN[º°o]\.?\s*[:.]?\s*0*(\d{3,9})\b/i); if(m) nf = m[1]; }
+  if(nf){ r.nf = nf; r.achou.nf = true; }
+  // data de emissão (a que bate com o AAMM da chave, se houver)
+  const datas = [...t.matchAll(/\b(\d{2})\/(\d{2})\/(20\d{2})\b/g)].map(m=>({ iso:`${m[3]}-${m[2]}-${m[1]}`, ym:`${m[3]}-${m[2]}` })).filter(d=>+d.iso.slice(5,7) >= 1 && +d.iso.slice(5,7) <= 12 && +d.iso.slice(8,10) >= 1 && +d.iso.slice(8,10) <= 31);
+  const ymChave = chave ? `20${chave.slice(2,4)}-${chave.slice(4,6)}` : null;
+  const dd = (ymChave && datas.find(d=>d.ym === ymChave)) || datas[0];
+  if(dd){ r.data = dd.iso; r.achou.data = true; }
+  // valor total
+  let val = null;
+  const mv = t.match(/VALOR\s+(?:TOTAL|A\s+PAGAR|DA\s+NOTA|L[IÍ]QUIDO)[^\d\n]{0,40}([\d.]+,\d{2})/i) || t.match(/\bTOTAL\s*(?:R\$)?\s*[:\-]?\s*([\d.]+,\d{2})/i) || t.match(/\bVALOR\s*(?:R\$)?\s*[:\-]?\s*([\d.]+,\d{2})/i);
+  if(mv) val = brNum(mv[1]);
+  if(val == null){ const todos = (t.match(/\d{1,3}(?:\.\d{3})*,\d{2}/g) || []).map(brNum).filter(Boolean); if(todos.length) val = Math.max(...todos); }
+  if(val){ r.valor = val; r.achou.valor = true; }
+  // combustível e litros
+  const comb = /DIESEL/.test(T) ? 'Diesel' : /GASOLINA/.test(T) ? 'Gasolina' : /ETANOL|ALCOOL|ÁLCOOL/.test(T) ? 'Etanol' : null;
+  if(comb){ r.comb = comb; r.achou.comb = true;
+    const ml = t.match(/(\d{1,4}[,.]\d{2,3})\s*(?:L|LT|LTS|LITROS?)\b/i) || t.match(/(?:QTD|QUANT(?:IDADE)?)[^\d\n]{0,12}(\d{1,4}[,.]\d{2,3})/i);
+    if(ml){ const l = brNum(ml[1].replace('.', ',')) ; if(l && l < 2000){ r.litros = l; r.achou.litros = true; } } }
+  // categoria
+  for(const [c, re] of CAT_PALAVRAS){ if(re.test(t)){ r.cat = c; r.achou.cat = true; break; } }
+  // nome do emitente: linha com LTDA/S.A./ME/EIRELI perto do topo
+  const linhas = t.split(/\n+/).map(s=>s.trim()).filter(s=>s.length > 3);
+  const nome = linhas.slice(0, 25).find(l=>/\b(LTDA|S\.?\/?A\.?|EIRELI|\bME\b|EPP|COM[ÉE]RCIO|POSTO|AUTO ?POSTO|HOTEL|RESTAURANTE)\b/i.test(l) && /[A-Za-zÀ-ú]{4}/.test(l) && !/DANFE|DOCUMENTO AUXILIAR/i.test(l));
+  if(nome){ r.fornecedor = nome.replace(/^(RAZ[ÃA]O SOCIAL|EMITENTE|NOME)\s*[:\-]?\s*/i, '').replace(/\s{2,}/g, ' ').slice(0, 80); r.achou.fornecedor = true; }
+  return r;
+}
+
+const _lib = {};
+function carregaScript(src){
+  if(_lib[src]) return _lib[src];
+  return _lib[src] = new Promise((res, rej)=>{ const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = ()=>rej(new Error('Não foi possível carregar a leitura da nota (verifique a internet).')); document.head.appendChild(s); });
+}
+async function textoDoPdf(file, prog){
+  await carregaScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise; let txt = '';
+  for(let i = 1; i <= Math.min(pdf.numPages, 3); i++){
+    const pg = await pdf.getPage(i), c = await pg.getTextContent(); let y = null;
+    c.items.forEach(it=>{ const yy = Math.round(it.transform[5]); txt += (y !== null && Math.abs(yy - y) > 2 ? '\n' : ' ') + it.str; y = yy; });
+    txt += '\n';
+  }
+  if(txt.replace(/\s/g, '').length > 80) return txt;
+  // PDF escaneado: desenha a 1ª página e lê como imagem
+  const pg = await pdf.getPage(1), vp = pg.getViewport({ scale: 2 }), cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height;
+  await pg.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+  return await ocrImagem(await new Promise(r=>cv.toBlob(r, 'image/png')), prog);
+}
+async function ocrImagem(blobOuArquivo, prog){
+  await carregaScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
+  const img = await compressImage(blobOuArquivo, 2200, 0.9);
+  const { data } = await Tesseract.recognize(img, 'por', { logger: m=>{ if(prog && m.status) prog(m.status === 'recognizing text' ? `Lendo a nota… ${Math.round((m.progress||0)*100)}%` : 'Preparando a leitura (primeira vez demora um pouco)…'); } });
+  return data.text || '';
+}
+async function lerNota(file, prog){
+  const ehPdf = /pdf/i.test(file.type) || /\.pdf$/i.test(file.name);
+  const texto = ehPdf ? await textoDoPdf(file, prog) : await ocrImagem(file, prog);
+  const r = interpretarNota(texto); r.texto = texto; return r;
+}
+// nome do fornecedor a partir do CNPJ: primeiro o que já foi lançado antes; se não houver, consulta o cadastro público de CNPJ (BrasilAPI)
+async function nomePorCnpj(cnpj){
+  const ja = (DB.custos||[]).find(l=>l.cnpj_fornecedor === cnpj && l.desc);
+  if(ja) return String(ja.desc).split(' — ')[0];
+  try{
+    const r = await fetch('https://brasilapi.com.br/api/cnpj/v1/' + cnpj, { signal: AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined });
+    if(r.ok){ const j = await r.json(); return j.nome_fantasia || j.razao_social || null; }
+  }catch(e){}
+  return null;
+}
+const CATS_SEM_CNPJ = ['PEDÁGIO','UBER','PASSAGEM DE ÔNIBUS','ESTACIONAMENTO'];
+
+// preenche o formulário (assistente do operador ou lançamento do escritório) e marca o que veio da leitura
+async function aplicarNota(f, r, aviso){
+  const marca = el=>{ if(!el) return; el.classList.add('auto'); const tira = ()=>{ el.classList.remove('auto'); el.removeEventListener('input', tira); }; el.addEventListener('input', tira); };
+  const set = (nome, v)=>{ const el = f.elements[nome]; if(!el || v == null || v === '') return false; if(el.type === 'checkbox') return false; el.value = v; el.dispatchEvent(new Event('input', { bubbles:true })); el.dispatchEvent(new Event('change', { bubbles:true })); marca(el); return true; };
+  const lidos = [];
+  if(set('data', r.data)) lidos.push('data');
+  if(r.data && f.elements.comp && !f.elements.comp.value) f.elements.comp.value = r.data.slice(0, 7);
+  if(set('nf', r.nf)) lidos.push('nº da NF');
+  if(set('valor', r.valor != null ? r.valor.toFixed(2) : null)) lidos.push('valor');
+  if(r.cnpj && set('cnpj', fmtCnpj(r.cnpj))) lidos.push('CNPJ');
+  if(f.elements.chave && r.chave) f.elements.chave.value = r.chave;
+  if(r.cat && f.elements.cat && [...f.elements.cat.options].some(o=>o.value === r.cat)){ f.elements.cat.value = r.cat; marca(f.elements.cat); f.elements.cat.dispatchEvent(new Event('change', { bubbles:true })); lidos.push('categoria'); }
+  if(r.litros && set('litros', String(r.litros))) lidos.push('litros');
+  if(r.comb && f.elements.comb && !f.elements.comb.disabled && [...f.elements.comb.options].some(o=>o.value === r.comb || o.text === r.comb)){ f.elements.comb.value = r.comb; marca(f.elements.comb); }
+  let nome = r.fornecedor;
+  if(r.cnpj){ const n = await nomePorCnpj(r.cnpj); if(n) nome = n; }
+  if(nome && set('desc', nome)) lidos.push('fornecedor');
+  if(aviso) aviso(lidos.length ? `Lido da nota: ${lidos.join(', ')}. Confira os campos marcados em amarelo e corrija o que estiver diferente.` : 'Não consegui ler dados desta nota. Preencha manualmente.', lidos.length ? '' : 'warn');
+  return lidos;
+}
+function ligarLeituraNota(f, inputFoto, aviso){
+  if(!inputFoto) return;
+  inputFoto.addEventListener('change', async ()=>{
+    const file = inputFoto.files[0]; if(!file) return;
+    try{ aviso('Lendo a nota… (a primeira leitura baixa o leitor e pode levar alguns segundos)', ''); const r = await lerNota(file, m=>aviso(m, '')); await aplicarNota(f, r, aviso); }
+    catch(e){ console.error(e); aviso('Não consegui ler a nota automaticamente (' + (e.message || e) + '). Preencha manualmente.', 'warn'); }
+  });
+}
+
 /* ============================ LANÇAMENTO DO OPERADOR (celular) ============================ */
 const COMB_FIXO = { ATU:'Diesel', RHV:'Diesel', RIX:'Diesel', DUCATO:'Diesel', SHINERAY:'Gasolina' };
 const CAT_OPERADOR = ['COMBUSTÍVEL','ALIMENTAÇÃO','HOTEL','PEDÁGIO','ESTACIONAMENTO','LAVAGEM','MATERIAIS','MANUTENÇÃO VEICULAR','UBER','PASSAGEM DE ÔNIBUS'];
@@ -1942,9 +2104,13 @@ function wizNfe(){
   const combOpts = fixo ? `<option>${fixo}</option>` : '<option>Gasolina</option><option>Etanol</option>';
   return `<h2>Nota fiscal</h2><p class="lead">${esc(W.veic)} · ${esc(W.op)}</p>
   <form class="wform" id="w-form" novalidate>
+    <div class="field full"><label>Carregar a nota (foto ou PDF) — o sistema lê e preenche sozinho</label><div class="photo"><input type="file" name="foto" accept="image/*,application/pdf"><img id="w-prev" alt="" hidden></div></div>
+    <div class="hintbox" id="w-read" hidden></div>
+    <input type="hidden" name="chave">
     <div class="field"><label>Data</label><input type="date" name="data" value="${TODAY}" required></div>
     <div class="field"><label>Categoria</label><select name="cat" id="w-cat">${CAT_OPERADOR.map(c=>`<option value="${c}">${cap(c)}</option>`).join('')}</select></div>
     <div class="field full"><label>Fornecedor / descrição</label><input name="desc" placeholder="Ex.: Posto Estrela" required></div>
+    <div class="field"><label>CNPJ do fornecedor</label><input name="cnpj" inputmode="numeric" placeholder="00.000.000/0000-00" autocomplete="off"></div>
     <div class="field"><label>Nº da NF-e</label><input name="nf" inputmode="numeric" required></div>
     <div class="field"><label>Valor total (R$)</label><input name="valor" type="number" step="0.01" min="0" inputmode="decimal" required></div>
     <div class="sect fuel">Abastecimento</div>
@@ -1955,7 +2121,6 @@ function wizNfe(){
     <div class="field fuel"><label>Cidade</label><input name="cidade"></div>
     <div class="field fuel" style="justify-content:flex-end"><label class="checkrow"><input type="checkbox" name="cheio" checked> Completou o tanque</label></div>
     <div class="field"><label>Empresa da nota (CNPJ)</label><select name="empresa"><option>MANN</option><option>EXATA SC</option></select></div>
-    <div class="field full"><label>Foto da nota</label><div class="photo"><input type="file" name="foto" accept="image/*,application/pdf" capture="environment"><img id="w-prev" alt="" hidden></div></div>
     <div class="hintbox" id="w-path">A nota será arquivada na pasta Notas do drive.</div>
     <div class="field full"><label>Observação (opcional)</label><input name="obs"></div>
     <div class="hintbox" id="w-msg" hidden></div>
@@ -1971,10 +2136,21 @@ function bindNfe(){
   f.cat.onchange = toggle; f.litros.oninput = calc; f.valor.oninput = calc; toggle();
   ['data','nf','desc','empresa'].forEach(k=>{ f[k].oninput = path; f[k].onchange = path; }); path();
   f.foto.onchange = ()=>{ const file = f.foto.files[0]; const im = $('#w-prev'); if(file && file.type.startsWith('image/')){ im.src = URL.createObjectURL(file); im.hidden = false; } else im.hidden = true; path(); };
+  const aviso = (t, k)=>{ const b = $('#w-read'); b.className = 'hintbox ' + (k||''); b.textContent = t; b.hidden = !t; };
+  ligarLeituraNota(f, f.foto, aviso);
+  f.cnpj.oninput = ()=>{ const d = onlyDig(f.cnpj.value).slice(0, 14); f.cnpj.value = d.length === 14 ? fmtCnpj(d) : d; };
   f.onsubmit = async e=>{
     e.preventDefault();
     const cat = f.cat.value, v = parseFloat(f.valor.value), isF = cat==='COMBUSTÍVEL';
     if(!f.data.value || !f.desc.value.trim() || !f.nf.value.trim() || !(v>0)){ msgBox('Preencha data, fornecedor, nº da NF-e e valor.', 'bad'); return; }
+    // CNPJ do fornecedor: obrigatório nas notas (menos pedágio, estacionamento, Uber e passagem); confere os dígitos verificadores
+    const cnpjD = onlyDig(f.cnpj.value);
+    if(!CATS_SEM_CNPJ.includes(cat)){
+      if(cnpjD.length !== 14){ msgBox('Informe o CNPJ do fornecedor (14 dígitos).', 'bad'); return; }
+      if(!cnpjValido(cnpjD) && !f.dataset.cnpjWarned){ f.dataset.cnpjWarned = '1'; msgBox('Este CNPJ não parece válido (dígitos verificadores). Confira; para salvar assim mesmo, toque em “Salvar nota” de novo.', 'warn'); return; }
+    }
+    const dup = (DB.custos||[]).find(l=>l.nf && l.nf === f.nf.value.trim() && cnpjD && l.cnpj_fornecedor === cnpjD);
+    if(dup && !f.dataset.dupWarned){ f.dataset.dupWarned = '1'; msgBox(`Já existe um lançamento desta NF deste fornecedor (${dBR(dup.data)}, R$ ${BRL(dup.valor)}). Se for outra nota, toque em “Salvar nota” de novo.`, 'warn'); return; }
     let L = 0, km = 0;
     if(isF){
       L = parseFloat(f.litros.value); km = parseInt(f.km.value, 10);
@@ -2000,7 +2176,7 @@ function bindNfe(){
         await uploadFile(stPath, blob);
       }
       const desc = f.desc.value.trim() + (isF && f.cidade.value.trim() ? ' — ' + f.cidade.value.trim() : '');
-      const custo = { id: custoId, data: f.data.value, comp: f.data.value.slice(0,7) + '-01', veic: W.veic, cat, descr: desc, valor: r2(v), nf: f.nf.value.trim(), empresa: f.empresa.value,
+      const custo = { id: custoId, data: f.data.value, comp: f.data.value.slice(0,7) + '-01', veic: W.veic, cat, descr: desc, valor: r2(v), nf: f.nf.value.trim(), empresa: f.empresa.value, cnpj_fornecedor: cnpjD || null, chave_nfe: f.chave.value || null,
                       arq: file ? drivePath : null, obs: f.obs.value.trim() || null, fonte: 'app', operador: W.op };
       await dbInsert('custos', [custo]);
       addDB('custos', { ...custo, desc, comp: f.data.value.slice(0,7) });
