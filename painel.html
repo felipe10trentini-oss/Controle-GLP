@@ -545,7 +545,7 @@ function kmRegistros(v){
   (DB.leit||[]).filter(r=>r.veic===v).forEach(r=>rows.push({ data:String(r.data), km:r.km, origem: r.operador ? `App · ${r.operador}` : (r.origem==='planilha semanal' ? 'Planilha semanal' : cap(r.origem||'leitura')), obs:r.obs||null, src:'leit', rid:r.id }));
   (DB.abast||[]).filter(a=>a.veic===v && a.km).forEach(a=>rows.push({ data:String(a.data), km:a.km, origem: a.operador ? `App · ${a.operador}` : 'Abastecimento', obs:null, src:'abast', rid:a.id }));
   // o km de chegada do trajeto lançado no app vale como leitura (só neste lugar: não é gravado de novo em km_leituras)
-  (DB.traj||[]).filter(t=>t.veic===v && t.fonte==='app' && t.km_chegada).forEach(t=>rows.push({ data:String(t.data), km:t.km_chegada, origem:`App · ${t.motorista||'trajeto'} (trajeto)`, obs:null, src:'traj', rid:t.id }));
+  (DB.traj||[]).filter(t=>t.veic===v && (t.fonte==='app' || t.fonte==='foto') && t.km_chegada).forEach(t=>rows.push({ data:String(t.data), km:t.km_chegada, origem:`App · ${t.motorista||'trajeto'} (trajeto)`, obs:null, src:'traj', rid:t.id }));
   const seen = new Set();
   const uniq = rows.filter(r=>{ const k = r.data + '|' + r.km; if(seen.has(k)) return false; seen.add(k); return true; });
   uniq.sort((a,b)=>a.data.localeCompare(b.data) || a.km - b.km);
@@ -1855,6 +1855,12 @@ function ultimaLeitura(v){
   const b = c && c.km_atual ? { veic:v, km:c.km_atual, data:String(c.km_data||'') } : null;
   return a && b ? (b.km > a.km ? b : a) : (a || b || null);
 }
+// abastecimento imediatamente anterior (por data) ao que está sendo lançado; o operador só conhece o mais recente (pela função do banco)
+function abastAntes(v, data){
+  const p = (DB.abast||[]).filter(a=>a.veic===v && a.km && String(a.data) <= String(data)).sort((a,b)=>String(b.data).localeCompare(String(a.data)) || b.km - a.km)[0];
+  if(p) return p;
+  const c = KMC[v]; return c && c.abast_km && String(c.abast_data) <= String(data) ? { km:c.abast_km, data:String(c.abast_data) } : null;
+}
 function ultimoAbast(v){
   const p = (DB.abast||[]).filter(a=>a.veic===v && a.km).sort((a,b)=>String(b.data).localeCompare(String(a.data)) || b.km - a.km)[0];
   const c = KMC[v];
@@ -1973,12 +1979,12 @@ function bindNfe(){
     if(isF){
       L = parseFloat(f.litros.value); km = parseInt(f.km.value, 10);
       if(!(L>0) || !(km>0)){ msgBox('No abastecimento, informe os litros e o km atual.', 'bad'); return; }
-      const last = ultimaLeitura(W.veic);
-      if(last && km < last.km){ msgBox(`O km informado (${N0(km)}) é menor que a última leitura (${N0(last.km)} km em ${dBR(last.data)}). Confira o odômetro.`, 'bad'); return; }
+      // notas podem ser lançadas fora de ordem: o km pode ser menor que o da última leitura; a comparação é com o abastecimento anterior pela DATA da nota
       if(!f.dataset.warned){
-        const prev = ultimoAbast(W.veic);
-        const kml = prev ? (km - prev.km) / L : null;
-        if(kml!=null && f.cheio.checked && (kml < 2 || kml > 25)){ f.dataset.warned = '1'; msgBox(`Isso dá ${N1(kml)} km/L (${N0(km - prev.km)} km desde o último abastecimento, em ${dBR(prev.data)}). Confira os litros e o km. Para salvar assim mesmo, toque em “Salvar nota” de novo.`, 'warn'); return; }
+        const prev = abastAntes(W.veic, f.data.value);
+        const kml = prev && km > prev.km ? (km - prev.km) / L : null;
+        if(prev && km <= prev.km){ f.dataset.warned = '1'; msgBox(`O km informado (${N0(km)}) não é maior que o do abastecimento anterior (${N0(prev.km)} km em ${dBR(prev.data)}). Confira a data e o km. Para salvar assim mesmo, toque em “Salvar nota” de novo.`, 'warn'); return; }
+        if(kml!=null && f.cheio.checked && (kml < 2 || kml > 25)){ f.dataset.warned = '1'; msgBox(`Isso dá ${N1(kml)} km/L (${N0(km - prev.km)} km desde o abastecimento anterior, em ${dBR(prev.data)}). Confira os litros e o km. Para salvar assim mesmo, toque em “Salvar nota” de novo.`, 'warn'); return; }
       }
     }
     setSending(true, 'Salvando…'); msgBox('');
@@ -2001,13 +2007,18 @@ function bindNfe(){
       if(file){ const ar = { id: uid('ar'), tipo:'nf', ref_id: custoId, veic: W.veic, nome: drivePath.split('/').pop(), caminho_drive: 'Controle veículos\\Notas\\' + drivePath.replace(/\//g,'\\'), storage_path: stPath, operador: W.op }; await dbInsert('arquivos_painel', [ar]); addDB('arqs', ar); }
       let extra = file ? 'Foto da nota enviada e arquivada.' : 'Sem foto da nota.';
       if(isF){
-        const prev = ultimoAbast(W.veic);
+        const prev = abastAntes(W.veic, f.data.value);
         const kmrod = prev ? km - prev.km : null;
         const ab = { id: uid('ab'), data: f.data.value, veic: W.veic, nfe: custo.nf, posto: f.desc.value.trim(), cidade: f.cidade.value.trim() || null, comb: COMB_FIXO[W.veic] || f.comb.value, litros: L, vlitro: r2(v/L), total: custo.valor,
                      km, kmrod: kmrod>0 ? kmrod : null, kml: (kmrod>0 && f.cheio.checked) ? Math.round(kmrod/L*100)/100 : null, cheio: f.cheio.checked, operador: W.op, custo_id: custoId, fonte: 'app' };
         await dbInsert('abastecimentos', [ab]); addDB('abast', ab);
         // o km fica só no abastecimento (a tela de Quilometragem já lê de lá), sem repetir em km_leituras
-        KMC[W.veic] = { ...(KMC[W.veic]||{}), km_atual: Math.max(km, (KMC[W.veic]||{}).km_atual||0), km_data: f.data.value, abast_km: km, abast_data: f.data.value };
+        const kc = KMC[W.veic] || {};
+        KMC[W.veic] = { ...kc, km_atual: Math.max(km, kc.km_atual||0), km_data: km >= (kc.km_atual||0) ? f.data.value : kc.km_data,
+                        ...(String(f.data.value) >= String(kc.abast_data||'') ? { abast_km: km, abast_data: f.data.value } : {}) };
+        // o abastecimento seguinte (por data) passa a contar a partir deste: refaz km rodados e km/L dele
+        const seg = (DB.abast||[]).filter(x=>x.id!==ab.id && x.veic===W.veic && x.km && String(x.data) >= String(ab.data)).sort((a,b)=>String(a.data).localeCompare(String(b.data)) || a.km-b.km)[0];
+        if(seg && typeof recalcAbast === 'function') await recalcAbast(seg);
         extra += ` Também registrado: abastecimento de ${N1(L)} L${ab.kml?` (${N1(ab.kml)} km/L)`:''} e o km de ${N0(km)}.`;
       }
       W.done = { titulo:'Nota lançada', resumo:`${cap(cat)} · R$ ${BRL(custo.valor)} · NF ${custo.nf}`, extra, tipo:'nfe' };
