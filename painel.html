@@ -1301,7 +1301,7 @@ function tratVeic(v){
       ${part.map(s=>{ const n = fotosDe(s), futuro = s.data > TODAY;
         return `<tr class="clk" data-t="${s.id}"><td>${dBR(s.data)}${futuro?' <span class="badge info">programado</span>':''}</td><td>${esc(s.hora)||'–'}</td>
           <td>${s.ciclo!=null?`<b>#${s.ciclo}</b>${s.pobs?` <span class="badge info">${esc(s.pobs)}</span>`:''}`:(/comunicado/i.test(s.cert||'')?'<span class="badge">comunicado</span>':'<span class="muted">–</span>')}</td>
-          <td class="wrap"><b>${esc(s.cliente)||'–'}</b>${s.local?`<div class="muted" style="font-size:12px">${esc(s.local)}</div>`:''}</td>
+          <td class="wrap"><b>${esc(s.cliente)||'–'}</b>${s.fonte==='glp'?' <span class="badge info" title="Lançado no Controle GLP; ciclo, certificado e fotos entram quando a planilha receber a linha">do Controle GLP</span>':''}${s.local?`<div class="muted" style="font-size:12px">${esc(s.local)}</div>`:''}</td>
           <td class="wrap" style="max-width:220px">${esc(s.material)||'<span class="muted">–</span>'}</td><td class="num">${s.decl?N0(s.decl):'<span class="muted">–</span>'}</td>
           <td>${esc(s.operador)||'–'}</td><td>${esc(s.cert)||'–'}</td><td>${esc(s.nfe)||'–'}</td>
           <td class="num">${n?`<span class="badge good">${n}</span>`:'<span class="muted">–</span>'}</td></tr>`; }).join('')}
