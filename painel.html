@@ -518,6 +518,7 @@ const LOADERS = {
   sup_sai: async()=> (await fetchAll('suportes_saida','id')).map(r=>({ ...r, qtd:num(r.qtd) })),
   sup_cic: async()=> (await fetchAll('suportes_ciclos','chave')).map(r=>({ ...r, temp:num(r.temp), tratada:num(r.tratada), saldo:num(r.saldo) })),
   sup_cont: async()=> (await fetchAll('suportes_contagem','id')).map(r=>({ ...r, saldo_sistema:num(r.saldo_sistema), saldo_fisico:num(r.saldo_fisico) })),
+  sup_aj: async()=> (await fetchAll('suportes_ajustes','created_at')).map(r=>({ ...r, delta:num(r.delta), fisico:num(r.fisico) })),
   serv: async()=> (await fetchAll('servicos_ht','id')).map(r=>({ ...r, decl:num(r.decl), fotos:r.fotos||0 })),
   traj: async()=> await fetchAll('utilizacao_trajetos','data'),
   folhas: async()=> await fetchAll('utilizacao_folhas','id'),
@@ -704,7 +705,7 @@ async function go(){
     else if(key==='custos'){ await need('veiculos','custos','abast','leit','traj','manut','arqs'); if(token===goToken) custos(); }
     else if(key==='km'){ await need('veiculos','leit','abast','traj'); if(token===goToken) (sub ? kmVeic(decodeURIComponent(sub).toUpperCase()) : km()); }
     else if(key==='manutencao'){ await need('veiculos','manut','oleo','leit','abast','traj','custos','contatos','avcfg','avlog'); if(token===goToken) manutencao(); }
-    else if(key==='suportes'){ await need('sup_ent','sup_sai','sup_cic','sup_cont'); if(token===goToken) suportes(); }
+    else if(key==='suportes'){ await need('sup_ent','sup_sai','sup_cic','sup_cont','sup_aj'); if(token===goToken) suportes(); }
     else if(key==='tratamentos'){ await need('veiculos','serv','arqs'); if(token===goToken) (sub && sub2 ? tratDetalhe(decodeURIComponent(sub).toUpperCase(), sub2) : sub ? tratVeic(decodeURIComponent(sub).toUpperCase()) : tratamentos()); }
     else if(key==='utilizacao'){ await need('veiculos','traj','folhas','leit'); if(token===goToken) (sub ? utilVeic(decodeURIComponent(sub).toUpperCase()) : utilizacao()); }
     else if(key==='lancar'){
@@ -1220,7 +1221,12 @@ function suportesCalc(){
   const ciclos = DB.sup_ent.map(e=>{
     const sai = validas.filter(s=>s.ciclo===e.chave); const vend = sum(sai, s=>s.qtd);
     const cic = DB.sup_cic.find(x=>x.chave===e.chave) || {}; const ct = cont[normV(e.veic)+'|'+e.ciclo];
-    return { ...e, temp:cic.temp, vendidos:vend, saldo: e.qtd - vend, saldo_planilha: cic.saldo, fisico: ct ? ct.saldo_fisico : null, contagem: ct ? ct.data_contagem : null };
+    // ajustes de estoque (perda, sobra, zerar): somam ao saldo; o último ajuste/contagem informado vale como estoque físico se for mais recente que a planilha
+    const ajs = (DB.sup_aj||[]).filter(a=>a.chave===e.chave), adj = sum(ajs, a=>a.delta);
+    const ult = ajs.slice().sort((x,y)=>String(y.data).localeCompare(String(x.data)) || String(y.created_at||'').localeCompare(String(x.created_at||'')))[0];
+    let fisico = ct ? ct.saldo_fisico : null, contagem = ct ? ct.data_contagem : null;
+    if(ult && (!contagem || String(ult.data) >= String(contagem))){ fisico = ult.fisico; contagem = ult.data; }
+    return { ...e, temp:cic.temp, vendidos:vend, ajuste: adj, saldo: e.qtd - vend + adj, saldo_planilha: cic.saldo, fisico, contagem };
   });
   return { ciclos, validas, ent: sum(DB.sup_ent, e=>e.qtd), sai: sum(validas, s=>s.qtd) };
 }
@@ -1240,7 +1246,7 @@ function suportes(){
     <div class="card"><div class="l">Saldo no sistema</div><div class="v">${N0(saldoTot)}</div><div class="s">entradas − saídas</div></div>
     <div class="card"><div class="l">Estoque físico</div><div class="v">${N0(fisTot)}</div><div class="s">${dataCont?'contagem de '+dBR(dataCont):'sem contagem'}${saldoTot-fisTot>0?` · diferença ${N0(saldoTot-fisTot)}`:''}</div></div>
   </div>
-  <div class="tabs" id="s-tabs">${tab('estoque','Estoque por ciclo')}${tab('saidas','Saídas')}${tab('entradas','Entradas')}</div>
+  <div class="tabs" id="s-tabs">${tab('estoque','Estoque por ciclo')}${tab('saidas','Saídas')}${tab('entradas','Entradas')}${tab('ajustes',`Ajustes de estoque${(DB.sup_aj||[]).length?' ('+DB.sup_aj.length+')':''}`)}</div>
   <div id="s-body"></div>`;
   $('#s-in').onclick = ()=>{ const f = $('#form-sup-in'); f.reset(); f.data.value = TODAY; $('#dlg-sup-in').showModal(); };
   $('#s-out').onclick = ()=>{
@@ -1256,11 +1262,11 @@ function suportes(){
   $$('#s-tabs button').forEach(b=>b.onclick = ()=>{ SS.tab = b.dataset.t; suportes(); });
   const body = $('#s-body');
   if(SS.tab==='estoque'){
-    body.innerHTML = `<div class="grid2"><div class="table-wrap"><table><thead><tr><th>Ciclo</th><th>Veículo</th><th>Entrada</th><th class="num">Tratados</th><th class="num">Temp.</th><th>Vendido</th><th class="num">Saldo sistema</th><th class="num">Físico</th><th class="num">Dif.</th></tr></thead><tbody>
+    body.innerHTML = `<div class="grid2"><div class="table-wrap"><table><thead><tr><th>Ciclo</th><th>Veículo</th><th>Entrada</th><th class="num">Tratados</th><th class="num">Temp.</th><th>Vendido</th><th class="num">Saldo sistema</th><th class="num">Físico</th><th class="num">Dif.</th><th>Ajuste</th></tr></thead><tbody>
       ${S.ciclos.map(c=>{ const pct = c.qtd ? Math.min(100, c.vendidos/c.qtd*100) : 0; const dif = c.fisico!=null ? c.fisico - c.saldo : null;
         return `<tr><td><b>${esc(c.ciclo)}</b></td><td>${esc(c.veic)}</td><td>${dBR(c.data)}</td><td class="num">${N0(c.qtd)}</td><td class="num">${c.temp!=null?c.temp+' °C':'–'}</td>
-          <td><div class="bar" style="min-width:80px"><i style="width:${pct}%"></i></div></td><td class="num">${N0(c.saldo)}</td><td class="num">${c.fisico!=null?N0(c.fisico):'<span class="muted">–</span>'}</td>
-          <td class="num">${dif==null?'–':dif===0?'<span class="badge good">ok</span>':`<span class="badge bad">${dif>0?'+':''}${N0(dif)}</span>`}</td></tr>`; }).join('')}</tbody></table></div>
+          <td><div class="bar" style="min-width:80px"><i style="width:${pct}%"></i></div></td><td class="num">${N0(c.saldo)}${c.ajuste?`<div class="mini" title="Ajustes de estoque lançados neste ciclo">ajuste ${c.ajuste>0?'+':''}${N0(c.ajuste)}</div>`:''}</td><td class="num">${c.fisico!=null?N0(c.fisico):'<span class="muted">–</span>'}</td>
+          <td class="num">${dif==null?'–':dif===0?'<span class="badge good">ok</span>':`<span class="badge bad">${dif>0?'+':''}${N0(dif)}</span>`}</td><td>${btnEd('sa', c.chave).replace('>Editar<', '>Ajustar<')}</td></tr>`; }).join('')}</tbody></table></div>
       <div class="card"><h4>Vendas por cliente</h4><div class="chartbox" style="height:360px"><canvas id="s1"></canvas></div></div></div>
       <p class="hint">“Saldo sistema” = entrada do ciclo − saídas lançadas. “Físico” é a última contagem; “Dif.” = físico − sistema (vermelho = conferir).</p>`;
     const top = porCli.slice(0,10);
@@ -1272,6 +1278,16 @@ function suportes(){
       <div class="table-wrap"><table><thead><tr><th>NF</th><th>Ciclo</th><th>Cliente</th><th>CNPJ</th><th class="num">Quantidade</th><th>Certificado</th><th></th></tr></thead><tbody>
       ${rows.map(s=>{ const cancel = /INATIVA|CANCELADA/i.test(s.cliente||''); return `<tr><td>${esc(s.nf)}</td><td>${esc(s.ciclo)||'<span class="muted">–</span>'}</td><td>${cancel?`<span class="badge bad">${esc(s.cliente)}</span>`:(s.cliente?`<b>${esc(s.cliente)}</b>`:'<span class="badge warn">sem cliente informado</span>')}</td><td>${esc(s.cnpj)||'<span class="muted">–</span>'}</td><td class="num">${s.qtd!=null?N0(s.qtd):'–'}</td><td>${esc(s.cert)||'<span class="muted">–</span>'}</td><td>${btnEd('ss', s.id)}</td></tr>`; }).join('')}</tbody></table></div>`;
     $('#s-cli').onchange = e=>{ SS.cli = e.target.value; suportes(); };
+  } else if(SS.tab==='ajustes'){
+    const aj = (DB.sup_aj||[]).slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)) || String(b.created_at||'').localeCompare(String(a.created_at||'')));
+    body.innerHTML = aj.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Ciclo</th><th class="num">Ajuste</th><th class="num">Físico informado</th><th>Motivo</th><th>Observação</th><th>Por</th><th></th></tr></thead><tbody>
+      ${aj.map(a=>`<tr><td>${dBR(a.data)}</td><td><b>${esc(a.chave)}</b></td><td class="num"><span class="badge ${a.delta<0?'bad':a.delta>0?'good':''}">${a.delta>0?'+':''}${N0(a.delta)}</span></td><td class="num">${N0(a.fisico)}</td><td>${esc(a.motivo)||''}</td><td class="wrap">${esc(a.obs)||''}</td><td>${esc(a.usuario)||''}</td><td><button class="btn sm" data-aj-del="${esc(a.id)}">Desfazer</button></td></tr>`).join('')}</tbody></table></div>
+      <p class="hint">Cada ajuste soma ou subtrai do saldo do ciclo. “Desfazer” apaga o ajuste e devolve o saldo calculado pelas notas.</p>`
+      : '<div class="card empty">Nenhum ajuste lançado. Use o botão “Ajustar” ao lado de cada ciclo em Estoque por ciclo.</div>';
+    $$('[data-aj-del]').forEach(b=>b.onclick = async ()=>{
+      if(!confirm('Desfazer este ajuste de estoque?')) return;
+      try{ await dbDelete('suportes_ajustes', 'id', b.dataset.ajDel); DB.sup_aj = DB.sup_aj.filter(x=>x.id !== b.dataset.ajDel); toast('Ajuste desfeito.'); suportes(); }catch(e){ toast('Erro: ' + e.message, true); }
+    });
   } else {
     body.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Ciclo</th><th>Veículo</th><th>Fornecedor</th><th>NF fornecedor</th><th>Material</th><th class="num">Qtd.</th><th>Comunicado</th><th>Certificado</th><th></th></tr></thead><tbody>
       ${DB.sup_ent.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data))).map(e=>`<tr><td>${dBR(e.data)}</td><td><b>${esc(e.ciclo)}</b></td><td>${esc(e.veic)}</td><td>${esc(e.fornecedor)}</td><td>${esc(e.nf)}</td><td class="wrap">${esc(e.material)}</td><td class="num">${N0(e.qtd)}</td><td>${esc(e.comunicado)}</td><td>${esc(e.cert)}</td><td>${btnEd('se', e.id)}</td></tr>`).join('')}</tbody></table></div>`;
@@ -1837,12 +1853,13 @@ function abrirEdicao(o){
     try{ await o.onDelete(); d.close(); toast('Lançamento excluído.'); await refazerTela(); }
     catch(err){ console.error(err); msg('Não foi possível excluir: ' + (err.message || err)); }
   };
+  if(o.montado) o.montado(f);
   d.showModal();
 }
 document.addEventListener('click', e=>{
   const b = e.target.closest('[data-ed]'); if(!b) return;
   const [tipo, ...r] = b.dataset.ed.split('|'), id = r.join('|');
-  ({ cu:editarCusto, ab:editarAbast, kmleit:editarLeitura, mn:editarManut, tj:editarTrajeto, se:editarSupEntrada, ss:editarSupSaida }[tipo] || (()=>{}))(id);
+  ({ cu:editarCusto, ab:editarAbast, kmleit:editarLeitura, mn:editarManut, tj:editarTrajeto, se:editarSupEntrada, ss:editarSupSaida, sa:editarSupAjuste }[tipo] || (()=>{}))(id);
 });
 
 /* ---- custos (e o abastecimento / manutenção ligados a ele) ---- */
@@ -1990,6 +2007,37 @@ function editarTrajeto(id){
       await dbUpdate('utilizacao_trajetos', { ...p, ...carimbo() }, 'id', id); Object.assign(t, p);
     },
     onDelete: async ()=>{ await dbDelete('utilizacao_trajetos', 'id', id); DB.traj = DB.traj.filter(x=>x.id !== id); }
+  });
+}
+
+/* ---- ajuste de estoque de suportes (zerar, perda, sobra, contagem) ---- */
+function editarSupAjuste(chave){
+  const c = suportesCalc().ciclos.find(x=>x.chave === chave); if(!c) return;
+  const MOTIVOS = ['Contagem física','Perda no caminho','Sobra (suporte a mais)','Zerar estoque','Outro'];
+  abrirEdicao({
+    titulo: `Ajustar estoque · ciclo ${c.ciclo} · ${c.veic}`,
+    aviso: `Entrada <b>${N0(c.qtd)}</b> · vendidos <b>${N0(c.vendidos)}</b>${c.ajuste ? ` · ajustes <b>${c.ajuste>0?'+':''}${N0(c.ajuste)}</b>` : ''} · saldo no sistema <b>${N0(c.saldo)}</b>${c.fisico!=null ? ` · último físico <b>${N0(c.fisico)}</b>${c.contagem?' em '+dBR(c.contagem):''}` : ''}.<br>Informe quanto existe de verdade. A diferença fica registrada como ajuste (com data, motivo e quem fez) e dá para desfazer.`,
+    campos: [
+      { k:'data', label:'Data da contagem', type:'date', required:true },
+      { k:'fisico', label:'Estoque físico real (unidades)', type:'number', required:true },
+      { k:'motivo', label:'Motivo', type:'select', opts: MOTIVOS, full:true },
+      { k:'obs', label:'Observação', full:true }
+    ],
+    valores: { data: TODAY, fisico: c.saldo, motivo: 'Contagem física', obs: '' },
+    montado: f=>{
+      const ajusta = ()=>{ const v = parseFloat(f.fisico.value); const hint = $('#ed-delta') || (()=>{ const h = document.createElement('div'); h.id = 'ed-delta'; h.className = 'hintbox'; h.style.marginTop = '8px'; f.querySelector('.fgrid').after(h); return h; })();
+        hint.textContent = isNaN(v) ? '' : v === c.saldo ? 'Igual ao saldo do sistema: nenhum ajuste de quantidade (só registra a contagem).' : `Ajuste de ${v - c.saldo > 0 ? '+' : ''}${N0(v - c.saldo)} un. (saldo passa de ${N0(c.saldo)} para ${N0(v)}).`; };
+      f.motivo.onchange = ()=>{ if(f.motivo.value === 'Zerar estoque') f.fisico.value = 0; ajusta(); };
+      f.fisico.oninput = ajusta; ajusta();
+    },
+    onSave: async v=>{
+      const fis = Math.round(v.fisico);
+      if(v.fisico == null || !(fis >= 0)) throw new Error('Informe o estoque físico (zero ou mais).');
+      if(!v.data) throw new Error('Informe a data da contagem.');
+      if(v.motivo === 'Outro' && !v.obs) throw new Error('Explique o motivo na observação.');
+      const row = { id: uid('aj'), chave, data: v.data, delta: fis - c.saldo, fisico: fis, motivo: v.motivo, obs: v.obs, usuario: USER || 'Escritório' };
+      await dbInsert('suportes_ajustes', [row]); DB.sup_aj.push({ ...row, created_at: new Date().toISOString() });
+    }
   });
 }
 
