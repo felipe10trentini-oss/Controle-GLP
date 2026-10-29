@@ -637,7 +637,7 @@ async function startApp(){
 })();
 
 /* ============================ roteamento ============================ */
-const NAMES = { glp:'Controle GLP', dedetizacao:'Dedetização', custos:'Controle de custos', km:'Quilometragem', manutencao:'Manutenção do veículo', suportes:'Venda de suportes', tratamentos:'Tratamentos HT', utilizacao:'Utilização de veículos', lancar:'Lançamento', configuracoes:'Configurações' };
+const NAMES = { frota:'Veículos', glp:'Controle GLP', dedetizacao:'Dedetização', custos:'Controle de custos', km:'Quilometragem', manutencao:'Manutenção do veículo', suportes:'Venda de suportes', tratamentos:'Tratamentos HT', utilizacao:'Utilização de veículos', lancar:'Lançamento', configuracoes:'Configurações' };
 function semAcesso(){
   $('#app').innerHTML = '<div class="card empty" style="padding:40px;text-align:center"><b>Você não tem acesso a esta área.</b><br><span class="mini">Fale com o administrador para liberar.</span><br><br><a class="btn" href="#/" style="text-decoration:none">Voltar ao início</a></div>';
 }
@@ -649,10 +649,12 @@ async function go(){
   const [path, qs] = raw.split('?'); const q = Object.fromEntries(new URLSearchParams(qs||''));
   const [key, sub, sub2] = path.split('/');
   $('#app').innerHTML = '<div class="loading">Carregando…</div>';
-  if(key && key !== 'lancar' && NAMES[key] && !pode(AREA_DE[key] || key)){ semAcesso(); $('#crumb').innerHTML = ''; return; }
+  if(key === 'frota' && !podeFrota()){ semAcesso(); $('#crumb').innerHTML = ''; return; }
+  if(key && key !== 'lancar' && key !== 'frota' && NAMES[key] && !pode(AREA_DE[key] || key)){ semAcesso(); $('#crumb').innerHTML = ''; return; }
   if(key === 'lancar' && !CAPS.some(c=>podeLancar(c[0]))){ semAcesso(); $('#crumb').innerHTML = ''; return; }
   try{
     if(!key) home();
+    else if(key==='frota'){ await need('veiculos','leit','abast','traj','manut','oleo','custos'); if(token===goToken) (sub ? fichaVeic(decodeURIComponent(sub).toUpperCase()) : frota()); }
     else if(key==='glp' || key==='dedetizacao'){
       $('#app').innerHTML = `<iframe class="embed" title="${NAMES[key]}" src="${EMBED[key]}"></iframe>`;
     }
@@ -675,7 +677,8 @@ async function go(){
   }
   const trail = [];
   if(key && NAMES[key]){
-    if((key==='km' || key==='tratamentos' || key==='utilizacao') && sub){
+    if(key==='frota' && sub) trail.push('<a href="#/frota" style="text-decoration:none">Veículos</a>', `<b>${esc(decodeURIComponent(sub).toUpperCase())}</b>`);
+    else if((key==='km' || key==='tratamentos' || key==='utilizacao') && sub){
       trail.push(`<a href="#/${key}" style="text-decoration:none">${NAMES[key]}</a>`);
       if(sub2) trail.push(`<a href="#/${key}/${esc(sub)}" style="text-decoration:none">${esc(sub.toUpperCase())}</a>`, '<b>Ciclo</b>'); else trail.push(`<b>${esc(sub.toUpperCase())}</b>`);
     } else trail.push(`<b>${NAMES[key]}</b>`);
@@ -693,15 +696,13 @@ function home(){
     ['trat', 'Tratamentos HT', 'Todos os tratamentos de cada veículo, com cliente, ciclo e as fotos salvas no drive.', '#/tratamentos', 'tratamentos'],
     ['os', 'Dedetização', 'Ordens de serviço de dedetização, desratização e fumigação.', OS_URL, 'os'],
     ['custos', 'Controle de custos', 'Combustível, hotel, alimentação e demais gastos dos veículos, com a nota de cada um.', '#/custos', 'custos'],
-    ['km', 'Quilometragem', 'Leituras do odômetro de cada veículo e km rodados por mês.', '#/km', 'km'],
-    ['util', 'Utilização de veículos', 'Trajetos dos operadores: saída, chegada, km, origem, destino e as folhas preenchidas.', '#/utilizacao', 'utilizacao'],
-    ['manut', 'Manutenção do veículo', 'Troca de óleo, revisões e histórico de serviços de cada veículo.', '#/manutencao', 'manutencao'],
+    ['util', 'Veículos', 'Ficha de cada veículo: km, troca de óleo, custos, abastecimentos, trajetos e manutenção.', '#/frota', 'frota'],
     ['suportes', 'Venda de suportes', 'Controle de estoque dos suportes tratados: entradas, saídas e saldo.', '#/suportes', 'suportes'],
-    ['config', 'Configurações', 'Operadores, usuários e senhas, abas liberadas para cada pessoa e lista de veículos.', '#/configuracoes', 'configuracoes']
-  ].filter(t=>pode(t[4]));
+    ['config', 'Configurações', 'Operadores, usuários e perfis de acesso, lista de veículos, avisos e exportação de dados.', '#/configuracoes', 'configuracoes']
+  ].filter(t=>t[4] === 'frota' ? podeFrota() : pode(t[4]));
   if(soOperador()) return homeOperador();
   $('#app').innerHTML = `
-  <section class="hero"><h2>Olá, ${esc((PERFIL.nome||'').split(' ')[0] || 'bem-vindo')}</h2><p>Escolha uma área para trabalhar.</p></section>
+  <section class="hero"><h2>Olá, ${esc((PERFIL.nome||'').split(' ')[0] || 'bem-vindo')}</h2><p>Escolha uma área para trabalhar.</p>${(pode('custos') || pode('km') || pode('manutencao')) ? `<p class="mini" style="margin-top:6px">Custos, abastecimento, quilometragem e manutenção são lançados só aqui desde ${CORTE_PLANILHAS}: as planilhas antigas não são mais importadas.</p>` : ''}</section>
   <div class="tiles">${T.map(t=>`<a class="tile" href="${t[3]}"><div class="ico">${ICON[t[0]]}</div><div><h3>${t[1]}</h3><div class="sub">${t[2]}</div></div></a>`).join('')}</div>`;
 }
 // tela do operador: só os botões de lançamento liberados para o login dele
@@ -1466,13 +1467,13 @@ async function carregarUsuarios(){
 async function configuracoes(){
   if(!pode('configuracoes')){ semAcesso(); return; }
   if(CF.users === null) await carregarUsuarios();
-  const tabs = [['operadores','Operadores'],['usuarios','Usuários e acessos'],['veiculos','Veículos'],['avisos','Avisos']];
+  const tabs = [['operadores','Operadores'],['usuarios','Usuários e acessos'],['veiculos','Veículos'],['avisos','Avisos'],['dados','Dados e planilhas']];
   $('#app').innerHTML = `
   <div class="pagehead"><div><h2>Configurações</h2><p>Quem acessa o Controle Geral, o que cada pessoa pode fazer e a lista de veículos.</p></div></div>
   <div class="tabs">${tabs.map(t=>`<button data-cft="${t[0]}" class="${CF.tab===t[0]?'on':''}">${t[1]}</button>`).join('')}</div>
   <div id="cf-body"></div>`;
   $$('[data-cft]').forEach(b=>b.onclick = ()=>{ CF.tab = b.dataset.cft; configuracoes(); });
-  ({ operadores:cfUsuarios, usuarios:cfUsuarios, veiculos:cfVeiculos, avisos:cfAvisos }[CF.tab])();
+  ({ operadores:cfUsuarios, usuarios:cfUsuarios, veiculos:cfVeiculos, avisos:cfAvisos, dados:cfDados }[CF.tab])();
 }
 
 /* ---- operadores e usuários ---- */
@@ -1489,25 +1490,37 @@ function cfUsuarios(){
   body.innerHTML = `
   <div class="pagehead" style="margin-bottom:10px"><div><p style="margin:0">${op ? 'Quem lança notas, fotos de folhas e fotos de tratamentos pelo celular. Cada operador tem o seu login e senha e só enxerga o que for liberado aqui.' : 'Quem entra no painel para consultar as áreas liberadas. Marque as abas que cada pessoa pode abrir.'}</p></div>
     <div class="acts"><button class="btn primary" id="cf-new">+ ${op ? 'Novo operador' : 'Novo usuário'}</button></div></div>
-  <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Login</th>${op ? '' : '<th>Tipo</th>'}<th>${op ? 'Pode fazer' : 'Abas liberadas'}</th><th>Último acesso</th><th>Situação</th><th></th></tr></thead><tbody>
-    ${lst.map(u=>`<tr><td><b>${esc(u.nome)}</b></td><td>${esc(loginDe(u))}</td>${op ? '' : `<td>${esc(TIPO_NOME[u.tipo]||u.tipo)}</td>`}<td class="wrap">${perm(u)}</td>
+  <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Login</th><th>Perfil</th><th>${op ? 'Pode fazer' : 'Abas liberadas'}</th><th>Último acesso</th><th>Situação</th><th></th></tr></thead><tbody>
+    ${lst.map(u=>`<tr><td><b>${esc(u.nome)}</b></td><td>${esc(loginDe(u))}</td><td><span class="badge info">${esc(nomePerfil(u))}</span></td><td class="wrap">${perm(u)}</td>
       <td>${u.ultimo_acesso ? dBR(String(u.ultimo_acesso).slice(0,10)) : '<span class="muted">nunca</span>'}</td>
       <td><span class="badge ${u.ativo ? 'good' : 'bad'}">${u.ativo ? 'Ativo' : 'Bloqueado'}</span></td>
       <td><button class="btn sm" data-cf-ed="${esc(u.id)}">Editar</button></td></tr>`).join('') || `<tr><td colspan="7" class="empty">Nenhum ${op ? 'operador' : 'usuário'} cadastrado.</td></tr>`}
   </tbody></table></div>
   <p class="hint">${op ? 'O operador entra no mesmo endereço do painel, com o login e a senha que você definir aqui, e vê só os botões de lançamento.' : 'Administradores acessam tudo, inclusive esta tela. Para bloquear alguém sem apagar o histórico, edite e desmarque “Acesso ativo”.'}</p>`;
-  $('#cf-new').onclick = ()=>editarUsuario(null, op ? 'operador' : 'usuario');
+  $('#cf-new').onclick = ()=>editarUsuario(null, op ? 'operador' : 'financeiro');
   $$('[data-cf-ed]').forEach(b=>b.onclick = ()=>editarUsuario(CF.users.find(u=>u.id===b.dataset.cfEd)));
 }
-function permBoxes(tipo, abas){
-  if(tipo === 'admin') return '<div class="hintbox">Administrador acessa todas as áreas e pode cadastrar usuários.</div>';
-  const lst = tipo === 'operador' ? CAPS : AREAS;
-  return `<div class="grp" style="margin:0 0 6px">${tipo === 'operador' ? 'O operador pode' : 'Abas que pode acessar'}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px">${lst.map(a=>`<label class="checkrow"><input type="checkbox" name="perm" value="${a[0]}" ${abas.includes(a[0]) ? 'checked' : ''}> ${esc(a[1])}</label>`).join('')}</div>`;
+// perfis prontos: escolhe-se o perfil e as permissões já vêm marcadas; dá para ajustar (vira "Personalizado")
+const PERFIS = {
+  operador:   { nome:'Operador',      tipo:'operador', abas:['lancar_nfe','lancar_folha','lancar_fotos'], desc:'Lança nota fiscal, foto da folha de quilometragem e fotos de tratamento pelo celular. Não vê dados.' },
+  financeiro: { nome:'Financeiro',    tipo:'usuario',  abas:['custos','km','utilizacao','manutencao','suportes'], desc:'Consulta e corrige custos, quilometragem, utilização, manutenção e suportes.' },
+  gestor:     { nome:'Gestor',        tipo:'usuario',  abas:['glp','tratamentos','os','custos','km','utilizacao','manutencao','suportes'], desc:'Acessa todas as áreas, menos Configurações.' },
+  dedetizacao:{ nome:'Dedetização',   tipo:'usuario',  abas:['os'], desc:'Só a Ordem de Serviço de dedetização.' },
+  admin:      { nome:'Administrador', tipo:'admin',    abas:[], desc:'Acessa tudo, inclusive Configurações (cadastro de usuários, operadores e veículos).' }
+};
+const mesmoConj = (a, b)=>a.length === b.length && a.every(x=>b.includes(x));
+const perfilDe = u => u.tipo === 'admin' ? 'admin' : (Object.keys(PERFIS).find(k=>k !== 'admin' && mesmoConj(PERFIS[k].abas, u.abas || [])) || 'personalizado');
+const nomePerfil = u => (PERFIS[perfilDe(u)] || { nome:'Personalizado' }).nome;
+function permBoxes(abas, admin){
+  if(admin) return '<div class="hintbox">Administrador acessa todas as áreas e pode cadastrar usuários.</div>';
+  const grp = (t, lst)=>`<div class="grp" style="margin:6px 0">${t}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px">${lst.map(a=>`<label class="checkrow"><input type="checkbox" name="perm" value="${a[0]}" ${abas.includes(a[0]) ? 'checked' : ''}> ${esc(a[1])}</label>`).join('')}</div>`;
+  return grp('Abas que pode abrir (consulta e correção)', AREAS) + grp('Pode lançar pelo celular', CAPS);
 }
-function editarUsuario(u, tipoNovo){
+function editarUsuario(u, perfilNovo){
   const novo = !u;
-  u = u || { tipo: tipoNovo || 'operador', abas: tipoNovo === 'operador' ? ['lancar_nfe','lancar_folha','lancar_fotos'] : [], ativo: true, nome:'', login:'' };
+  const p0 = PERFIS[perfilNovo || 'operador'];
+  u = u || { tipo: p0.tipo, abas: p0.abas.slice(), ativo: true, nome:'', login:'' };
+  const perfilAtual = novo ? (perfilNovo || 'operador') : perfilDe(u);
   const d = $('#dlg-user');
   d.innerHTML = `<form id="form-user" autocomplete="off">
     <h3>${novo ? 'Novo cadastro' : 'Editar: ' + esc(u.nome)}</h3>
@@ -1515,8 +1528,9 @@ function editarUsuario(u, tipoNovo){
       <div class="field"><label>Nome</label><input name="nome" value="${esc(u.nome)}" required></div>
       <div class="field"><label>Login (usuário)</label><input name="login" value="${esc(loginDe(u))}" ${novo ? '' : 'readonly'} placeholder="ex.: joao" autocapitalize="none" required></div>
       <div class="field"><label>${novo ? 'Senha (mín. 6 caracteres)' : 'Nova senha (opcional)'}</label><input name="senha" type="text" autocomplete="new-password" ${novo ? 'required' : ''} placeholder="${novo ? '' : 'deixe em branco para manter'}"></div>
-      <div class="field"><label>Tipo de acesso</label><select name="tipo"><option value="operador" ${u.tipo==='operador'?'selected':''}>Operador (só lança)</option><option value="usuario" ${u.tipo==='usuario'?'selected':''}>Usuário (consulta abas)</option><option value="admin" ${u.tipo==='admin'?'selected':''}>Administrador (tudo)</option></select></div>
-      <div class="full" id="uf-perm">${permBoxes(u.tipo, u.abas||[])}</div>
+      <div class="field"><label>Perfil</label><select name="perfil">${Object.entries(PERFIS).map(([k, p])=>`<option value="${k}" ${perfilAtual===k?'selected':''}>${p.nome}</option>`).join('')}<option value="personalizado" ${perfilAtual==='personalizado'?'selected':''}>Personalizado</option></select></div>
+      <div class="hintbox full" id="uf-desc"></div>
+      <div class="full" id="uf-perm">${permBoxes(u.abas||[], perfilAtual === 'admin')}</div>
       <div class="field full"><label class="checkrow" style="text-transform:none;letter-spacing:0;font-size:14px;color:var(--text)"><input type="checkbox" name="ativo" ${u.ativo ? 'checked' : ''}> Acesso ativo (desmarque para bloquear o login)</label></div>
     </div>
     <div class="hintbox" id="uf-msg" hidden></div>
@@ -1524,7 +1538,12 @@ function editarUsuario(u, tipoNovo){
   </form>`;
   const f = $('#form-user', d);
   const msg = (t)=>{ const m = $('#uf-msg'); m.textContent = t; m.className = 'hintbox bad'; m.hidden = !t; };
-  f.tipo.onchange = ()=>{ const t = f.tipo.value; const padrao = t === 'operador' ? ['lancar_nfe','lancar_folha','lancar_fotos'] : []; $('#uf-perm').innerHTML = permBoxes(t, padrao); };
+  const descPerfil = ()=>{ const p = PERFIS[f.perfil.value]; $('#uf-desc').textContent = p ? p.desc : 'Permissões escolhidas à mão: marque abaixo o que a pessoa pode abrir e lançar.'; };
+  f.perfil.onchange = ()=>{ const p = PERFIS[f.perfil.value]; if(p) $('#uf-perm').innerHTML = permBoxes(p.abas, f.perfil.value === 'admin'); descPerfil(); };
+  $('#uf-perm').addEventListener('change', ()=>{   // marcar/desmarcar à mão: volta ao perfil que bate com a seleção, ou vira Personalizado
+    const sel = $$('input[name="perm"]:checked', f).map(i=>i.value); f.perfil.value = perfilDe({ tipo:'usuario', abas: sel }); descPerfil();
+  });
+  descPerfil();
   $('#uf-cancel').onclick = ()=>d.close();
   if(!novo) $('#uf-del').onclick = async ()=>{
     if(!confirm(`Excluir o acesso de ${u.nome}? Os lançamentos já feitos continuam no histórico.`)) return;
@@ -1534,12 +1553,13 @@ function editarUsuario(u, tipoNovo){
   };
   f.onsubmit = async e=>{
     e.preventDefault(); msg('');
-    const nome = f.nome.value.trim(), tipo = f.tipo.value, ativo = f.ativo.checked, senha = f.senha.value;
-    const abas = tipo === 'admin' ? [] : $$('input[name="perm"]:checked', f).map(i=>i.value);
+    const nome = f.nome.value.trim(), ativo = f.ativo.checked, senha = f.senha.value, perfil = f.perfil.value;
+    const abas = perfil === 'admin' ? [] : $$('input[name="perm"]:checked', f).map(i=>i.value);
+    const tipo = perfil === 'admin' ? 'admin' : (abas.some(a=>AREAS.some(x=>x[0] === a)) ? 'usuario' : 'operador');
     const login = f.login.value.trim().toLowerCase();
     if(!nome || !login){ msg('Informe o nome e o login.'); return; }
     if(novo && !/^[a-z0-9._-]+$|^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(login)){ msg('O login deve ter só letras, números, ponto ou traço (sem espaços).'); return; }
-    if(tipo === 'operador' && !abas.length){ msg('Marque pelo menos uma permissão para o operador.'); return; }
+    if(perfil !== 'admin' && !abas.length){ msg('Marque pelo menos uma permissão.'); return; }
     if((novo || senha) && senha.length < 6){ msg('A senha precisa ter 6 ou mais caracteres.'); return; }
     const btn = $('button[type=submit]', f); btn.disabled = true;
     try{
@@ -1610,6 +1630,109 @@ function editarVeiculo(v){
 function cfAvisos(){
   $('#cf-body').innerHTML = '<div class="card" id="av-box"></div>';
   avisosBox();
+}
+
+/* ============================ VEÍCULOS (visão da frota e ficha de cada veículo) ============================ */
+const podeFrota = () => ['km','utilizacao','manutencao','custos'].some(pode);
+// atalhos da ficha para as telas completas já filtradas no veículo
+document.addEventListener('click', e=>{
+  const a = e.target.closest('[data-setcs]'); if(a){ CS.veic = a.dataset.setcs; CS.ano = ''; CS.mes = ''; CS.cat = ''; CS.q = ''; CS.tab = a.dataset.tab || 'lanc'; CS.shown = 50; }
+  const m = e.target.closest('[data-setms]'); if(m){ MS.veic = m.dataset.setms; MS.q = ''; }
+});
+
+function frota(){
+  const vs = ORDER.filter(v=>VEIC().some(x=>x.cod===v)), ka = kmAtual(), mesAtual = TODAY.slice(0,7);
+  const links = [['km','Quilometragem','#/km'], ['utilizacao','Utilização (trajetos e folhas)','#/utilizacao'], ['manutencao','Manutenção e óleo','#/manutencao'], ['custos','Custos dos veículos','#/custos']].filter(l=>pode(l[0]));
+  $('#app').innerHTML = `
+  <div class="pagehead"><div><h2>Veículos</h2><p>Escolha um veículo para ver a ficha completa: km, óleo, custos, abastecimentos, trajetos e manutenção.</p></div>
+    <div class="acts">${links.map(l=>`<a class="btn" href="${l[2]}" style="text-decoration:none;text-align:center">${l[1]}</a>`).join('')}</div></div>
+  <div class="vgrid">${vs.map(v=>{
+    const a = ka[v], nm = VEIC_NOME(v), o = oleoInfo(v), dias = a ? daysBetween(a.data, TODAY) : null;
+    const custoMes = pode('custos') ? sum(DB.custos.filter(l=>l.veic===v && l.comp===mesAtual), l=>l.valor) : null;
+    return `<a class="vcard link" href="#/frota/${v}"><div class="top"><div><div class="code">${v}</div><div class="nm">${nm.nome!==v?esc(nm.nome)+' · ':''}${esc(nm.grupo||'')}</div></div>
+      <span class="badge ${dias==null?'':dias>10?'warn':'good'}">${dias==null?'Sem leitura':dias>10?`km há ${dias} dias`:dias===0?'km hoje':`km há ${dias} d`}</span></div>
+      <div class="row"><span class="muted">Km atual</span><b>${a?N0(a.km):'–'}</b></div>
+      <div class="row"><span class="muted">Troca de óleo</span><b>${o && o.ultima && o.faltam!=null ? (o.faltam<0 ? `<span style="color:var(--bad)">vencida há ${N0(-o.faltam)} km</span>` : `em ${N0(o.faltam)} km`) : '–'}</b></div>
+      ${custoMes!=null ? `<div class="row"><span class="muted">Custo em ${mLabel(mesAtual)}</span><b>${R$(custoMes)}</b></div>` : ''}
+      <div class="go">Abrir a ficha →</div></a>`; }).join('')}</div>`;
+}
+
+function fichaVeic(v){
+  const nm = VEIC_NOME(v); if(!nm.cod){ location.hash = '#/frota'; return; }
+  const mesAtual = TODAY.slice(0,7), regs = kmRegistros(v), last = regs[regs.length-1], kmM = (kmMensal()[v]) || {}, o = oleoInfo(v);
+  const meses12 = []; { let [y, m] = mesAtual.split('-').map(Number); for(let i = 0; i < 12; i++){ meses12.unshift(`${y}-${String(m).padStart(2,'0')}`); m--; if(m === 0){ m = 12; y--; } } }
+  const cu = pode('custos') ? DB.custos.filter(l=>l.veic===v) : [];
+  const porMes = m => sum(cu.filter(l=>l.comp===m), l=>l.valor);
+  const tot12 = sum(meses12, porMes), km12 = sum(meses12, m=>kmM[m] || 0);
+  const ab = DB.abast.filter(a=>a.veic===v).sort((a,b)=>String(b.data).localeCompare(String(a.data)));
+  const kmls = ab.filter(a=>a.kml).slice(0, 6).map(a=>a.kml);
+  const tr = pode('utilizacao') ? DB.traj.filter(t=>t.veic===v).sort((a,b)=>String(b.data).localeCompare(String(a.data)) || (b.saida||'').localeCompare(a.saida||'')) : [];
+  const mn = pode('manutencao') ? DB.manut.filter(m=>m.veic===v && (m.servico||m.empresa)).sort((a,b)=>String(b.data||'').localeCompare(String(a.data||''))) : [];
+  const lanc = [['custos','lancar_nfe','nfe','+ Nota'], ['utilizacao','lancar_trajeto','trajeto','+ Trajeto'], ['km','lancar_km','km','+ Leitura de km']].filter(l=>pode(l[0]) || pode(l[1]));
+  const ver = (txt, href, attrs='')=>`<a href="${href}" ${attrs} style="text-decoration:none;font-size:13px">${txt} →</a>`;
+  $('#app').innerHTML = `
+  <a href="#/frota" style="text-decoration:none;color:var(--text-muted);font-size:13px">← Veículos</a>
+  <div class="pagehead" style="margin-top:6px"><div><h2>${v}</h2><p>${nm.nome!==v?esc(nm.nome)+' · ':''}${esc(nm.grupo||'')}${nm.placa?' · placa '+esc(nm.placa):''}${nm.combustivel?' · '+esc(nm.combustivel):''}</p></div>
+    <div class="acts">${lanc.map(l=>`<a class="btn ${l[2]==='nfe'?'primary':''}" href="#/lancar?tipo=${l[2]}&veic=${v}" style="text-decoration:none;text-align:center">${l[3]}</a>`).join('')}</div></div>
+  <div class="cards">
+    <div class="card"><div class="l">Km atual</div><div class="v">${last?N0(last.km):'–'}</div><div class="s">${last?dBR(last.data)+' · há '+daysBetween(last.data, TODAY)+' dias':'sem leitura'}</div></div>
+    <div class="card"><div class="l">Km em ${mLabel(mesAtual)}</div><div class="v">${kmM[mesAtual]!=null?N0(kmM[mesAtual]):'–'}</div><div class="s">parcial, até a última leitura</div></div>
+    <div class="card"><div class="l">Troca de óleo</div><div class="v" style="color:${o&&o.nivel==='bad'?'var(--bad)':o&&o.nivel==='warn'?'var(--warn)':'inherit'}">${o && o.ultima && o.faltam!=null ? (o.faltam<0?'vencida':N0(o.faltam)+' km') : '–'}</div><div class="s">${o&&o.ultima?'última em '+dBR(o.ultima)+' · próxima aos '+N0(o.proxima)+' km':'sem registro'}</div></div>
+    ${pode('custos') ? `<div class="card"><div class="l">Custo em ${mLabel(mesAtual)}</div><div class="v">${R$k(porMes(mesAtual))}</div><div class="s">${N0(cu.filter(l=>l.comp===mesAtual).length)} lançamentos</div></div>
+    <div class="card"><div class="l">Custo nos últimos 12 meses</div><div class="v">${R$k(tot12)}</div><div class="s">${km12 && tot12 ? 'R$ '+BRL(tot12/km12)+' por km rodado' : ''}</div></div>` : ''}
+    <div class="card"><div class="l">Consumo médio</div><div class="v">${kmls.length?N1(sum(kmls,x=>x)/kmls.length):'–'}</div><div class="s">km/L nos últimos ${kmls.length||0} abastecimentos</div></div>
+  </div>
+  <div class="grid2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-bottom:14px">
+    ${pode('custos') ? `<div class="card"><h4>Custo por mês</h4><div class="chartbox sm"><canvas id="fv1"></canvas></div></div>` : ''}
+    ${regs.length ? `<div class="card"><h4>Evolução do odômetro</h4><div class="chartbox sm"><canvas id="fv2"></canvas></div></div>` : ''}
+  </div>
+  ${pode('custos') ? `<h4 class="sechead">Últimos custos ${ver('ver todos', '#/custos', `data-setcs="${v}"`)}</h4>
+  ${cu.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th class="num">Valor</th><th>NF</th></tr></thead><tbody>
+    ${cu.slice().sort((a,b)=>b.comp.localeCompare(a.comp) || String(b.data||'').localeCompare(String(a.data||''))).slice(0,10).map(l=>`<tr><td>${l.data?dBR(l.data):mLabel(l.comp)}</td><td><span class="badge">${esc(cap(l.cat))}</span></td><td class="wrap">${esc(l.desc)||'–'}</td><td class="num">${BRL(l.valor)}</td><td>${esc(l.nf)||'<span class="muted">–</span>'}</td></tr>`).join('')}</tbody></table></div>` : '<div class="card empty">Sem custos lançados.</div>'}
+  <h4 class="sechead">Últimos abastecimentos ${ver('detalhes', '#/custos', `data-setcs="${v}" data-tab="abast"`)}</h4>
+  ${ab.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Posto</th><th>Comb.</th><th class="num">Litros</th><th class="num">Total</th><th class="num">Km</th><th class="num">Km/L</th></tr></thead><tbody>
+    ${ab.slice(0,8).map(a=>`<tr><td>${dBR(a.data)}</td><td class="wrap">${esc(a.posto)||'–'}</td><td>${esc(a.comb)||''}</td><td class="num">${N1(a.litros)}</td><td class="num">${BRL(a.total)}</td><td class="num">${a.km?N0(a.km):'–'}</td><td class="num">${a.kml?N1(a.kml):'–'}</td></tr>`).join('')}</tbody></table></div>` : '<div class="card empty">Sem abastecimentos.</div>'}` : ''}
+  ${pode('utilizacao') ? `<h4 class="sechead">Últimos trajetos ${ver('ver todos', '#/utilizacao/'+v)}</h4>
+  ${tr.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Saída</th><th>Origem → Destino</th><th class="num">Km</th><th>Motorista</th></tr></thead><tbody>
+    ${tr.slice(0,10).map(t=>`<tr><td>${dBR(t.data)}</td><td>${esc(t.saida)||'–'}</td><td class="wrap">${esc(t.origem)||'–'} → ${esc(t.destino)||'–'}</td><td class="num">${t.km_saida!=null && t.km_chegada!=null ? N0(t.km_chegada - t.km_saida) : '–'}</td><td>${esc(t.motorista)||'–'}</td></tr>`).join('')}</tbody></table></div>` : '<div class="card empty">Sem trajetos lançados.</div>'}` : ''}
+  ${pode('manutencao') ? `<h4 class="sechead">Manutenção ${ver('histórico completo', '#/manutencao', `data-setms="${v}"`)}</h4>
+  ${mn.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Serviço</th><th>Empresa</th><th class="num">Km</th></tr></thead><tbody>
+    ${mn.slice(0,8).map(m=>`<tr><td>${m.data?dBR(m.data):'–'}</td><td class="wrap">${esc(m.servico)||'–'}</td><td class="wrap">${esc(m.empresa)||'–'}</td><td class="num">${m.km?N0(m.km):'–'}</td></tr>`).join('')}</tbody></table></div>` : '<div class="card empty">Sem serviços registrados.</div>'}` : ''}
+  ${regs.length ? `<p class="hint">Km: ${ver('todos os registros', '#/km/'+v)}</p>` : ''}`;
+  const pal = PALETTE();
+  if(pode('custos')) mkChart($('#fv1'), { type:'bar', data:{ labels: meses12.map(mLabel), datasets:[{ data: meses12.map(porMes), backgroundColor: pal[0], borderRadius:4 }] },
+    options:{ maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:c=>R$(c.parsed.y) } } }, scales:{ x:{ grid:{ display:false } }, y:{ ticks:{ callback:x=>N0(x) } } } } });
+  if(regs.length) mkChart($('#fv2'), { type:'line', data:{ labels: regs.map(r=>dBR(r.data).slice(0,5)+'/'+r.data.slice(2,4)), datasets:[{ data: regs.map(r=>r.km), borderColor: css('--accent'), backgroundColor: css('--accent'), pointRadius:1.5, tension:.2, fill:false }] },
+    options:{ maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:c=>N0(c.parsed.y)+' km' } } }, scales:{ x:{ grid:{ display:false }, ticks:{ maxTicksLimit:8 } }, y:{ ticks:{ callback:x=>N0(x) } } } } });
+}
+
+/* ============================ DADOS E PLANILHAS (aba de Configurações) ============================ */
+const CORTE_PLANILHAS = '29/10/2026';
+function cfDados(){
+  const bt = (k, t)=>`<button class="btn" data-exp="${k}">${t}</button>`;
+  $('#cf-body').innerHTML = `
+  <div class="card" style="margin-bottom:14px"><h4>Fonte oficial dos dados</h4>
+    <p style="margin:0 0 8px">Desde <b>${CORTE_PLANILHAS}</b> o Controle Geral é a fonte oficial de <b>custos, abastecimento, quilometragem e manutenção</b>. As planilhas “Controle de Custos – Frota”, “Controle de Abastecimento” e “Planilha Manutenção/Quilometragem” <b>não são mais importadas</b>: os lançamentos novos são feitos só aqui (nota pelo celular ou lançamento manual no escritório), e as correções, pelo botão Editar.</p>
+    <p style="margin:0">Continuam vindo de planilha: <b>Serviços HT</b> (tratamentos, atualizados todo dia às 19h) e <b>Suportes</b> (contagem física do estoque). Se alguém ainda lançar nas planilhas antigas, esse lançamento não aparece no painel.</p></div>
+  <h4 class="sechead">Exportar para planilha (Excel)</h4>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">${bt('custos','Custos')}${bt('abast','Abastecimentos')}${bt('km','Quilometragem')}${bt('manut','Manutenção')}${bt('oleo','Troca de óleo')}${bt('traj','Trajetos (utilização)')}</div>
+  <p class="hint">A planilha sai com os mesmos dados que você vê no painel. Além disso, todo dia às 19h uma cópia completa de todas as tabelas (Excel e JSON) é salva em “Backup do sistema” no OneDrive, guardando os últimos 30 dias.</p>`;
+  $$('[data-exp]').forEach(b=>b.onclick = async ()=>{ b.disabled = true; try{ await exportarDados(b.dataset.exp); }catch(e){ toast('Não foi possível exportar: ' + (e.message || e), true); } b.disabled = false; });
+}
+async function exportarDados(k){
+  const hoje = TODAY;
+  if(k === 'custos'){ await need('veiculos','custos'); xlsxDownload(`custos_${hoje}.xlsx`, [{ name:'Lançamentos', head:['Data','Competência','Veículo','Grupo','Categoria','Descrição','Valor','NF','CNPJ fornecedor','Empresa','Origem','Operador','Observação'],
+    rows: DB.custos.slice().sort((a,b)=>b.comp.localeCompare(a.comp) || String(b.data||'').localeCompare(String(a.data||''))).map(l=>[l.data||'', mLabel(l.comp), l.veic, grupoDe(l.veic), l.cat, l.desc||'', l.valor, l.nf||'', l.cnpj_fornecedor?fmtCnpj(l.cnpj_fornecedor):'', l.empresa||'', l.fonte||'', l.operador||'', l.obs||'']) }]); }
+  else if(k === 'abast'){ await need('abast'); xlsxDownload(`abastecimentos_${hoje}.xlsx`, [{ name:'Abastecimentos', head:['Data','Veículo','NF-e','Posto','Cidade','Combustível','Litros','R$/L','Total','Km','Km rodados','Km/L','Origem'],
+    rows: DB.abast.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data))).map(a=>[a.data, a.veic, a.nfe||'', a.posto||'', a.cidade||'', a.comb||'', a.litros ?? '', a.vlitro ?? '', a.total ?? '', a.km ?? '', a.kmrod ?? '', a.kml ?? '', a.fonte||'']) }]); }
+  else if(k === 'km'){ await need('veiculos','leit','abast','traj'); xlsxDownload(`quilometragem_${hoje}.xlsx`, [{ name:'Registros de km', head:['Veículo','Data','Km','Desde o anterior','Dias','Origem'],
+    rows: ORDER.flatMap(v=>kmRegistros(v).map(r=>[v, r.data, r.km, r.delta ?? '', r.dias ?? '', r.origem])) }]); }
+  else if(k === 'manut'){ await need('manut','custos'); xlsxDownload(`manutencao_${hoje}.xlsx`, [{ name:'Manutenção', head:['Data','Veículo','Serviço','Empresa','Km','NF','Valor (custos)'],
+    rows: DB.manut.filter(m=>m.servico||m.empresa).sort((a,b)=>String(b.data||'').localeCompare(String(a.data||''))).map(m=>{ const c = DB.custos.find(x=>x.manut_id===m.id); return [m.data||'', m.veic, m.servico||'', m.empresa||'', m.km ?? '', m.nf||'', c ? c.valor : '']; }) }]); }
+  else if(k === 'oleo'){ await need('veiculos','oleo','leit','abast','traj'); xlsxDownload(`troca_oleo_${hoje}.xlsx`, [{ name:'Troca de óleo', head:['Veículo','Última troca','Km da troca','Km atual','Próxima troca (km)','Faltam (km)'],
+    rows: ORDER.map(oleoInfo).filter(Boolean).map(o=>[o.veic, o.ultima||'', o.km_troca ?? '', o.km_atual ?? '', o.proxima ?? '', o.faltam ?? '']) }]); }
+  else if(k === 'traj'){ await need('traj'); xlsxDownload(`trajetos_${hoje}.xlsx`, [{ name:'Trajetos', head:['Veículo','Data','Saída','Chegada','Km saída','Km chegada','Origem','Destino','Motorista','Observação','Origem do dado'],
+    rows: DB.traj.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data))).map(t=>[t.veic, t.data, t.saida||'', t.chegada||'', t.km_saida ?? '', t.km_chegada ?? '', t.origem||'', t.destino||'', t.motorista||'', t.obs||'', t.fonte||'']) }]); }
 }
 
 /* ============================ CORREÇÃO MANUAL DOS LANÇAMENTOS ============================ */
