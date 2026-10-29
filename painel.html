@@ -266,13 +266,49 @@ iframe.embed{width:100%;height:calc(100vh - 150px);min-height:620px;border:0;bor
 .pend-card{cursor:pointer;} .pend-card.on{border-color:var(--accent);background:var(--bad-bg);}
 .hl{background:color-mix(in srgb, var(--warn) 22%, transparent);}
 .tabs{flex-wrap:wrap;border-radius:18px;}
-@media print{ .topbar,.pagehead .acts,.tabs,.filters,.morebar,#toast{display:none!important;} body{background:#fff;padding:0;max-width:none;} .card,.table-wrap{box-shadow:none;} }
 .fotos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;}
 .fotos-grid a,.fotos-grid button{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface-2);padding:0;aspect-ratio:3/4;display:block;position:relative;}
 .fotos-grid img{width:100%;height:100%;object-fit:cover;display:block;}
 .fotos-grid .cap{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);color:#fff;font-size:11.5px;padding:4px 7px;text-align:left;}
 .mini{font-size:12px;color:var(--text-muted);}
 
+/* ===== impressão (relatório para o financeiro): A4 deitado, tabelas inteiras, sem cortes ===== */
+#print-head{display:none;}
+@page{ size:A4 landscape; margin:9mm; }
+@media print{
+  :root,:root[data-theme="dark"],:root:not([data-theme="light"]){--bg:#fff;--surface:#fff;--surface-2:#f1f1ef;--text:#111;--text-muted:#555;--border:#bbb;--shadow:none;}
+  html,body{background:#fff!important;color:#111!important;font-size:11px!important;}
+  body{padding:0!important;margin:0!important;max-width:none!important;width:auto!important;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .topbar .top-right,.topbar .brand span,#crumb,.pagehead .acts,.tabs,.filters,.morebar,#toast,#btn-lancar,dialog,.errbox,button,.btn,.sync-pill,.hint,.fin-note{display:none!important;}
+  .topbar{position:static!important;box-shadow:none!important;border-bottom:2px solid #c00000!important;padding:0 0 4px!important;margin-bottom:6px!important;background:#fff!important;}
+  .topbar img{height:22px!important;}
+  #print-head{display:block;font-size:11px;margin:0 0 8px;padding:4px 0;border-bottom:1px solid #bbb;}
+  #print-head b{font-size:13px;}
+  main,#app{max-width:none!important;width:100%!important;padding:0!important;margin:0!important;}
+  .pagehead{margin-bottom:6px!important;} .pagehead h2{font-size:18px!important;} .pagehead p{display:none;}
+  .table-wrap{overflow:visible!important;border:1px solid #bbb!important;border-radius:0!important;box-shadow:none!important;margin-bottom:8px;}
+  table{min-width:0!important;width:100%!important;font-size:10px!important;}
+  thead th{position:static!important;white-space:normal!important;padding:3px 5px!important;font-size:9px!important;}
+  td,th{padding:3px 5px!important;white-space:normal!important;} td{overflow-wrap:anywhere;} th{word-break:normal;overflow-wrap:normal;}
+  td:nth-child(-n+3){white-space:nowrap!important;overflow-wrap:normal;}   /* data, mês e veículo não quebram */
+  td.num,th.num{white-space:nowrap!important;}
+  td.wrap{min-width:0!important;}
+  thead{display:table-header-group;} tfoot{display:table-footer-group;}
+  tr,.card{break-inside:avoid;page-break-inside:avoid;}
+  .cards,.kpi-row{display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:6px!important;margin-bottom:8px!important;}
+  .card{box-shadow:none!important;padding:5px 8px!important;border:1px solid #bbb!important;}
+  .card .v{font-size:16px!important;}
+  .grid2,.grid2e{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important;}
+  .chartbox,.chartbox.sm{height:190px!important;} canvas{max-width:100%!important;}
+  .sechead{margin:8px 0 4px!important;font-size:13px!important;}
+  a{color:inherit!important;text-decoration:none!important;}
+  .badge{border:1px solid #bbb;background:#fff!important;color:#111!important;padding:0 5px!important;font-size:9px!important;line-height:1.3!important;}
+  a.badge.info,[data-abrir-arq]{display:none!important;}   /* links para a foto/drive não servem no papel */
+  td{line-height:1.25!important;} td .mini,td .muted{font-size:9px!important;}
+  .matrix tr.tot td{background:#222!important;color:#fff!important;}
+  iframe.embed{height:auto;}
+}
 </style>
 </head>
 <body>
@@ -299,6 +335,7 @@ iframe.embed{width:100%;height:calc(100vh - 150px);min-height:620px;border:0;bor
     <button class="sync-pill" id="btn-logout" title="Clique para sair"><span class="sync-dot"></span><span id="user-label">sair</span></button>
   </div>
 </header>
+<div id="print-head"></div>
 <main id="app"></main>
 </div>
 <div id="toast" class="toast" hidden></div>
@@ -327,6 +364,7 @@ iframe.embed{width:100%;height:calc(100vh - 150px);min-height:620px;border:0;bor
       <div class="field"><label>Valor (R$)</label><input type="number" step="0.01" min="0" name="valor" required></div>
       <div class="field"><label>Nº da NF</label><input name="nf"></div>
       <div class="field"><label>CNPJ do fornecedor</label><input name="cnpj" inputmode="numeric" placeholder="00.000.000/0000-00"></div>
+      <div class="field"><label>Operador que entregou a nota</label><input name="motorista" list="l-motoristas" autocomplete="off" required><datalist id="l-motoristas"></datalist></div>
       <div class="field"><label>Empresa da nota</label><select name="empresa"><option value="">—</option><option>MANN</option><option>EXATA SC</option></select></div>
       <div class="field full"><label>Observação</label><input name="obs"></div>
     </div>
@@ -593,6 +631,7 @@ function oleoInfo(v){
 
 /* ============================ autenticação ============================ */
 const DOM_LOGIN = '@usuario.controle-geral.app';
+const DOM_CURVAS = '@colaborador.controle-curvas.vercel.app';
 let USER = '';
 function setUserLabel(){ $('#user-label').textContent = USER ? USER + ' · sair' : 'sair'; }
 // carrega o perfil (nome, tipo e abas liberadas) do usuário que entrou
@@ -610,8 +649,11 @@ $('#form-login').addEventListener('submit', async e=>{
   e.preventDefault();
   let email = $('#login-email').value.trim().toLowerCase(); const senha = $('#login-senha').value, err = $('#login-error');
   err.textContent = '';
-  if(email && !email.includes('@')) email += DOM_LOGIN;
-  const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+  const simples = email && !email.includes('@') ? email : null;
+  if(simples) email = simples + DOM_LOGIN;
+  let { error } = await sb.auth.signInWithPassword({ email, password: senha });
+  // logins da Emissão de certificados (Controle de Curvas) usam o mesmo cadastro, com outro final de e-mail
+  if(error && simples) ({ error } = await sb.auth.signInWithPassword({ email: simples + DOM_CURVAS, password: senha }));
   if(error){ err.textContent = 'Usuário ou senha incorretos.'; return; }
   startApp();
 });
@@ -758,18 +800,25 @@ function custos(){
   ['ano','mes','veic','cat'].forEach(k=>$('#c-'+k).onchange = e=>{ CS[k] = e.target.value; CS.shown = 50; custosBody(); });
   $('#c-q').oninput = e=>{ CS.q = e.target.value; CS.shown = 50; custosBody(); };
   $('#c-new').onclick = openLanc;
-  $('#c-print').onclick = ()=>window.print();
+  $('#c-print').onclick = ()=>{
+    // cabeçalho do relatório impresso: título, filtros aplicados, quem emitiu e quando
+    const f = [CS.ano && 'ano ' + CS.ano, CS.mes && 'mês ' + MESES[+CS.mes-1], CS.veic && 'veículo ' + CS.veic, CS.cat && 'categoria ' + cap(CS.cat), CS.q && 'busca “' + CS.q + '”'].filter(Boolean);
+    const aba = { resumo:'Resumo', fechamento:'Fechamento mensal', veiculo:'Veículo × Mês', lanc:'Lançamentos', abast:'Abastecimento', pend:'Pendências' }[CS.tab] || '';
+    $('#print-head').innerHTML = `<b>Controle de custos — ${esc(aba)}</b> · ${f.length ? 'filtros: ' + esc(f.join(', ')) : 'todos os lançamentos'}<br><span style="color:#555">Emitido em ${dBR(TODAY)} por ${esc(USER || '')} · MANN &amp; EXATA</span>`;
+    CS.shown = 100000;   // imprime a lista inteira, não só as primeiras linhas
+    custosBody(); setTimeout(()=>window.print(), 150);
+  };
   $('#c-csv').onclick = ()=>{
     const rows = custosFiltrados().sort((a,b)=>b.comp.localeCompare(a.comp) || (b.data||'').localeCompare(a.data||''));
-    csvDownload('custos_frota.csv', ['Data','Competência','Veículo','Grupo','Categoria','Descrição','Valor','NF','CNPJ fornecedor','Empresa','Origem','Observação'],
-      rows.map(l=>[l.data?dBR(l.data):'', mLabel(l.comp), l.veic, grupoDe(l.veic), l.cat, l.desc||'', String(l.valor).replace('.',','), l.nf||'', l.cnpj_fornecedor?fmtCnpj(l.cnpj_fornecedor):'', l.empresa||'', l.fonte||'', l.obs||'']));
+    csvDownload('custos_frota.csv', ['Data','Competência','Veículo','Grupo','Categoria','Descrição','Valor','NF','CNPJ fornecedor','Empresa','Origem','Entregue por','Observação'],
+      rows.map(l=>[l.data?dBR(l.data):'', mLabel(l.comp), l.veic, grupoDe(l.veic), l.cat, l.desc||'', String(l.valor).replace('.',','), l.nf||'', l.cnpj_fornecedor?fmtCnpj(l.cnpj_fornecedor):'', l.empresa||'', l.fonte||'', l.motorista||'', l.obs||'']));
   };
   $('#c-xlsx').onclick = ()=>{
     const rows = custosFiltrados().sort((a,b)=>b.comp.localeCompare(a.comp) || (b.data||'').localeCompare(a.data||''));
     const ms = mesesDe(rows), cats = [...new Set(rows.map(l=>l.cat))].sort(); const vs = ORDER.filter(v=>VEIC().some(x=>x.cod===v));
     xlsxDownload('custos_frota.xlsx', [
-      { name:'Lançamentos', head:['Data','Competência','Veículo','Grupo','Categoria','Descrição','Valor','NF','CNPJ fornecedor','Empresa','Origem','Observação'],
-        rows: rows.map(l=>[l.data||'', mLabel(l.comp), l.veic, grupoDe(l.veic), l.cat, l.desc||'', l.valor, l.nf||'', l.cnpj_fornecedor?fmtCnpj(l.cnpj_fornecedor):'', l.empresa||'', l.fonte||'', l.obs||'']) },
+      { name:'Lançamentos', head:['Data','Competência','Veículo','Grupo','Categoria','Descrição','Valor','NF','CNPJ fornecedor','Empresa','Origem','Entregue por','Observação'],
+        rows: rows.map(l=>[l.data||'', mLabel(l.comp), l.veic, grupoDe(l.veic), l.cat, l.desc||'', l.valor, l.nf||'', l.cnpj_fornecedor?fmtCnpj(l.cnpj_fornecedor):'', l.empresa||'', l.fonte||'', l.motorista||'', l.obs||'']) },
       { name:'Mês x Veículo', head:['Mês', ...vs, 'Total'], rows: ms.map(m=>[mLabel(m), ...vs.map(v=>r2(sum(rows.filter(l=>l.comp===m&&l.veic===v), l=>l.valor))), r2(sum(rows.filter(l=>l.comp===m), l=>l.valor))]) },
       { name:'Categoria x Veículo', head:['Categoria', ...vs, 'Total'], rows: cats.map(c=>[cap(c), ...vs.map(v=>r2(sum(rows.filter(l=>l.cat===c&&l.veic===v), l=>l.valor))), r2(sum(rows.filter(l=>l.cat===c), l=>l.valor))]) }
     ]);
@@ -892,7 +941,7 @@ function custoLanc(box, rows, total){
   box.innerHTML = rows.length ? `
   <div class="table-wrap"><table><thead><tr><th>Data</th><th>Mês</th><th>Veículo</th><th>Categoria</th><th>Descrição / Fornecedor</th><th class="num">Valor</th><th>NF / nota</th><th></th></tr></thead><tbody>
     ${part.map(l=>`<tr><td>${l.data?dBR(l.data):'<span class="muted">–</span>'}</td><td>${mLabel(l.comp)}</td><td><b>${esc(l.veic)}</b></td><td><span class="badge">${esc(cap(l.cat))}</span></td>
-      <td class="wrap">${esc(l.desc)||'<span class="muted">–</span>'}${l.obs?`<div class="muted" style="font-size:12px">${esc(l.obs)}</div>`:''}${l.fonte==='glp'?'<div style="margin-top:3px"><span class="badge info">Automático · Controle GLP</span></div>':''}${l.fonte==='app'?`<div style="margin-top:3px"><span class="badge good">App · ${esc(l.operador)}</span></div>`:''}</td>
+      <td class="wrap">${esc(l.desc)||'<span class="muted">–</span>'}${l.obs?`<div class="muted" style="font-size:12px">${esc(l.obs)}</div>`:''}${l.fonte==='glp'?'<div style="margin-top:3px"><span class="badge info">Automático · Controle GLP</span></div>':''}${l.fonte==='app'?`<div style="margin-top:3px"><span class="badge good">App · ${esc(l.operador)}</span></div>`:''}${l.motorista?`<div class="mini">Entregue por ${esc(l.motorista)}</div>`:''}</td>
       <td class="num">${BRL(l.valor)}</td><td>${esc(l.nf)||'<span class="muted">–</span>'}${l.empresa?` <span class="mini">${esc(l.empresa)}</span>`:''}${l.cnpj_fornecedor?`<div class="mini">CNPJ ${esc(fmtCnpj(l.cnpj_fornecedor))}</div>`:''}<div style="margin-top:3px">${notaLinks(l)}</div></td><td>${l.fonte==='glp' ? '<span class="mini">no GLP</span>' : btnEd('cu', l.id)}</td></tr>`).join('')}
     <tr class="tot"><td colspan="5">Total do filtro (${N0(rows.length)} lançamentos)</td><td class="num">${BRL(total)}</td><td></td><td></td></tr></tbody></table></div>
   ${rows.length>CS.shown?`<div class="morebar"><button class="btn" id="c-more">Mostrar mais (${rows.length-CS.shown} restantes)</button></div>`:''}` : '<div class="card empty">Nenhum lançamento neste filtro.</div>';
@@ -949,6 +998,7 @@ function openLanc(){
   $('#f-veic').innerHTML = VEIC().map(v=>`<option value="${v.cod}">${v.cod} — ${esc(v.nome)}</option>`).join('');
   $('#f-cat').innerHTML = categorias().map(c=>`<option>${c}</option>`).join('');
   const f = $('#form-lanc'); f.reset(); f.data.value = TODAY; f.comp.value = TODAY.slice(0,7);
+  (async()=>{ if(!NOMES_OP.length) await carregarNomesOperadores(); $('#l-motoristas').innerHTML = nomesOperadores().map(n=>`<option value="${esc(n)}">`).join(''); })();
   $('#dlg-lanc').showModal();
 }
 $('#form-lanc').addEventListener('submit', async e=>{
@@ -958,7 +1008,7 @@ $('#form-lanc').addEventListener('submit', async e=>{
   if(!valor || !f.comp.value){ e.preventDefault(); return; }
   const row = { id: uid('cu'), data: f.data.value || null, comp: f.comp.value + '-01', veic: f.veic.value, cat: f.cat.value, descr: f.desc.value.trim() || null, valor,
                 nf: f.nf.value.trim() || null, empresa: f.empresa.value || null, obs: f.obs.value.trim() || null, fonte: 'escritório', operador: USER || 'Escritório',
-                cnpj_fornecedor: onlyDig(f.cnpj.value) || null, chave_nfe: f.chave.value || null };
+                cnpj_fornecedor: onlyDig(f.cnpj.value) || null, chave_nfe: f.chave.value || null, motorista: f.motorista.value.trim() || null };
   try{
     await dbInsert('custos', [row]);
     DB.custos.push({ ...row, desc: row.descr, comp: f.comp.value });
@@ -1491,7 +1541,7 @@ function cfUsuarios(){
   <div class="pagehead" style="margin-bottom:10px"><div><p style="margin:0">${op ? 'Quem lança notas, fotos de folhas e fotos de tratamentos pelo celular. Cada operador tem o seu login e senha e só enxerga o que for liberado aqui.' : 'Quem entra no painel para consultar as áreas liberadas. Marque as abas que cada pessoa pode abrir.'}</p></div>
     <div class="acts"><button class="btn primary" id="cf-new">+ ${op ? 'Novo operador' : 'Novo usuário'}</button></div></div>
   <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Login</th><th>Perfil</th><th>${op ? 'Pode fazer' : 'Abas liberadas'}</th><th>Último acesso</th><th>Situação</th><th></th></tr></thead><tbody>
-    ${lst.map(u=>`<tr><td><b>${esc(u.nome)}</b></td><td>${esc(loginDe(u))}</td><td><span class="badge info">${esc(nomePerfil(u))}</span></td><td class="wrap">${perm(u)}</td>
+    ${lst.map(u=>`<tr><td><b>${esc(u.nome)}</b>${compartilhado(u) ? ' <span class="badge" title="Mesmo login da Emissão de certificados (Controle de Curvas). Aqui você só decide o acesso ao Controle Geral.">Certificados</span>' : ''}</td><td>${esc(loginDe(u))}</td><td><span class="badge ${nomePerfil(u)==='Sem acesso' ? '' : 'info'}">${esc(nomePerfil(u))}</span></td><td class="wrap">${perm(u)}</td>
       <td>${u.ultimo_acesso ? dBR(String(u.ultimo_acesso).slice(0,10)) : '<span class="muted">nunca</span>'}</td>
       <td><span class="badge ${u.ativo ? 'good' : 'bad'}">${u.ativo ? 'Ativo' : 'Bloqueado'}</span></td>
       <td><button class="btn sm" data-cf-ed="${esc(u.id)}">Editar</button></td></tr>`).join('') || `<tr><td colspan="7" class="empty">Nenhum ${op ? 'operador' : 'usuário'} cadastrado.</td></tr>`}
@@ -1510,7 +1560,8 @@ const PERFIS = {
 };
 const mesmoConj = (a, b)=>a.length === b.length && a.every(x=>b.includes(x));
 const perfilDe = u => u.tipo === 'admin' ? 'admin' : (Object.keys(PERFIS).find(k=>k !== 'admin' && mesmoConj(PERFIS[k].abas, u.abas || [])) || 'personalizado');
-const nomePerfil = u => (PERFIS[perfilDe(u)] || { nome:'Personalizado' }).nome;
+const nomePerfil = u => u.tipo !== 'admin' && !(u.abas || []).length ? 'Sem acesso' : (PERFIS[perfilDe(u)] || { nome:'Personalizado' }).nome;
+const compartilhado = u => /@colaborador\.controle-curvas\./.test(u.email || '');   // login da Emissão de certificados (mesmo cadastro)
 function permBoxes(abas, admin){
   if(admin) return '<div class="hintbox">Administrador acessa todas as áreas e pode cadastrar usuários.</div>';
   const grp = (t, lst)=>`<div class="grp" style="margin:6px 0">${t}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px">${lst.map(a=>`<label class="checkrow"><input type="checkbox" name="perm" value="${a[0]}" ${abas.includes(a[0]) ? 'checked' : ''}> ${esc(a[1])}</label>`).join('')}</div>`;
@@ -1527,7 +1578,8 @@ function editarUsuario(u, perfilNovo){
     <div class="fgrid">
       <div class="field"><label>Nome</label><input name="nome" value="${esc(u.nome)}" required></div>
       <div class="field"><label>Login (usuário)</label><input name="login" value="${esc(loginDe(u))}" ${novo ? '' : 'readonly'} placeholder="ex.: joao" autocapitalize="none" required></div>
-      <div class="field"><label>${novo ? 'Senha (mín. 6 caracteres)' : 'Nova senha (opcional)'}</label><input name="senha" type="text" autocomplete="new-password" ${novo ? 'required' : ''} placeholder="${novo ? '' : 'deixe em branco para manter'}"></div>
+      ${!novo && compartilhado(u) ? `<div class="field"><label>Senha</label><input value="é a mesma da Emissão de certificados" disabled></div>` :
+      `<div class="field"><label>${novo ? 'Senha (mín. 6 caracteres)' : 'Nova senha (opcional)'}</label><input name="senha" type="text" autocomplete="new-password" ${novo ? 'required' : ''} placeholder="${novo ? '' : 'deixe em branco para manter'}"></div>`}
       <div class="field"><label>Perfil</label><select name="perfil">${Object.entries(PERFIS).map(([k, p])=>`<option value="${k}" ${perfilAtual===k?'selected':''}>${p.nome}</option>`).join('')}<option value="personalizado" ${perfilAtual==='personalizado'?'selected':''}>Personalizado</option></select></div>
       <div class="hintbox full" id="uf-desc"></div>
       <div class="full" id="uf-perm">${permBoxes(u.abas||[], perfilAtual === 'admin')}</div>
@@ -1553,13 +1605,13 @@ function editarUsuario(u, perfilNovo){
   };
   f.onsubmit = async e=>{
     e.preventDefault(); msg('');
-    const nome = f.nome.value.trim(), ativo = f.ativo.checked, senha = f.senha.value, perfil = f.perfil.value;
+    const nome = f.nome.value.trim(), ativo = f.ativo.checked, senha = f.senha ? f.senha.value : '', perfil = f.perfil.value;
     const abas = perfil === 'admin' ? [] : $$('input[name="perm"]:checked', f).map(i=>i.value);
     const tipo = perfil === 'admin' ? 'admin' : (abas.some(a=>AREAS.some(x=>x[0] === a)) ? 'usuario' : 'operador');
     const login = f.login.value.trim().toLowerCase();
     if(!nome || !login){ msg('Informe o nome e o login.'); return; }
     if(novo && !/^[a-z0-9._-]+$|^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(login)){ msg('O login deve ter só letras, números, ponto ou traço (sem espaços).'); return; }
-    if(perfil !== 'admin' && !abas.length){ msg('Marque pelo menos uma permissão.'); return; }
+    if(perfil !== 'admin' && !abas.length && novo){ msg('Marque pelo menos uma permissão.'); return; }
     if((novo || senha) && senha.length < 6){ msg('A senha precisa ter 6 ou mais caracteres.'); return; }
     const btn = $('button[type=submit]', f); btn.disabled = true;
     try{
@@ -1721,8 +1773,8 @@ function cfDados(){
 }
 async function exportarDados(k){
   const hoje = TODAY;
-  if(k === 'custos'){ await need('veiculos','custos'); xlsxDownload(`custos_${hoje}.xlsx`, [{ name:'Lançamentos', head:['Data','Competência','Veículo','Grupo','Categoria','Descrição','Valor','NF','CNPJ fornecedor','Empresa','Origem','Operador','Observação'],
-    rows: DB.custos.slice().sort((a,b)=>b.comp.localeCompare(a.comp) || String(b.data||'').localeCompare(String(a.data||''))).map(l=>[l.data||'', mLabel(l.comp), l.veic, grupoDe(l.veic), l.cat, l.desc||'', l.valor, l.nf||'', l.cnpj_fornecedor?fmtCnpj(l.cnpj_fornecedor):'', l.empresa||'', l.fonte||'', l.operador||'', l.obs||'']) }]); }
+  if(k === 'custos'){ await need('veiculos','custos'); xlsxDownload(`custos_${hoje}.xlsx`, [{ name:'Lançamentos', head:['Data','Competência','Veículo','Grupo','Categoria','Descrição','Valor','NF','CNPJ fornecedor','Empresa','Origem','Lançado por','Entregue por','Observação'],
+    rows: DB.custos.slice().sort((a,b)=>b.comp.localeCompare(a.comp) || String(b.data||'').localeCompare(String(a.data||''))).map(l=>[l.data||'', mLabel(l.comp), l.veic, grupoDe(l.veic), l.cat, l.desc||'', l.valor, l.nf||'', l.cnpj_fornecedor?fmtCnpj(l.cnpj_fornecedor):'', l.empresa||'', l.fonte||'', l.operador||'', l.motorista||'', l.obs||'']) }]); }
   else if(k === 'abast'){ await need('abast'); xlsxDownload(`abastecimentos_${hoje}.xlsx`, [{ name:'Abastecimentos', head:['Data','Veículo','NF-e','Posto','Cidade','Combustível','Litros','R$/L','Total','Km','Km rodados','Km/L','Origem'],
     rows: DB.abast.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data))).map(a=>[a.data, a.veic, a.nfe||'', a.posto||'', a.cidade||'', a.comb||'', a.litros ?? '', a.vlitro ?? '', a.total ?? '', a.km ?? '', a.kmrod ?? '', a.kml ?? '', a.fonte||'']) }]); }
   else if(k === 'km'){ await need('veiculos','leit','abast','traj'); xlsxDownload(`quilometragem_${hoje}.xlsx`, [{ name:'Registros de km', head:['Veículo','Data','Km','Desde o anterior','Dias','Origem'],
@@ -1803,7 +1855,7 @@ function editarCusto(id){
     { k:'data', label:'Data', type:'date' }, { k:'comp', label:'Mês de competência', type:'month', required:true },
     { k:'veic', label:'Veículo', type:'select', opts: VEIC().map(v=>v.cod) }, { k:'cat', label:'Categoria', type:'select', opts: cats },
     { k:'desc', label:'Descrição / fornecedor', full:true }, { k:'valor', label:'Valor (R$)', type:'number', step:'0.01', required:true },
-    { k:'nf', label:'Nº da NF' }, { k:'cnpj_fornecedor', label:'CNPJ do fornecedor' }, { k:'empresa', label:'Empresa da nota', type:'select', opts:['','MANN','EXATA SC'] }, { k:'obs', label:'Observação', full:true }
+    { k:'nf', label:'Nº da NF' }, { k:'cnpj_fornecedor', label:'CNPJ do fornecedor' }, { k:'motorista', label:'Operador que entregou a nota' }, { k:'empresa', label:'Empresa da nota', type:'select', opts:['','MANN','EXATA SC'] }, { k:'obs', label:'Observação', full:true }
   ];
   const valores = { ...l, desc: l.desc, comp: String(l.comp).slice(0,7), data: ymd(l.data), cnpj_fornecedor: l.cnpj_fornecedor ? fmtCnpj(l.cnpj_fornecedor) : null };
   if(ab){
@@ -1816,7 +1868,7 @@ function editarCusto(id){
     confirmaExcluir: ab ? 'Excluir este custo e o abastecimento ligado a ele?' : 'Excluir este lançamento de custo?',
     onSave: async v=>{
       if(!(v.valor >= 0) || !v.comp) throw new Error('Informe o valor e o mês de competência.');
-      const row = { data: v.data, comp: v.comp + '-01', veic: v.veic, cat: v.cat, descr: v.desc, valor: r2(v.valor), nf: v.nf, empresa: v.empresa, obs: v.obs, cnpj_fornecedor: onlyDig(v.cnpj_fornecedor) || null };
+      const row = { data: v.data, comp: v.comp + '-01', veic: v.veic, cat: v.cat, descr: v.desc, valor: r2(v.valor), nf: v.nf, empresa: v.empresa, obs: v.obs, cnpj_fornecedor: onlyDig(v.cnpj_fornecedor) || null, motorista: v.motorista };
       await dbUpdate('custos', { ...row, ...carimbo() }, 'id', id);
       Object.assign(l, row, { desc: v.desc, comp: v.comp });
       if(ab){
@@ -2167,6 +2219,7 @@ async function lancar(q){
   FT.files = []; FT.data = TODAY; FT.tid = q.trat ? String(q.trat) : ''; FH.files = []; FH.data = TODAY;
   if(q.trat){ const t = (DB.serv||[]).find(x=>String(x.id)===String(q.trat)); if(t) FT.data = t.data; }
   if(W.veic) await carregarDadosVeic(W.veic);
+  if(!NOMES_OP.length) await carregarNomesOperadores();
   wiz();
 }
 function stepsBar(){
@@ -2190,7 +2243,7 @@ document.addEventListener('click', async e=>{
   const b = e.target.closest('[data-wiz]'); if(!b || b.disabled) return;
   if(b.tagName==='A') e.preventDefault();
   const a = b.dataset.wiz, v = b.dataset.v;
-  if(a==='veic'){ W.veic = v; await carregarDadosVeic(v); }
+  if(a==='veic'){ W.veic = v; await carregarDadosVeic(v); if(!NOMES_OP.length) await carregarNomesOperadores(); }
   else if(a==='tipo'){ if(!tipoLiberado(v)) return; W.tipo = v; }
   else if(a==='s2'){ W.veic = ''; W.tipo = ''; W.done = null; }
   else if(a==='s3'){ W.tipo = ''; W.done = null; }
@@ -2222,6 +2275,16 @@ const msgBox = (t, k)=>{ const m = $('#w-msg'); m.className = 'hintbox ' + (k||'
 function setSending(on, txt){ const b = $('#w-send'); if(!b) return; b.disabled = on; if(txt) b.textContent = txt; }
 
 /* ---- NF-e ---- */
+// nomes sugeridos em "quem entregou a nota": operadores cadastrados em Configurações + os já usados + a lista antiga
+let NOMES_OP = [];
+async function carregarNomesOperadores(){
+  const { data } = await sb.rpc('painel_nomes_operadores');
+  NOMES_OP = Array.isArray(data) ? data : [];
+}
+function nomesOperadores(){
+  const usados = [...(DB.custos||[]).map(l=>l.motorista), ...(DB.abast||[]).map(a=>a.operador)];
+  return [...new Set([...NOMES_OP, ...OPERADORES, ...usados].filter(n=>n && !/^app/i.test(n)))].sort((a,b)=>a.localeCompare(b));
+}
 function wizNfe(){
   const fixo = COMB_FIXO[W.veic];
   const combOpts = fixo ? `<option>${fixo}</option>` : '<option>Gasolina</option><option>Etanol</option>';
@@ -2234,6 +2297,7 @@ function wizNfe(){
     <div class="field"><label>Categoria</label><select name="cat" id="w-cat">${CAT_OPERADOR.map(c=>`<option value="${c}">${cap(c)}</option>`).join('')}</select></div>
     <div class="field full"><label>Fornecedor / descrição</label><input name="desc" placeholder="Ex.: Posto Estrela" required></div>
     <div class="field"><label>CNPJ do fornecedor</label><input name="cnpj" inputmode="numeric" placeholder="00.000.000/0000-00" autocomplete="off"></div>
+    <div class="field"><label>Operador que entregou a nota</label><input name="motorista" list="w-motoristas" value="${esc(soOperador() ? W.op : '')}" placeholder="Quem trouxe a nota" autocomplete="off" required><datalist id="w-motoristas">${nomesOperadores().map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div>
     <div class="field"><label>Nº da NF-e</label><input name="nf" inputmode="numeric" required></div>
     <div class="field"><label>Valor total (R$)</label><input name="valor" type="number" step="0.01" min="0" inputmode="decimal" required></div>
     <div class="sect fuel">Abastecimento</div>
@@ -2255,9 +2319,10 @@ function bindNfe(){
   const toggle = ()=>{ const on = f.cat.value==='COMBUSTÍVEL'; fuel.forEach(el=>el.hidden = !on); };
   const calc = ()=>{ const L = parseFloat(f.litros.value), V = parseFloat(f.valor.value); f.vlitro.value = (L>0 && V>0) ? BRL(V/L) : ''; };
   const extDe = ()=>{ const n = f.foto.files[0] ? f.foto.files[0].name : ''; const m = n.match(/\.(\w+)$/); return m ? (m[1].toLowerCase()==='pdf' ? 'pdf' : 'jpeg') : 'jpeg'; };
-  const path = ()=>{ if(!f.data.value) return; const p = caminhoNota(f.empresa.value, f.data.value, f.nf.value.trim(), f.desc.value.trim(), W.op, extDe()); $('#w-path').innerHTML = `Arquivo da nota: <b>Notas\\${esc(p.replace(/\//g,'\\'))}</b>`; };
+  const quem = ()=>f.motorista.value.trim() || W.op;
+  const path = ()=>{ if(!f.data.value) return; const p = caminhoNota(f.empresa.value, f.data.value, f.nf.value.trim(), f.desc.value.trim(), quem(), extDe()); $('#w-path').innerHTML = `Arquivo da nota: <b>Notas\\${esc(p.replace(/\//g,'\\'))}</b>`; };
   f.cat.onchange = toggle; f.litros.oninput = calc; f.valor.oninput = calc; toggle();
-  ['data','nf','desc','empresa'].forEach(k=>{ f[k].oninput = path; f[k].onchange = path; }); path();
+  ['data','nf','desc','empresa','motorista'].forEach(k=>{ f[k].oninput = path; f[k].onchange = path; }); path();
   f.foto.onchange = ()=>{ const file = f.foto.files[0]; const im = $('#w-prev'); if(file && file.type.startsWith('image/')){ im.src = URL.createObjectURL(file); im.hidden = false; } else im.hidden = true; path(); };
   const aviso = (t, k)=>{ const b = $('#w-read'); b.className = 'hintbox ' + (k||''); b.textContent = t; b.hidden = !t; };
   ligarLeituraNota(f, f.foto, aviso);
@@ -2266,6 +2331,7 @@ function bindNfe(){
     e.preventDefault();
     const cat = f.cat.value, v = parseFloat(f.valor.value), isF = cat==='COMBUSTÍVEL';
     if(!f.data.value || !f.desc.value.trim() || !f.nf.value.trim() || !(v>0)){ msgBox('Preencha data, fornecedor, nº da NF-e e valor.', 'bad'); return; }
+    if(!f.motorista.value.trim()){ msgBox('Informe o operador que entregou a nota.', 'bad'); return; }
     // CNPJ do fornecedor: obrigatório nas notas (menos pedágio, estacionamento, Uber e passagem); confere os dígitos verificadores
     const cnpjD = onlyDig(f.cnpj.value);
     if(!CATS_SEM_CNPJ.includes(cat)){
@@ -2289,7 +2355,7 @@ function bindNfe(){
     setSending(true, 'Salvando…'); msgBox('');
     try{
       const file = f.foto.files[0]; const ext = extDe();
-      const drivePath = caminhoNota(f.empresa.value, f.data.value, f.nf.value.trim(), f.desc.value.trim(), W.op, ext);
+      const drivePath = caminhoNota(f.empresa.value, f.data.value, f.nf.value.trim(), f.desc.value.trim(), quem(), ext);
       const custoId = uid('cu');
       let stPath = null;
       if(file){
@@ -2300,7 +2366,7 @@ function bindNfe(){
       }
       const desc = f.desc.value.trim() + (isF && f.cidade.value.trim() ? ' — ' + f.cidade.value.trim() : '');
       const custo = { id: custoId, data: f.data.value, comp: f.data.value.slice(0,7) + '-01', veic: W.veic, cat, descr: desc, valor: r2(v), nf: f.nf.value.trim(), empresa: f.empresa.value, cnpj_fornecedor: cnpjD || null, chave_nfe: f.chave.value || null,
-                      arq: file ? drivePath : null, obs: f.obs.value.trim() || null, fonte: 'app', operador: W.op };
+                      arq: file ? drivePath : null, obs: f.obs.value.trim() || null, fonte: 'app', operador: W.op, motorista: quem() };
       await dbInsert('custos', [custo]);
       addDB('custos', { ...custo, desc, comp: f.data.value.slice(0,7) });
       if(file){ const ar = { id: uid('ar'), tipo:'nf', ref_id: custoId, veic: W.veic, nome: drivePath.split('/').pop(), caminho_drive: 'Controle veículos\\Notas\\' + drivePath.replace(/\//g,'\\'), storage_path: stPath, operador: W.op }; await dbInsert('arquivos_painel', [ar]); addDB('arqs', ar); }
@@ -2309,7 +2375,7 @@ function bindNfe(){
         const prev = abastAntes(W.veic, f.data.value);
         const kmrod = prev ? km - prev.km : null;
         const ab = { id: uid('ab'), data: f.data.value, veic: W.veic, nfe: custo.nf, posto: f.desc.value.trim(), cidade: f.cidade.value.trim() || null, comb: COMB_FIXO[W.veic] || f.comb.value, litros: L, vlitro: r2(v/L), total: custo.valor,
-                     km, kmrod: kmrod>0 ? kmrod : null, kml: (kmrod>0 && f.cheio.checked) ? Math.round(kmrod/L*100)/100 : null, cheio: f.cheio.checked, operador: W.op, custo_id: custoId, fonte: 'app' };
+                     km, kmrod: kmrod>0 ? kmrod : null, kml: (kmrod>0 && f.cheio.checked) ? Math.round(kmrod/L*100)/100 : null, cheio: f.cheio.checked, operador: quem(), custo_id: custoId, fonte: 'app' };
         await dbInsert('abastecimentos', [ab]); addDB('abast', ab);
         // o km fica só no abastecimento (a tela de Quilometragem já lê de lá), sem repetir em km_leituras
         const kc = KMC[W.veic] || {};
