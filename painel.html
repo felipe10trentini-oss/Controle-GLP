@@ -361,6 +361,28 @@ iframe.embed{width:100%;height:calc(100vh - 150px);min-height:620px;border:0;bor
   .orc-doc .od-pill{color:#fff!important;border-color:rgba(255,255,255,.7)!important;} .orc-doc .od-hero h1 em,.orc-doc .od-stats b,.orc-doc .od-tot .g b,.orc-doc .od-meta .hl b{color:#c00000!important;}
   .orc-doc td,.orc-doc th{white-space:normal!important;} .orc-doc td.n,.orc-doc th.n{white-space:nowrap!important;}
 }
+/* ===== laudo técnico (Dedetização) ===== */
+iframe.embed.com-abas{height:calc(100vh - 200px);}
+.lau-doc{--r:#c00000;max-width:794px;margin:0 auto 30px;background:#fff;color:#111;border:1px solid #ddd;border-radius:6px;padding:20px 34px 18px;font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;line-height:1.45;page:lau;}
+.lau-doc *{box-sizing:border-box;}
+.lau-doc .ld-head{text-align:center;} .lau-doc .ld-head img{height:78px;display:block;margin:0 auto 8px;}
+.lau-doc .ld-band,.lau-doc .ld-foot .ld-band{height:6px;background:linear-gradient(90deg,#9a9a9a 0,#9a9a9a 55%,#c00000 55%,#c00000 100%);}
+.lau-doc .ld-sub{display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 2px;font-size:11px;color:#555;} .lau-doc .ld-sub b{color:#111;font-size:12px;letter-spacing:.02em;}
+.lau-doc h1{font:700 18px 'IBM Plex Sans',sans-serif;text-align:center;margin:12px 0 12px;text-transform:none;letter-spacing:0;color:#111;}
+.lau-doc h2{font:600 13px 'IBM Plex Sans',sans-serif;margin:11px 0 4px;text-transform:none;letter-spacing:0;display:flex;align-items:center;gap:7px;color:#111;} .lau-doc h2::before{content:"";width:7px;height:7px;background:var(--r);border-radius:50%;flex:none;}
+.lau-doc .lbox{border:1px solid #8c8c8c;padding:7px 11px;} .lau-doc .lr{display:flex;gap:26px;flex-wrap:wrap;padding:1.5px 0;} .lau-doc .lr i{font-style:normal;color:#333;} .lau-doc .lr b{font-weight:700;}
+.lau-doc .lcert p{margin:0 0 9px;text-align:justify;} .lau-doc .lcert .lval{text-align:center;font-weight:700;margin:12px 0 4px;}
+.lau-doc .ld-data{text-align:center;margin:20px 0 0;font-size:13px;}
+.lau-doc .ld-assin{margin:6px 6px 0 auto;width:230px;text-align:center;font-size:11.5px;} .lau-doc .ld-assin img{height:70px;display:block;margin:0 auto -6px;mix-blend-mode:multiply;} .lau-doc .ld-assin b{display:block;} .lau-doc .ld-assin span{display:block;font-weight:600;}
+.lau-doc .ld-foot{margin-top:22px;text-align:center;font-size:10.5px;} .lau-doc .ld-foot p{margin:6px 0 0;}
+@page lau{ size:A4 portrait; margin:9mm; }
+@media print{
+  body.lau-mode{background:#fff!important;} body.lau-mode .topbar,body.lau-mode .od-bar,body.lau-mode #print-head,body.lau-mode .hint,body.lau-mode .tabs{display:none!important;}
+  body.lau-mode .lau-doc{border:0!important;border-radius:0!important;margin:0!important;max-width:none!important;padding:0!important;font-size:11.5px!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .lau-doc .ld-band{-webkit-print-color-adjust:exact;print-color-adjust:exact;} .lau-doc h2::before{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+}
+@media (max-width:640px){ .lau-doc{padding:14px 16px;} .lau-doc .lr{gap:6px 16px;} }
+
 </style>
 </head>
 <body>
@@ -573,6 +595,9 @@ const LOADERS = {
   sup_cont: async()=> (await fetchAll('suportes_contagem','id')).map(r=>({ ...r, saldo_sistema:num(r.saldo_sistema), saldo_fisico:num(r.saldo_fisico) })),
   orc: async()=> (await fetchAll('orcamentos','created_at')).map(r=>({ ...r, total:num(r.total), desconto:num(r.desconto), itens:r.itens||[], params:r.params||{} })),
   orc_cat: async()=> (await fetchAll('orcamento_catalogo','id')).map(r=>({ ...r, preco:num(r.preco) })),
+  laudos: async()=> (await fetchAll('laudos','created_at')).map(r=>({ ...r, produtos:r.produtos||[] })),
+  os_lista: async()=> { try{ return await fetchAll('ordens_servico','data'); }catch(e){ return []; } },
+  prod_os: async()=> { try{ return await fetchAll('produtos_os','nome_comum'); }catch(e){ return []; } },
   clientes: async()=> { try{ return await fetchAll('clientes_os','nome'); }catch(e){ return []; } },
   sup_aj: async()=> (await fetchAll('suportes_ajustes','created_at')).map(r=>({ ...r, delta:num(r.delta), fisico:num(r.fisico) })),
   serv: async()=> (await fetchAll('servicos_ht','id')).map(r=>({ ...r, decl:num(r.decl), fotos:r.fotos||0 })),
@@ -746,9 +771,10 @@ async function go(){
   const token = ++goToken;
   const raw = location.hash.replace(/^#\/?/, '');
   const [path, qs] = raw.split('?'); const q = Object.fromEntries(new URLSearchParams(qs||''));
-  const [key, sub, sub2] = path.split('/');
+  const [key, sub, sub2, sub3] = path.split('/');
   $('#app').innerHTML = '<div class="loading">Carregando…</div>';
   document.body.classList.toggle('orc-mode', key === 'orcamentos' && sub2 === 'proposta');
+  document.body.classList.toggle('lau-mode', key === 'dedetizacao' && sub === 'laudos' && sub3 === 'doc');
   if(key === 'frota' && !podeFrota()){ semAcesso(); $('#crumb').innerHTML = ''; return; }
   if(key && key !== 'lancar' && key !== 'frota' && NAMES[key] && !pode(AREA_DE[key] || key)){ semAcesso(); $('#crumb').innerHTML = ''; return; }
   if(key === 'lancar' && !CAPS.some(c=>podeLancar(c[0]))){ semAcesso(); $('#crumb').innerHTML = ''; return; }
@@ -760,8 +786,13 @@ async function go(){
       if(sub2==='proposta') propostaTela(sub); else if(sub) orcEditor(sub, q); else orcamentos();
     }
     else if(key==='frota'){ await need('veiculos','leit','abast','traj','manut','oleo','custos'); if(token===goToken) (sub ? fichaVeic(decodeURIComponent(sub).toUpperCase()) : frota()); }
+    else if(key==='dedetizacao' && sub==='laudos'){
+      await need('laudos','os_lista','prod_os','clientes');
+      if(token!==goToken) return;
+      if(sub3==='doc') await laudoDoc(sub2); else if(sub2) laudoEditor(sub2); else laudos();
+    }
     else if(key==='glp' || key==='dedetizacao'){
-      $('#app').innerHTML = `<iframe class="embed" title="${NAMES[key]}" src="${EMBED[key]}"></iframe>`;
+      $('#app').innerHTML = (key==='dedetizacao' ? dedetNav('os') : '') + `<iframe class="embed ${key==='dedetizacao'?'com-abas':''}" title="${NAMES[key]}" src="${EMBED[key]}"></iframe>`;
     }
     else if(key==='configuracoes'){ await need('veiculos','contatos','avcfg','avlog'); if(token===goToken) await configuracoes(); }
     else if(key==='custos'){ await need('veiculos','custos','abast','leit','traj','manut','arqs'); if(token===goToken) custos(); }
@@ -782,7 +813,8 @@ async function go(){
   }
   const trail = [];
   if(key && NAMES[key]){
-    if(key==='frota' && sub) trail.push('<a href="#/frota" style="text-decoration:none">Veículos</a>', `<b>${esc(decodeURIComponent(sub).toUpperCase())}</b>`);
+    if(key==='dedetizacao' && sub==='laudos') trail.push('<a href="#/dedetizacao" style="text-decoration:none">Dedetização</a>', '<b>Laudos</b>');
+    else if(key==='frota' && sub) trail.push('<a href="#/frota" style="text-decoration:none">Veículos</a>', `<b>${esc(decodeURIComponent(sub).toUpperCase())}</b>`);
     else if((key==='km' || key==='tratamentos' || key==='utilizacao') && sub){
       trail.push(`<a href="#/${key}" style="text-decoration:none">${NAMES[key]}</a>`);
       if(sub2) trail.push(`<a href="#/${key}/${esc(sub)}" style="text-decoration:none">${esc(sub.toUpperCase())}</a>`, '<b>Ciclo</b>'); else trail.push(`<b>${esc(sub.toUpperCase())}</b>`);
@@ -1868,7 +1900,7 @@ async function exportarDados(k){
 }
 
 /* ============================ ORÇAMENTOS (propostas comerciais) ============================ */
-const EMPRESA = { fone:'(41) 3107-1515', zap:'(41) 99176-0988', email:'exataecoambiental@gmail.com', site:'manngroup.com.br', end:'Rua Ronaldo José Carboni, 330 · Capão da Imbuia · Curitiba/PR' };
+const EMPRESA = { fone:'(41) 3107-1515', zap:'(41) 99176-0988', email:'exataecoambiental@gmail.com', site:'manngroup.com.br', end:'Rua Ronald José Carboni, 330 · Capão da Imbuia · Curitiba/PR' };
 const ORC_STATUS = { rascunho:['Rascunho',''], enviado:['Enviado','info'], aprovado:['Aprovado','good'], recusado:['Recusado','bad'] };
 const PRAGAS = ['Roedores','Pombos','Baratas','Insetos voadores','Cupins','Controle integrado de pragas'];
 const SERV_CONS = ['Consultoria técnica ambiental','Consultoria fitossanitária','Monitoramento de gases','Gestão de ruídos','Segurança do trabalho','Medicina ocupacional','Gestão de resíduos'];
@@ -2154,6 +2186,216 @@ function propostaTela(id){
   $('#od-print').onclick = ()=>{ const t = document.title; document.title = `Proposta ${o.numero} - ${o.cliente}`; window.print(); setTimeout(()=>document.title = t, 500); };
   $('#od-zap').onclick = async ()=>{ try{ await navigator.clipboard.writeText(textoZap(o)); toast('Mensagem copiada. Cole no WhatsApp ou e-mail junto com o PDF.'); }catch(e){ prompt('Copie a mensagem:', textoZap(o)); } };
   $('#od-enviado').onclick = async ()=>{ if(o.status !== 'rascunho') return; try{ await dbUpdate('orcamentos', { status:'enviado', ...carimbo() }, 'id', o.id); o.status = 'enviado'; toast('Marcado como enviado.'); propostaTela(id); }catch(e){ toast('Erro: ' + e.message, true); } };
+}
+
+/* ============================ LAUDOS TÉCNICOS (Dedetização) ============================ */
+const L_SEDE = { fantasia:'Exata Ambiental', razao:'Mann & Cia Ltda', cnpj:'00.093.600/0001-41', fone:'(41) 3107-1515', end:'Rua Ronald José Carboni, 330 - Curitiba - PR' };
+const L_UNIDADES = {
+  mandirituba:{ nome:'Mandirituba', cnpj:'00.093.600/0005-75', end:'Rodovia BR 116, Km 142,5, Nº 97 – Mandirituba - PR', licenca:'202400010000027', ext:'rodovia BR 116, km 142,5, nº 97' },
+  curitiba:{ nome:'Curitiba', cnpj:'00.093.600/0001-41', end:'Rua Ronald José Carboni, 330 - Curitiba - PR', licenca:'', ext:'Rua Ronald José Carboni, 330' }
+};
+const L_TIPOS = {
+  desinsetizacao:{ nome:'Desinsetização', meses:6, firma:'controle de pragas urbanas (desinsetização)', exec:'controle de pragas urbanas (desinsetização) nas instalações do referido estabelecimento' },
+  desinsetizacao_caixa:{ nome:'Desinsetização + higienização de reservatório', meses:6, firma:'controle de pragas urbanas (desinsetização)', exec:'controle de pragas urbanas (desinsetização), juntamente com a higienização do reservatório de água nas instalações do referido estabelecimento' },
+  caixa_dedetizacao:{ nome:'Higienização de reservatório + dedetização', meses:6, firma:'controle de pragas urbanas (desinsetização)', exec:'higienização de reservatório de água e dedetização das instalações' },
+  desratizacao:{ nome:'Desratização', meses:1, firma:'controle de pragas urbanas (desratização)', exec:'controle de roedores (desratização) nas instalações da referida empresa' },
+  veiculo:{ nome:'Dedetização de veículo', meses:6, firma:'controle de pragas e vetores', exec:'dedetização no veículo placa {placa}' }
+};
+const L_STATUS = { rascunho:['Rascunho',''], emitido:['Emitido','info'], enviado:['Enviado','good'] };
+const addMeses = (iso, n) => { const d = new Date(iso + 'T12:00:00'); const dia = d.getDate(); d.setMonth(d.getMonth() + n); if(d.getDate() < dia) d.setDate(0); return d.toISOString().slice(0,10); };
+const dExt = iso => { const [y, m, d] = String(iso).slice(0,10).split('-').map(Number); return `${d} DE ${MESES_L[m-1].toUpperCase()} DE ${y}`; };
+const mascCnpj = v => { const d = onlyDig(v).slice(0, 14); return d.length === 14 ? fmtCnpj(d) : v; };
+const execTxt = (tipo, placa) => (L_TIPOS[tipo] || L_TIPOS.desinsetizacao).exec.replace('{placa}', placa || '________');
+
+function proxLaudo(){
+  const ano = TODAY.slice(0,4); const n = (DB.laudos||[]).map(l=>String(l.numero)).filter(x=>x.endsWith('/' + ano)).map(x=>parseInt(x, 10) || 0);
+  return String(Math.max(0, ...n) + 1).padStart(3, '0') + '/' + ano;
+}
+function novoLaudo(base){
+  const t = base && base.tipo || 'desinsetizacao';
+  return { id:null, numero: proxLaudo(), os_id:null, tipo:t, status:'rascunho', data: TODAY, validade: addMeses(TODAY, L_TIPOS[t].meses), texto_execucao: execTxt(t, ''), cliente:'', cnpj:'', telefone:'', email:'', endereco:'', cep:'', cidade:'', placa:'',
+           unidade:'mandirituba', produtos:[], responsavel:'Geraldo Adolfo Mann', crea:'CREA Nacional 170355476-6', local_emissao:'Curitiba', obs:'', ...(base || {}) };
+}
+
+/* ---- navegação da área de Dedetização ---- */
+function dedetNav(ativo){
+  return `<div class="tabs" style="margin-bottom:10px"><button class="${ativo==='os'?'on':''}" data-dn="#/dedetizacao">Ordens de serviço</button><button class="${ativo==='laudos'?'on':''}" data-dn="#/dedetizacao/laudos">Laudos</button></div>`;
+}
+document.addEventListener('click', e=>{ const b = e.target.closest('[data-dn]'); if(b) location.hash = b.dataset.dn; });
+
+/* ---- listagem ---- */
+const LF = { q:'', tipo:'', st:'' };
+function laudos(){
+  const lst = DB.laudos.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)) || String(b.numero).localeCompare(String(a.numero)));
+  const f = lst.filter(l=>(!LF.tipo || l.tipo===LF.tipo) && (!LF.st || l.status===LF.st) && (!LF.q || [l.numero, l.cliente, l.cnpj, l.cidade, l.placa].join(' ').toLowerCase().includes(LF.q.toLowerCase())));
+  const mes = TODAY.slice(0,7), doMes = lst.filter(l=>String(l.data).startsWith(mes));
+  const vencendo = lst.filter(l=>l.validade && String(l.validade) >= TODAY && daysBetween(TODAY, l.validade) <= 30);
+  const vencidos = lst.filter(l=>l.validade && String(l.validade) < TODAY);
+  const rasc = lst.filter(l=>l.status==='rascunho');
+  $('#app').innerHTML = `
+  ${dedetNav('laudos')}
+  <div class="pagehead"><div><h2>Laudos técnicos</h2><p>Laudo de controle e manejo integrado de pragas urbanas, no padrão da Exata, pronto para enviar ao cliente em PDF.</p></div>
+    <div class="acts"><a class="btn primary" href="#/dedetizacao/laudos/novo" style="text-decoration:none;text-align:center">+ Novo laudo</a></div></div>
+  <div class="cards">
+    <div class="card"><div class="l">Emitidos em ${mLabel(mes)}</div><div class="v">${doMes.length}</div><div class="s">${lst.length} no total</div></div>
+    <div class="card"><div class="l">Vencem em 30 dias</div><div class="v" style="color:${vencendo.length?'var(--warn)':'inherit'}">${vencendo.length}</div><div class="s">hora de oferecer a renovação</div></div>
+    <div class="card"><div class="l">Já vencidos</div><div class="v">${vencidos.length}</div><div class="s">laudos com a validade passada</div></div>
+    <div class="card"><div class="l">Rascunhos</div><div class="v">${rasc.length}</div><div class="s">ainda não emitidos</div></div></div>
+  <div class="filters" style="grid-template-columns:minmax(170px,260px) minmax(130px,170px) minmax(220px,1fr)">
+    <div class="field"><label>Tipo de serviço</label><select id="l-tipo"><option value="">Todos</option>${Object.entries(L_TIPOS).map(([k,t])=>`<option value="${k}" ${LF.tipo===k?'selected':''}>${t.nome}</option>`).join('')}</select></div>
+    <div class="field"><label>Situação</label><select id="l-st"><option value="">Todas</option>${Object.entries(L_STATUS).map(([k,s])=>`<option value="${k}" ${LF.st===k?'selected':''}>${s[0]}</option>`).join('')}</select></div>
+    <div class="field"><label>Buscar cliente, nº, CNPJ ou placa</label><input id="l-q" type="search" value="${esc(LF.q)}"></div></div>
+  ${f.length ? `<div class="table-wrap"><table><thead><tr><th>Nº</th><th>Data</th><th>Cliente</th><th>Serviço</th><th>Validade</th><th>Situação</th><th></th></tr></thead><tbody>
+    ${f.map(l=>{ const venc = l.validade && String(l.validade) < TODAY, prox = !venc && l.validade && daysBetween(TODAY, l.validade) <= 30;
+      return `<tr><td><b>${esc(l.numero)}</b></td><td>${dBR(l.data)}</td><td class="wrap"><b>${esc(l.cliente)}</b>${l.cidade?`<div class="mini">${esc(l.cidade)}</div>`:''}</td><td>${esc((L_TIPOS[l.tipo]||{}).nome||l.tipo)}${l.placa?`<div class="mini">${esc(l.placa)}</div>`:''}</td>
+      <td>${l.validade?dBR(l.validade):'–'} ${venc?'<span class="badge bad">vencido</span>':prox?'<span class="badge warn">vence logo</span>':''}</td>
+      <td><select data-lst="${esc(l.id)}" style="padding:3px 6px;font-size:12.5px">${Object.entries(L_STATUS).map(([k,v])=>`<option value="${k}" ${l.status===k?'selected':''}>${v[0]}</option>`).join('')}</select></td>
+      <td style="white-space:nowrap"><a class="btn sm" href="#/dedetizacao/laudos/${esc(l.id)}/doc" style="text-decoration:none">Laudo</a> <a class="btn sm" href="#/dedetizacao/laudos/${esc(l.id)}" style="text-decoration:none">Editar</a></td></tr>`; }).join('')}</tbody></table></div>`
+    : `<div class="card empty">${lst.length ? 'Nenhum laudo neste filtro.' : 'Nenhum laudo ainda. Clique em “+ Novo laudo” ou abra uma ordem de serviço realizada para preencher sozinho.'}</div>`}`;
+  $('#l-tipo').onchange = e=>{ LF.tipo = e.target.value; laudos(); }; $('#l-st').onchange = e=>{ LF.st = e.target.value; laudos(); };
+  $('#l-q').oninput = e=>{ LF.q = e.target.value; clearTimeout(laudos._t); laudos._t = setTimeout(()=>{ const p = e.target.selectionStart; laudos(); const i = $('#l-q'); i.focus(); i.setSelectionRange(p, p); }, 350); };
+  $$('[data-lst]').forEach(s=>s.onchange = async ()=>{ const l = DB.laudos.find(x=>x.id===s.dataset.lst); try{ await dbUpdate('laudos', { status:s.value, ...carimbo() }, 'id', l.id); l.status = s.value; toast('Situação atualizada.'); }catch(e){ toast('Erro: ' + e.message, true); s.value = l.status; } });
+}
+
+/* ---- editor ---- */
+let LE = null;
+function laudoEditor(id){
+  if(id === 'novo') LE = novoLaudo();
+  else { const l = DB.laudos.find(x=>x.id === id); if(!l){ location.hash = '#/dedetizacao/laudos'; return; } LE = JSON.parse(JSON.stringify(l)); LE.produtos = LE.produtos || []; }
+  desenhaLaudo();
+}
+function prodMemoria(nome){
+  const n = String(nome||'').trim().toLowerCase(); if(!n) return null;
+  for(const l of DB.laudos.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)))){ const p = (l.produtos||[]).find(x=>String(x.nome||'').trim().toLowerCase() === n && (x.pa || x.fispq)); if(p) return p; }
+  const c = (DB.prod_os||[]).find(x=>String(x.nome_comum||'').trim().toLowerCase() === n); return c ? { nome:c.nome_comum, pa:c.principio_ativo || '', fispq:'' } : null;
+}
+function desenhaLaudo(){
+  const novo = !LE.id, t = L_TIPOS[LE.tipo] || L_TIPOS.desinsetizacao;
+  const clientes = [...new Set([...(DB.clientes||[]).map(c=>c.nome), ...DB.laudos.map(l=>l.cliente)].filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const oss = (DB.os_lista||[]).filter(o=>o.status === 'Realizada').sort((a,b)=>String(b.data).localeCompare(String(a.data))).slice(0, 80);
+  $('#app').innerHTML = `
+  ${dedetNav('laudos')}
+  <a href="#/dedetizacao/laudos" style="text-decoration:none;color:var(--text-muted);font-size:13px">← Laudos</a>
+  <div class="pagehead" style="margin-top:6px"><div><h2>${novo ? 'Novo laudo' : 'Laudo ' + esc(LE.numero)}</h2><p>${esc(t.nome)}</p></div>
+    <div class="acts">${novo ? '' : `<button class="btn" id="le-dup">Duplicar</button><a class="btn" href="#/dedetizacao/laudos/${esc(LE.id)}/doc" style="text-decoration:none;text-align:center">Ver laudo / PDF</a>`}<button class="btn primary" id="le-save">Salvar</button></div></div>
+  ${oss.length ? `<div class="card" style="margin-bottom:14px"><h4>Preencher a partir de uma ordem de serviço realizada</h4><div class="field"><select id="le-os"><option value="">Escolha a ordem de serviço (opcional)…</option>${oss.map(o=>`<option value="${esc(o.id)}" ${LE.os_id===o.id?'selected':''}>${esc(o.numero||'s/nº')} · ${dBR(o.data)} · ${esc(o.cliente)}</option>`).join('')}</select></div></div>` : ''}
+  <div class="card" style="margin-bottom:14px"><h4>Serviço</h4><div class="fgrid">
+    <div class="field full"><label>Tipo de serviço</label><select id="le-tipo">${Object.entries(L_TIPOS).map(([k,x])=>`<option value="${k}" ${LE.tipo===k?'selected':''}>${x.nome}</option>`).join('')}</select></div>
+    <div class="field"><label>Nº do laudo</label><input id="le-numero" value="${esc(LE.numero)}" ${novo?'':'readonly'}></div>
+    <div class="field"><label>Data da execução</label><input type="date" id="le-data" value="${esc(LE.data)}"></div>
+    <div class="field"><label>Validade (meses)</label><select id="le-meses">${[1,2,3,4,6,12].map(m=>`<option value="${m}" ${monthsDiff(LE.data, LE.validade)===m?'selected':''}>${m} ${m===1?'mês':'meses'}</option>`).join('')}<option value="x" ${[1,2,3,4,6,12].includes(monthsDiff(LE.data, LE.validade))?'':'selected'}>Outra data</option></select></div>
+    <div class="field"><label>Válido até</label><input type="date" id="le-validade" value="${esc(LE.validade||'')}"></div>
+    <div class="field"><label>Unidade que executou</label><select id="le-unidade">${Object.entries(L_UNIDADES).map(([k,u])=>`<option value="${k}" ${LE.unidade===k?'selected':''}>${u.nome}</option>`).join('')}</select></div>
+    <div class="field" id="le-placa-box" ${LE.tipo==='veiculo'?'':'hidden'}><label>Placa do veículo</label><input id="le-placa" value="${esc(LE.placa||'')}" style="text-transform:uppercase"></div>
+    <div class="field full"><label>Texto do serviço executado (aparece no certificado)</label><textarea id="le-exec" rows="3" style="width:100%">${esc(LE.texto_execucao||'')}</textarea></div></div></div>
+  <div class="card" style="margin-bottom:14px"><h4>Contratante</h4><div class="fgrid">
+    <div class="field full"><label>Nome do cliente</label><input id="le-cliente" list="le-clientes" value="${esc(LE.cliente)}" autocomplete="off"><datalist id="le-clientes">${clientes.map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div>
+    <div class="field"><label>CNPJ</label><input id="le-cnpj" value="${esc(LE.cnpj||'')}" inputmode="numeric"></div><div class="field"><label>Telefone</label><input id="le-telefone" value="${esc(LE.telefone||'')}"></div>
+    <div class="field full"><label>Endereço</label><input id="le-endereco" value="${esc(LE.endereco||'')}"></div>
+    <div class="field"><label>CEP</label><input id="le-cep" value="${esc(LE.cep||'')}"></div><div class="field"><label>Cidade / UF</label><input id="le-cidade" value="${esc(LE.cidade||'')}"></div>
+    <div class="field full"><label>E-mail do cliente (para enviar o laudo)</label><input id="le-email" type="email" value="${esc(LE.email||'')}"></div></div></div>
+  <div class="card" style="margin-bottom:14px"><h4>Produtos utilizados</h4><div id="le-prods"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:end"><div class="field" style="min-width:240px;flex:1"><label>Adicionar produto cadastrado</label><select id="le-addprod"><option value="">Escolha um produto…</option>${(DB.prod_os||[]).map(p=>`<option value="${esc(p.nome_comum)}">${esc(p.nome_comum)}${p.principio_ativo?' — '+esc(p.principio_ativo):''}</option>`).join('')}</select></div><button class="btn" id="le-prodlivre">+ Produto manual</button></div>
+    <p class="hint">O princípio ativo vem do cadastro de produtos da Dedetização. O número da FISPQ é lembrado dos laudos anteriores.</p></div>
+  <div class="card" style="margin-bottom:14px"><h4>Emissão</h4><div class="fgrid">
+    <div class="field"><label>Responsável técnico</label><input id="le-resp" value="${esc(LE.responsavel||'')}"></div><div class="field"><label>Registro (CREA)</label><input id="le-crea" value="${esc(LE.crea||'')}"></div>
+    <div class="field"><label>Cidade de emissão</label><input id="le-local" value="${esc(LE.local_emissao||'')}"></div><div class="field"><label>Situação</label><select id="le-status">${Object.entries(L_STATUS).map(([k,s])=>`<option value="${k}" ${LE.status===k?'selected':''}>${s[0]}</option>`).join('')}</select></div>
+    <div class="field full"><label>Observação interna (não aparece no laudo)</label><input id="le-obs" value="${esc(LE.obs||'')}"></div></div></div>
+  ${novo || !souAdmin() ? '' : '<div style="margin-bottom:14px"><button class="btn ghost" id="le-del" style="color:var(--bad)">Excluir laudo</button></div>'}
+  <div class="hintbox" id="le-msg" hidden></div>`;
+  desenhaProds();
+  const msg = m=>{ const b = $('#le-msg'); b.textContent = m; b.className = 'hintbox bad'; b.hidden = !m; };
+  const ler = lerLaudo;
+  $('#le-tipo').onchange = e=>{ const antigo = LE.tipo; ler(); const t0 = L_TIPOS[antigo], t1 = L_TIPOS[e.target.value]; if(!LE.texto_execucao || LE.texto_execucao === execTxt(antigo, LE.placa)) LE.texto_execucao = execTxt(e.target.value, LE.placa);
+    if(!LE.id && LE.validade === addMeses(LE.data, t0.meses)) LE.validade = addMeses(LE.data, t1.meses); LE.tipo = e.target.value; desenhaLaudo(); };
+  const recalc = ()=>{ const m = $('#le-meses').value; if(m !== 'x') $('#le-validade').value = addMeses($('#le-data').value || TODAY, +m); };
+  $('#le-meses').onchange = recalc; $('#le-data').onchange = recalc;
+  $('#le-validade').onchange = ()=>{ const m = monthsDiff($('#le-data').value, $('#le-validade').value); $('#le-meses').value = [1,2,3,4,6,12].includes(m) ? m : 'x'; };
+  $('#le-placa').oninput = ()=>{ const antigo = execTxt(LE.tipo, LE.placa); LE.placa = $('#le-placa').value.toUpperCase(); if($('#le-exec').value === antigo || !$('#le-exec').value) $('#le-exec').value = execTxt(LE.tipo, LE.placa); };
+  $('#le-cnpj').oninput = e=>{ e.target.value = mascCnpj(e.target.value); };
+  $('#le-cliente').onchange = ()=>{ const n = $('#le-cliente').value.trim().toLowerCase();
+    const l = DB.laudos.filter(x=>String(x.cliente).toLowerCase() === n).sort((a,b)=>String(b.data).localeCompare(String(a.data)))[0];
+    const c = (DB.clientes||[]).find(x=>String(x.nome).toLowerCase() === n);
+    const put = (k, v)=>{ const el = $('#le-' + k); if(el && !el.value && v) el.value = v; };
+    if(l){ put('cnpj', l.cnpj); put('telefone', l.telefone); put('endereco', l.endereco); put('cep', l.cep); put('cidade', l.cidade); put('email', l.email); } else if(c){ put('telefone', c.contato); put('endereco', c.endereco); put('cidade', c.municipio); } };
+  if($('#le-os')) $('#le-os').onchange = e=>{ const o = DB.os_lista.find(x=>x.id === e.target.value); if(!o) return; ler();
+    LE.os_id = o.id; LE.cliente = o.cliente || LE.cliente; LE.telefone = o.contato || LE.telefone; LE.endereco = o.endereco || LE.endereco; LE.cidade = o.municipio || LE.cidade; if(o.data) LE.data = o.data;
+    const vet = (o.vetores || []).map(String); const so = vet.length && vet.every(v=>/roedor|rato/i.test(v)); const novoTipo = so ? 'desratizacao' : LE.tipo === 'desratizacao' ? 'desinsetizacao' : LE.tipo;
+    if(novoTipo !== LE.tipo){ LE.tipo = novoTipo; } LE.texto_execucao = execTxt(LE.tipo, LE.placa); LE.validade = addMeses(LE.data, L_TIPOS[LE.tipo].meses);
+    const ps = (o.produtos || []).filter(p=>p && p.nome).map(p=>{ const m = prodMemoria(p.nome) || {}; return { nome:p.nome, pa:p.ativo || m.pa || '', fispq:m.fispq || '' }; }); if(ps.length) LE.produtos = ps;
+    const antes = DB.laudos.filter(x=>String(x.cliente).toLowerCase() === String(LE.cliente).toLowerCase()).sort((a,b)=>String(b.data).localeCompare(String(a.data)))[0];
+    if(antes){ ['cnpj','cep','email'].forEach(k=>{ if(!LE[k]) LE[k] = antes[k]; }); }
+    desenhaLaudo(); toast('Dados da ordem de serviço aplicados. Confira CNPJ e CEP.'); };
+  $('#le-addprod').onchange = e=>{ if(!e.target.value) return; ler(); const m = prodMemoria(e.target.value) || { nome:e.target.value }; LE.produtos.push({ nome:m.nome || e.target.value, pa:m.pa || '', fispq:m.fispq || '' }); desenhaProds(); e.target.value = ''; };
+  $('#le-prodlivre').onclick = ()=>{ ler(); LE.produtos.push({ nome:'', pa:'', fispq:'' }); desenhaProds(); };
+  $('#le-save').onclick = async ()=>{
+    ler(); msg('');
+    if(!LE.cliente.trim()){ msg('Informe o cliente.'); return; }
+    const cd = onlyDig(LE.cnpj); if(cd && (cd.length !== 14 || !cnpjValido(cd)) && !$('#le-save').dataset.w){ $('#le-save').dataset.w = '1'; msg('O CNPJ informado não parece válido. Confira; para salvar assim mesmo, clique em Salvar de novo.'); return; }
+    if(!LE.data || !LE.validade){ msg('Informe a data e a validade.'); return; }
+    if(LE.tipo === 'veiculo' && !LE.placa){ msg('Informe a placa do veículo.'); return; }
+    const row = { numero:LE.numero, os_id:LE.os_id || null, tipo:LE.tipo, status:LE.status, data:LE.data, validade:LE.validade, texto_execucao:LE.texto_execucao, cliente:LE.cliente.trim(), cnpj:LE.cnpj || null, telefone:LE.telefone || null, email:LE.email || null, endereco:LE.endereco || null, cep:LE.cep || null,
+      cidade:LE.cidade || null, placa:LE.placa || null, unidade:LE.unidade, produtos:LE.produtos.filter(p=>p.nome.trim()), responsavel:LE.responsavel || null, crea:LE.crea || null, local_emissao:LE.local_emissao || 'Curitiba', obs:LE.obs || null };
+    $('#le-save').disabled = true;
+    try{
+      if(!LE.id){ for(let k = 0; k < 3; k++){ try{ const n = { id: uid('lg'), ...row, criado_por: USER || 'Escritório' }; await dbInsert('laudos', [n]); DB.laudos.push({ ...n, created_at: new Date().toISOString() }); LE.id = n.id; break; }
+          catch(e){ if(/duplicate|unique|laudos_numero/i.test(e.message) && k < 2){ row.numero = LE.numero = proxLaudo(); continue; } throw e; } } }
+      else { await dbUpdate('laudos', { ...row, ...carimbo() }, 'id', LE.id); Object.assign(DB.laudos.find(x=>x.id === LE.id), row); }
+      toast('Laudo ' + row.numero + ' salvo.'); location.hash = '#/dedetizacao/laudos/' + LE.id + '/doc';
+    }catch(e){ console.error(e); $('#le-save').disabled = false; msg('Não foi possível salvar: ' + e.message); }
+  };
+  if($('#le-dup')) $('#le-dup').onclick = ()=>{ ler(); LE = novoLaudo({ tipo:LE.tipo, cliente:LE.cliente, cnpj:LE.cnpj, telefone:LE.telefone, email:LE.email, endereco:LE.endereco, cep:LE.cep, cidade:LE.cidade, placa:LE.placa, unidade:LE.unidade, produtos:JSON.parse(JSON.stringify(LE.produtos)), responsavel:LE.responsavel, crea:LE.crea, local_emissao:LE.local_emissao }); desenhaLaudo(); toast('Cópia criada: ajuste a data e salve para gerar o novo número.'); };
+  if($('#le-del')) $('#le-del').onclick = async ()=>{ if(!confirm('Excluir o laudo ' + LE.numero + '? Isso não pode ser desfeito.')) return; try{ await dbDelete('laudos', 'id', LE.id); DB.laudos = DB.laudos.filter(x=>x.id !== LE.id); toast('Laudo excluído.'); location.hash = '#/dedetizacao/laudos'; }catch(e){ toast('Erro: ' + e.message, true); } };
+}
+function monthsDiff(a, b){ if(!a || !b) return -1; for(let m = 1; m <= 24; m++) if(addMeses(a, m) === b) return m; return -1; }
+function lerLaudo(){
+  const g = id => { const el = $('#' + id); return el ? el.value : undefined; };
+  [['tipo','tipo'],['numero','numero'],['data','data'],['validade','validade'],['unidade','unidade'],['exec','texto_execucao'],['cliente','cliente'],['cnpj','cnpj'],['telefone','telefone'],['endereco','endereco'],['cep','cep'],['cidade','cidade'],['email','email'],['resp','responsavel'],['crea','crea'],['local','local_emissao'],['status','status'],['obs','obs'],['placa','placa']]
+    .forEach(([i, k])=>{ const v = g('le-' + i); if(v !== undefined) LE[k] = v; });
+}
+function desenhaProds(){
+  const box = $('#le-prods');
+  box.innerHTML = LE.produtos.length ? `<div class="table-wrap"><table style="min-width:560px"><thead><tr><th>Nome</th><th>Princípio ativo (P.A.)</th><th>FISPQ</th><th style="width:40px"></th></tr></thead><tbody>
+    ${LE.produtos.map((p, i)=>`<tr><td><input data-pi="${i}" data-pf="nome" value="${esc(p.nome)}"></td><td><input data-pi="${i}" data-pf="pa" value="${esc(p.pa||'')}"></td><td><input data-pi="${i}" data-pf="fispq" value="${esc(p.fispq||'')}"></td><td><button class="btn sm" data-pdel="${i}" title="Remover">✕</button></td></tr>`).join('')}</tbody></table></div>`
+    : '<div class="card empty">Nenhum produto. Para laudos que não citam produto (ex.: só higienização de reservatório), deixe vazio.</div>';
+  $$('[data-pi]', box).forEach(el=>el.oninput = ()=>{ LE.produtos[+el.dataset.pi][el.dataset.pf] = el.value; });
+  $$('[data-pi][data-pf=nome]', box).forEach(el=>el.onchange = ()=>{ const p = LE.produtos[+el.dataset.pi]; const m = prodMemoria(el.value); if(m){ if(!p.pa) p.pa = m.pa || ''; if(!p.fispq) p.fispq = m.fispq || ''; desenhaProds(); } });
+  $$('[data-pdel]', box).forEach(b=>b.onclick = ()=>{ lerLaudo(); LE.produtos.splice(+b.dataset.pdel, 1); desenhaProds(); });
+}
+
+/* ---- documento (laudo) ---- */
+function laudoHtml(l, assin){
+  const t = L_TIPOS[l.tipo] || L_TIPOS.desinsetizacao, un = L_UNIDADES[l.unidade] || L_UNIDADES.mandirituba;
+  const dataBR = dBR(l.data), val = l.validade ? dBR(l.validade) : '—';
+  const row = (...c)=>`<div class="lr">${c.filter(Boolean).join('')}</div>`;
+  const kv = (k, v)=> v ? `<span><i>${k}:</i> ${esc(v)}</span>` : '';
+  const kvb = (k, v)=> v ? `<span><i>${k}:</i> <b>${esc(v)}</b></span>` : '';
+  const endCli = [l.endereco, l.cep ? 'CEP: ' + l.cep : ''].filter(Boolean).join(' – ');
+  const sedeCli = [l.cidade, l.endereco, l.cep ? 'CEP: ' + l.cep : ''].filter(Boolean).join(', ');
+  return `<article class="lau-doc">
+    <header class="ld-head"><img src="logo-exata.png" alt="EXATA"><div class="ld-band"></div><div class="ld-sub"><span>Laudo nº ${esc(l.numero)}</span><b>EXPURGO, FUMIGAÇÃO E DEDETIZAÇÃO</b></div></header>
+    <h1>Laudo Técnico de Controle e Manejo Integrado de Pragas Urbanas</h1>
+    <h2>Contratada</h2><div class="lbox">${row(kvb('Nome Fantasia', L_SEDE.fantasia))}${row(kv('Razão Social', L_SEDE.razao), kv('CNPJ', L_SEDE.cnpj), kv('Telefone', L_SEDE.fone))}${row(kv('Endereço', L_SEDE.end))}</div>
+    <h2>Execução - Unidade Operacional - ${esc(un.nome)}</h2><div class="lbox">${row(kvb('Nome Fantasia', L_SEDE.fantasia))}${row(kv('Razão Social', L_SEDE.razao), kv('CNPJ', un.cnpj), kv('Telefone', L_SEDE.fone))}${row(kv('Endereço', un.end))}${un.licenca ? row(kv('Licença Sanitária', un.licenca)) : ''}</div>
+    <h2>Contratante</h2><div class="lbox">${row(kvb('Nome', l.cliente), kv('CNPJ', l.cnpj), kv('Telefone', l.telefone))}${row(kv('Endereço', l.endereco), kv('CEP', l.cep))}${row(kv('Cidade', l.cidade))}</div>
+    ${(l.produtos || []).length ? `<h2>Produtos Utilizados</h2><div class="lbox">${l.produtos.map(p=>row(kv('Nome', p.nome), kv('P.A', p.pa), kv('FISPQ', p.fispq))).join('')}</div>` : ''}
+    <h2>Certificado</h2><div class="lbox lcert"><p>A <b>EXATA – Expurgo, Dedetização e Fumigação</b>, empresa especializada no controle e manejo integrado de pragas urbanas, inscrita no CNPJ ${esc(L_SEDE.cnpj)}, estabelecida a ${esc(L_SEDE.end)}, através da unidade operacional de ${esc(un.nome)}${l.unidade === 'mandirituba' ? ' estabelecida na ' + esc(un.ext) : ''} (CNPJ: ${esc(un.cnpj)}), firma que presta serviços de ${esc(t.firma)} para <b>${esc(l.cliente)}</b>, pessoa jurídica de direito privado${l.cnpj ? ', CNPJ: ' + esc(l.cnpj) : ''}${sedeCli ? ', com sede em ' + esc(sedeCli) : ''}, certifica que no dia <b>${dataBR}</b>, foram executados serviços de ${esc(l.texto_execucao || execTxt(l.tipo, l.placa))}.</p>
+      <p class="lval">CERTIFICAMOS O PRESENTE COM VALIDADE ATÉ: ${val}</p></div>
+    <div class="ld-data">${esc(String(l.local_emissao || 'Curitiba').toUpperCase())}, ${dExt(l.data)}</div>
+    <div class="ld-assin">${assin ? `<img src="${assin}" alt="">` : '<div style="height:70px"></div>'}<b>${esc(l.responsavel || '')}</b><span>${esc(l.crea || '')}</span></div>
+    <footer class="ld-foot"><div class="ld-band"></div><p><b>EXATA AMBIENTAL</b> - ${esc(L_SEDE.fone)} / (41) 99176-0988<br>${esc(String(l.local_emissao || 'Curitiba').toUpperCase())}</p></footer></article>`;
+}
+async function laudoDoc(id){
+  const l = DB.laudos.find(x=>x.id === id); if(!l){ location.hash = '#/dedetizacao/laudos'; return; }
+  let assin = null; try{ const m = await signedUrls(['config/assinatura-responsavel.png']); assin = m['config/assinatura-responsavel.png'] || null; }catch(e){}
+  $('#app').innerHTML = `${dedetNav('laudos')}<div class="od-bar"><a class="btn" href="#/dedetizacao/laudos" style="text-decoration:none">← Laudos</a><a class="btn" href="#/dedetizacao/laudos/${esc(l.id)}" style="text-decoration:none">Editar</a>
+    <button class="btn" id="ld-zap">Copiar mensagem p/ o cliente</button>${l.email ? '<button class="btn" id="ld-mail">Abrir e-mail</button>' : ''}<button class="btn" id="ld-env">${l.status === 'enviado' ? 'Situação: enviado' : 'Marcar como enviado'}</button><button class="btn primary" id="ld-print">Imprimir / Salvar PDF</button></div>
+    <p class="hint" style="margin:0 0 10px">No diálogo de impressão escolha “Salvar como PDF” e desligue “Cabeçalhos e rodapés”. Depois anexe o PDF na mensagem ao cliente.</p>${laudoHtml(l, assin)}`;
+  const msg = ()=>`Olá! Segue o laudo técnico nº ${l.numero} do serviço de ${(L_TIPOS[l.tipo]||{}).nome.toLowerCase()} realizado em ${dBR(l.data)} em ${l.cliente}${l.placa ? ' (veículo ' + l.placa + ')' : ''}. Validade até ${l.validade ? dBR(l.validade) : '—'}.\nExata Ambiental · ${L_SEDE.fone} · ${EMPRESA.email}`;
+  $('#ld-print').onclick = ()=>{ const t = document.title; document.title = `Laudo ${l.numero.replace('/', '-')} - ${l.cliente}`; window.print(); setTimeout(()=>document.title = t, 500); };
+  $('#ld-zap').onclick = async ()=>{ try{ await navigator.clipboard.writeText(msg()); toast('Mensagem copiada.'); }catch(e){ prompt('Copie a mensagem:', msg()); } };
+  if($('#ld-mail')) $('#ld-mail').onclick = ()=>{ location.href = `mailto:${encodeURIComponent(l.email)}?subject=${encodeURIComponent('Laudo técnico ' + l.numero + ' - Exata Ambiental')}&body=${encodeURIComponent(msg() + '\n\n(anexe o PDF do laudo)')}`; };
+  $('#ld-env').onclick = async ()=>{ if(l.status === 'enviado') return; try{ await dbUpdate('laudos', { status:'enviado', ...carimbo() }, 'id', l.id); l.status = 'enviado'; toast('Marcado como enviado.'); laudoDoc(id); }catch(e){ toast('Erro: ' + e.message, true); } };
 }
 
 /* ============================ CORREÇÃO MANUAL DOS LANÇAMENTOS ============================ */
