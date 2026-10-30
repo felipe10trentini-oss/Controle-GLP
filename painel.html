@@ -309,6 +309,58 @@ iframe.embed{width:100%;height:calc(100vh - 150px);min-height:620px;border:0;bor
   .matrix tr.tot td{background:#222!important;color:#fff!important;}
   iframe.embed{height:auto;}
 }
+/* ===== proposta comercial (orçamento) ===== */
+.od-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.orc-doc{--r:#c00000;--ink:#1d1d1b;--mut:#6a6a66;--ln:#e6e3dc;--bg2:#f7f5f1;max-width:820px;margin:0 auto 30px;background:#fff;color:var(--ink);border:1px solid #ddd;border-radius:14px;overflow:hidden;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;line-height:1.5;page:orc;}
+.orc-doc *{box-sizing:border-box;}
+.orc-doc .od-top{background:var(--r);color:#fff;padding:14px 26px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.orc-doc .od-logos{display:flex;align-items:center;gap:12px;background:#fff;border-radius:8px;padding:7px 12px;} .orc-doc .od-logos img{height:24px;display:block;} .orc-doc .od-logos i{width:1px;height:20px;background:#ccc;}
+.orc-doc .od-pill{border:1px solid rgba(255,255,255,.6);border-radius:999px;padding:5px 14px;font-size:11px;font-weight:600;letter-spacing:.05em;text-align:right;}
+.orc-doc .od-hero{padding:30px 30px 24px;border-bottom:1px solid var(--ln);}
+.orc-doc .od-hero small{color:var(--r);font-weight:700;font-size:11px;letter-spacing:.08em;}
+.orc-doc .od-hero h1{font:700 38px/1.1 'Barlow Condensed',sans-serif;margin:10px 0 12px;color:var(--ink);text-transform:none;letter-spacing:0;} .orc-doc .od-hero h1 em{color:var(--r);font-style:normal;}
+.orc-doc .od-rule{width:46px;height:3px;background:var(--r);margin-bottom:12px;} .orc-doc .od-hero p{color:#44443f;max-width:62ch;margin:0 0 18px;}
+.orc-doc .od-meta{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--ln);border-radius:10px;overflow:hidden;}
+.orc-doc .od-meta div{padding:11px 14px;border-right:1px solid var(--ln);background:#fff;} .orc-doc .od-meta div:last-child{border-right:0;}
+.orc-doc .od-meta span,.orc-doc .k span,.orc-doc .od-cond span,.orc-doc .od-obs span{display:block;font-size:9.5px;font-weight:600;letter-spacing:.07em;color:var(--mut);margin-bottom:2px;}
+.orc-doc .od-meta b{font-size:15px;} .orc-doc .od-meta .hl{background:#fdf1f0;} .orc-doc .od-meta .hl b{color:var(--r);font-size:17px;}
+.orc-doc .od-sec{padding:22px 30px;border-bottom:1px solid var(--ln);} .orc-doc .od-sec:last-of-type{border-bottom:0;}
+.orc-doc .od-sec h3{font:700 19px 'Barlow Condensed',sans-serif;margin:0 0 10px;text-transform:uppercase;letter-spacing:.03em;border-left:4px solid var(--r);padding-left:9px;}
+.orc-doc .od-sec h4{font:700 14px 'Barlow Condensed',sans-serif;text-transform:uppercase;margin:16px 0 6px;color:var(--ink);}
+.orc-doc .od-lead{margin:0 0 12px;color:#44443f;}
+.orc-doc .od-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;} .orc-doc .od-stats div{border:1px solid var(--ln);border-radius:10px;padding:10px 12px;background:var(--bg2);}
+.orc-doc .od-stats b{display:block;font:700 26px 'Barlow Condensed',sans-serif;color:var(--r);line-height:1.1;} .orc-doc .od-stats span{font-size:11.5px;color:var(--mut);}
+.orc-doc .od-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;} .orc-doc .k{background:var(--bg2);border-radius:8px;padding:9px 12px;} .orc-doc .k.wide{grid-column:span 3;} .orc-doc .k b{font-weight:600;}
+.orc-doc .od-difs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;} .orc-doc .od-difs div{border:1px solid var(--ln);border-radius:10px;padding:10px 12px;}
+.orc-doc .od-difs b{display:block;font-size:13px;margin-bottom:3px;} .orc-doc .od-difs b::before{content:"● ";color:var(--r);font-size:9px;vertical-align:1px;} .orc-doc .od-difs span{font-size:12px;color:#4d4d48;display:block;}
+.orc-doc .od-fluxo{list-style:none;margin:0;padding:0;display:grid;gap:8px;} .orc-doc .od-fluxo li{display:flex;gap:11px;align-items:flex-start;}
+.orc-doc .od-fluxo i,.orc-doc .od-passos i{font-style:normal;background:var(--r);color:#fff;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:12px;flex:none;}
+.orc-doc .od-fluxo b{display:block;} .orc-doc .od-fluxo span{color:#55554f;font-size:12.5px;}
+.orc-doc .od-req{margin:0;padding-left:18px;color:#44443f;} .orc-doc .od-req li{margin:2px 0;}
+.orc-doc .od-tab{width:100%;border-collapse:collapse;font-size:12.5px;min-width:0;} .orc-doc .od-tab th{background:var(--bg2);text-align:left;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);padding:8px 10px;position:static;white-space:normal;}
+.orc-doc .od-tab td{padding:9px 10px;border-bottom:1px solid var(--ln);vertical-align:top;} .orc-doc .od-tab td div{font-size:11.5px;color:var(--mut);} .orc-doc .n{text-align:right;white-space:nowrap;}
+.orc-doc .od-tot{margin:12px 0 0 auto;max-width:300px;} .orc-doc .od-tot div{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--ln);} .orc-doc .od-tot .g{border:0;padding-top:9px;} .orc-doc .od-tot .g b{font:700 25px 'Barlow Condensed',sans-serif;color:var(--r);} .orc-doc .od-tot .g span{align-self:center;font-weight:700;}
+.orc-doc .od-obs{background:var(--bg2);border-radius:10px;padding:12px 14px;margin-top:14px;} .orc-doc .od-obs p{margin:0;font-size:12.5px;color:#44443f;}
+.orc-doc .od-cond{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;} .orc-doc .od-cond div{border:1px solid var(--ln);border-radius:10px;padding:10px 12px;} .orc-doc .od-cond b{font-size:13px;}
+.orc-doc .od-valid{margin-top:10px;background:#fdf1f0;color:var(--r);border-radius:8px;padding:9px 13px;font-size:12.5px;}
+.orc-doc .od-passos{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;} .orc-doc .od-passos div{background:var(--bg2);border-radius:10px;padding:12px;} .orc-doc .od-passos b{display:block;margin:7px 0 3px;} .orc-doc .od-passos span{font-size:12px;color:#55554f;display:block;}
+.orc-doc .od-fim{text-align:center;margin:14px 0 0;color:#44443f;}
+.orc-doc .od-foot{background:#161614;color:#d8d6cf;padding:16px 30px;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;font-size:11.5px;} .orc-doc .od-foot b{display:block;color:#fff;font-size:12.5px;margin-bottom:3px;} .orc-doc .od-foot span{display:block;}
+.orc-doc .od-foot div:last-child{text-align:right;}
+@media (max-width:720px){ .orc-doc .od-meta,.orc-doc .od-stats,.orc-doc .od-grid,.orc-doc .od-difs,.orc-doc .od-cond,.orc-doc .od-passos{grid-template-columns:1fr 1fr;} .orc-doc .k.wide{grid-column:span 2;} .orc-doc .od-hero h1{font-size:30px;} .orc-doc .od-top{flex-direction:column;align-items:flex-start;} .orc-doc .od-foot div:last-child{text-align:left;} }
+@page orc{ size:A4 portrait; margin:8mm; }
+@media print{
+  body.orc-mode{background:#fff!important;} body.orc-mode .topbar,body.orc-mode .od-bar,body.orc-mode #print-head,body.orc-mode .hint{display:none!important;}
+  body.orc-mode .orc-doc{border:0!important;border-radius:0!important;margin:0!important;max-width:none!important;font-size:11px!important;}
+  .orc-doc .od-top{padding:9px 16px!important;} .orc-doc .od-hero{padding:16px 18px 14px!important;} .orc-doc .od-hero h1{font-size:27px!important;margin:6px 0 8px!important;} .orc-doc .od-hero p{margin-bottom:10px!important;}
+  .orc-doc .od-sec{padding:12px 18px!important;break-inside:avoid;page-break-inside:avoid;} .orc-doc .od-sec h3{font-size:15px!important;margin-bottom:7px!important;}
+  .orc-doc .od-tab{font-size:10.5px!important;} .orc-doc .od-tab th{font-size:8.5px!important;padding:5px 7px!important;} .orc-doc .od-tab td{padding:6px 7px!important;font-size:10.5px!important;} .orc-doc .od-tab tr{break-inside:avoid;}
+  .orc-doc .k,.orc-doc .od-difs div,.orc-doc .od-stats div,.orc-doc .od-passos div,.orc-doc .od-cond div{padding:6px 9px!important;} .orc-doc .od-difs span,.orc-doc .od-fluxo span,.orc-doc .od-passos span{font-size:10.5px!important;}
+  .orc-doc .od-foot{padding:10px 18px!important;font-size:10px!important;} .orc-doc .od-hero,.orc-doc .od-top,.orc-doc .od-foot,.orc-doc .od-meta .hl,.orc-doc .od-valid{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .orc-doc .od-top{background:#c00000!important;color:#fff!important;} .orc-doc .od-foot{background:#161614!important;color:#d8d6cf!important;} .orc-doc .od-foot b{color:#fff!important;}
+  .orc-doc .od-pill{color:#fff!important;border-color:rgba(255,255,255,.7)!important;} .orc-doc .od-hero h1 em,.orc-doc .od-stats b,.orc-doc .od-tot .g b,.orc-doc .od-meta .hl b{color:#c00000!important;}
+  .orc-doc td,.orc-doc th{white-space:normal!important;} .orc-doc td.n,.orc-doc th.n{white-space:nowrap!important;}
+}
 </style>
 </head>
 <body>
@@ -488,6 +540,7 @@ const ICON = {
   custos:'<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M7 15h4"/><circle cx="17" cy="15" r="1.2"/></svg>',
   km:'<svg viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/><circle cx="12" cy="16" r="1.3"/><path d="M5 16H3m18 0h-2M6.3 10.3 5 9m12.7 1.3L19 9"/></svg>',
   suportes:'<svg viewBox="0 0 24 24"><path d="M3 9h18v3H3zM5 12v6m7-6v6m7-6v6"/><path d="M3 18h18"/><path d="M6 6h12"/></svg>',
+  orc:'<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 12h7M9 16h7M9 20h4"/></svg>',
   nota:'<svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>',
   manut:'<svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3.5 17.5a1.8 1.8 0 0 0 2.5 2.5l5.8-5.8a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.2-.5-.5-2.2z"/></svg>',
   trat:'<svg viewBox="0 0 24 24"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z"/><path d="M12 9v7"/></svg>',
@@ -518,6 +571,9 @@ const LOADERS = {
   sup_sai: async()=> (await fetchAll('suportes_saida','id')).map(r=>({ ...r, qtd:num(r.qtd) })),
   sup_cic: async()=> (await fetchAll('suportes_ciclos','chave')).map(r=>({ ...r, temp:num(r.temp), tratada:num(r.tratada), saldo:num(r.saldo) })),
   sup_cont: async()=> (await fetchAll('suportes_contagem','id')).map(r=>({ ...r, saldo_sistema:num(r.saldo_sistema), saldo_fisico:num(r.saldo_fisico) })),
+  orc: async()=> (await fetchAll('orcamentos','created_at')).map(r=>({ ...r, total:num(r.total), desconto:num(r.desconto), itens:r.itens||[], params:r.params||{} })),
+  orc_cat: async()=> (await fetchAll('orcamento_catalogo','id')).map(r=>({ ...r, preco:num(r.preco) })),
+  clientes: async()=> { try{ return await fetchAll('clientes_os','nome'); }catch(e){ return []; } },
   sup_aj: async()=> (await fetchAll('suportes_ajustes','created_at')).map(r=>({ ...r, delta:num(r.delta), fisico:num(r.fisico) })),
   serv: async()=> (await fetchAll('servicos_ht','id')).map(r=>({ ...r, decl:num(r.decl), fotos:r.fotos||0 })),
   traj: async()=> await fetchAll('utilizacao_trajetos','data'),
@@ -548,7 +604,7 @@ function syncVeic(){
 }
 
 /* ============================ perfil e permissões ============================ */
-const AREAS = [['glp','Controle GLP'],['tratamentos','Tratamentos HT'],['os','Dedetização'],['custos','Controle de custos'],['km','Quilometragem'],['utilizacao','Utilização de veículos'],['manutencao','Manutenção do veículo'],['suportes','Venda de suportes'],['configuracoes','Configurações']];
+const AREAS = [['glp','Controle GLP'],['tratamentos','Tratamentos HT'],['os','Dedetização'],['orcamentos','Orçamentos'],['custos','Controle de custos'],['km','Quilometragem'],['utilizacao','Utilização de veículos'],['manutencao','Manutenção do veículo'],['suportes','Venda de suportes'],['configuracoes','Configurações']];
 const CAPS = [['lancar_nfe','Lançar nota fiscal (NF-e)'],['lancar_folha','Enviar foto da folha de quilometragem'],['lancar_fotos','Enviar fotos dos tratamentos'],['lancar_trajeto','Lançar trajeto (utilização)'],['lancar_km','Lançar leitura de km']];
 const CAP_AREA = { lancar_nfe:'custos', lancar_folha:'utilizacao', lancar_fotos:'tratamentos', lancar_trajeto:'utilizacao', lancar_km:'km' };
 let PERFIL = null;
@@ -680,7 +736,7 @@ async function startApp(){
 })();
 
 /* ============================ roteamento ============================ */
-const NAMES = { frota:'Veículos', glp:'Controle GLP', dedetizacao:'Dedetização', custos:'Controle de custos', km:'Quilometragem', manutencao:'Manutenção do veículo', suportes:'Venda de suportes', tratamentos:'Tratamentos HT', utilizacao:'Utilização de veículos', lancar:'Lançamento', configuracoes:'Configurações' };
+const NAMES = { orcamentos:'Orçamentos', frota:'Veículos', glp:'Controle GLP', dedetizacao:'Dedetização', custos:'Controle de custos', km:'Quilometragem', manutencao:'Manutenção do veículo', suportes:'Venda de suportes', tratamentos:'Tratamentos HT', utilizacao:'Utilização de veículos', lancar:'Lançamento', configuracoes:'Configurações' };
 function semAcesso(){
   $('#app').innerHTML = '<div class="card empty" style="padding:40px;text-align:center"><b>Você não tem acesso a esta área.</b><br><span class="mini">Fale com o administrador para liberar.</span><br><br><a class="btn" href="#/" style="text-decoration:none">Voltar ao início</a></div>';
 }
@@ -692,11 +748,17 @@ async function go(){
   const [path, qs] = raw.split('?'); const q = Object.fromEntries(new URLSearchParams(qs||''));
   const [key, sub, sub2] = path.split('/');
   $('#app').innerHTML = '<div class="loading">Carregando…</div>';
+  document.body.classList.toggle('orc-mode', key === 'orcamentos' && sub2 === 'proposta');
   if(key === 'frota' && !podeFrota()){ semAcesso(); $('#crumb').innerHTML = ''; return; }
   if(key && key !== 'lancar' && key !== 'frota' && NAMES[key] && !pode(AREA_DE[key] || key)){ semAcesso(); $('#crumb').innerHTML = ''; return; }
   if(key === 'lancar' && !CAPS.some(c=>podeLancar(c[0]))){ semAcesso(); $('#crumb').innerHTML = ''; return; }
   try{
     if(!key) home();
+    else if(key==='orcamentos'){
+      await need('orc','orc_cat','clientes');
+      if(token!==goToken) return;
+      if(sub2==='proposta') propostaTela(sub); else if(sub) orcEditor(sub, q); else orcamentos();
+    }
     else if(key==='frota'){ await need('veiculos','leit','abast','traj','manut','oleo','custos'); if(token===goToken) (sub ? fichaVeic(decodeURIComponent(sub).toUpperCase()) : frota()); }
     else if(key==='glp' || key==='dedetizacao'){
       $('#app').innerHTML = `<iframe class="embed" title="${NAMES[key]}" src="${EMBED[key]}"></iframe>`;
@@ -738,6 +800,7 @@ function home(){
     ['glp', 'Controle GLP', 'Compras de gás, trocas de cilindros e tratamentos por veículo.', GLP_URL, 'glp'],
     ['trat', 'Tratamentos HT', 'Todos os tratamentos de cada veículo, com cliente, ciclo e as fotos salvas no drive.', '#/tratamentos', 'tratamentos'],
     ['os', 'Dedetização', 'Ordens de serviço de dedetização, desratização e fumigação.', OS_URL, 'os'],
+    ['orc', 'Orçamentos', 'Propostas comerciais de serviço móvel HT, consultoria mensal e dedetização, prontas em PDF.', '#/orcamentos', 'orcamentos'],
     ['custos', 'Controle de custos', 'Combustível, hotel, alimentação e demais gastos dos veículos, com a nota de cada um.', '#/custos', 'custos'],
     ['util', 'Veículos', 'Ficha de cada veículo: km, troca de óleo, custos, abastecimentos, trajetos e manutenção.', '#/frota', 'frota'],
     ['suportes', 'Venda de suportes', 'Controle de estoque dos suportes tratados: entradas, saídas e saldo.', '#/suportes', 'suportes'],
@@ -1570,7 +1633,8 @@ function cfUsuarios(){
 const PERFIS = {
   operador:   { nome:'Operador',      tipo:'operador', abas:['lancar_nfe','lancar_folha','lancar_fotos'], desc:'Lança nota fiscal, foto da folha de quilometragem e fotos de tratamento pelo celular. Não vê dados.' },
   financeiro: { nome:'Financeiro',    tipo:'usuario',  abas:['custos','km','utilizacao','manutencao','suportes'], desc:'Consulta e corrige custos, quilometragem, utilização, manutenção e suportes.' },
-  gestor:     { nome:'Gestor',        tipo:'usuario',  abas:['glp','tratamentos','os','custos','km','utilizacao','manutencao','suportes'], desc:'Acessa todas as áreas, menos Configurações.' },
+  gestor:     { nome:'Gestor',        tipo:'usuario',  abas:['glp','tratamentos','os','orcamentos','custos','km','utilizacao','manutencao','suportes'], desc:'Acessa todas as áreas, menos Configurações.' },
+  comercial:  { nome:'Comercial',     tipo:'usuario',  abas:['orcamentos','os','tratamentos'], desc:'Faz orçamentos e consulta a Dedetização e os Tratamentos HT.' },
   dedetizacao:{ nome:'Dedetização',   tipo:'usuario',  abas:['os'], desc:'Só a Ordem de Serviço de dedetização.' },
   admin:      { nome:'Administrador', tipo:'admin',    abas:[], desc:'Acessa tudo, inclusive Configurações (cadastro de usuários, operadores e veículos).' }
 };
@@ -1801,6 +1865,295 @@ async function exportarDados(k){
     rows: ORDER.map(oleoInfo).filter(Boolean).map(o=>[o.veic, o.ultima||'', o.km_troca ?? '', o.km_atual ?? '', o.proxima ?? '', o.faltam ?? '']) }]); }
   else if(k === 'traj'){ await need('traj'); xlsxDownload(`trajetos_${hoje}.xlsx`, [{ name:'Trajetos', head:['Veículo','Data','Saída','Chegada','Km saída','Km chegada','Origem','Destino','Motorista','Observação','Origem do dado'],
     rows: DB.traj.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data))).map(t=>[t.veic, t.data, t.saida||'', t.chegada||'', t.km_saida ?? '', t.km_chegada ?? '', t.origem||'', t.destino||'', t.motorista||'', t.obs||'', t.fonte||'']) }]); }
+}
+
+/* ============================ ORÇAMENTOS (propostas comerciais) ============================ */
+const EMPRESA = { fone:'(41) 3107-1515', zap:'(41) 99176-0988', email:'exataecoambiental@gmail.com', site:'manngroup.com.br', end:'Rua Ronaldo José Carboni, 330 · Capão da Imbuia · Curitiba/PR' };
+const ORC_STATUS = { rascunho:['Rascunho',''], enviado:['Enviado','info'], aprovado:['Aprovado','good'], recusado:['Recusado','bad'] };
+const PRAGAS = ['Roedores','Pombos','Baratas','Insetos voadores','Cupins','Controle integrado de pragas'];
+const SERV_CONS = ['Consultoria técnica ambiental','Consultoria fitossanitária','Monitoramento de gases','Gestão de ruídos','Segurança do trabalho','Medicina ocupacional','Gestão de resíduos'];
+
+const ORC_AREAS = {
+  ht: {
+    nome:'Serviço móvel HT', curto:'Tratamento HT', ico:'trat',
+    titulo:'Tratamento fitossanitário HT móvel',
+    intro:'Tratamento térmico (HT) realizado na sua própria empresa, com unidade móvel, em embalagens, suportes e madeira gradeada. Atendemos o que a NIMF 15 e o MAPA exigem para o trânsito internacional de madeira, com a marca IPPC e o certificado de cada ciclo.',
+    params:[ { k:'local', l:'Local do tratamento', t:'text', full:true }, { k:'material', l:'Material', t:'select', o:['Embalagens e suportes de madeira','Madeira gradeada','Embalagens, suportes e madeira gradeada'] },
+             { k:'quantidade', l:'Quantidade estimada (un ou m³)', t:'text' }, { k:'frequencia', l:'Frequência', t:'select', o:['Tratamento avulso','Recorrente (programado)'] } ],
+    stats:[['56 °C','mínimo no centro da madeira, por no mínimo 30 minutos contínuos'], ['IPPC','marca e ciclo de tratamento em cada peça'], ['24 h','de antecedência para agendar o tratamento']],
+    difs:[['Registro no MAPA','Empresa homologada: registros BR-PR 0765 e BR-SC 0649. O tratamento segue as Portarias 385/2021 e 514/2022.'], ['Tratamento na sua empresa','A unidade móvel vai até você: sem transportar a carga e sem câmara fixa.'],
+          ['Rastreabilidade','Marca IPPC com o ciclo de tratamento e o mesmo ciclo na nota fiscal e no certificado.'], ['Monitoramento em tempo real','Dois sensores de madeira (PT100) e dois de ambiente registram temperatura, tempo e fim do tratamento.'],
+          ['Comunicado ao MAPA','Cuidamos do comunicado de tratamento ao MAPA até as 17h do dia anterior.'], ['Equipe treinada','Operadores treinados e equipamento de controle de temperatura de alta precisão.']],
+    fluxo:[['Comunicado ao MAPA','Feito por nós até as 17h do dia anterior.'], ['Tratamento térmico AQF-HT','Lona térmica sobre a carga e sensores nos pontos mais frios.'], ['Marca IPPC + ciclo','Aplicada pela nossa equipe ao fim do tratamento.'], ['NF e certificado','Emitidos com o ciclo, para rastreabilidade.'], ['Expedição','O material tratado segue para o cliente final.']],
+    requisitos:['Embalagens ou suportes de madeira já montados; madeira-produto gradeada.','Tomada trifásica (modelo de quatro polos) e empilhadeira no local.','Funcionário da sua empresa para auxiliar na marcação, conforme o volume.','Agendamento com até 24 horas de antecedência.','Espaço para a lona de tratamento de 7,5 × 2,8 × 3 metros.'],
+    obs:'O material tratado deve ficar guardado no endereço do tomador do serviço, separado do material não tratado. O certificado de tratamento e a nota fiscal de serviço são emitidos com o ciclo realizado.',
+    pagamento:'A combinar', parcelamento:'À vista, na emissão da nota fiscal', prazo:'Agendamento com até 24 h de antecedência',
+    passos:['Aprove esta proposta|Confirme local, material e quantidade. Se algo mudar, ajustamos a proposta sem custo.','Agende o tratamento|Avise com até 24 horas de antecedência. Nós fazemos o comunicado ao MAPA.','Tratamento e documentos|Realizamos o tratamento, aplicamos a marca IPPC + ciclo e emitimos NF e certificado.'],
+    cat:[['Tratamento HT em embalagens e suportes de madeira','por unidade tratada','un'],['Tratamento HT em madeira gradeada','por metro cúbico tratado','m³'],['Deslocamento da unidade móvel','por tratamento','serv'],['Tratamento mínimo por saída','valor mínimo por atendimento','serv']]
+  },
+  consultoria: {
+    nome:'Consultoria mensal', curto:'Consultoria', ico:'manut',
+    titulo:'Consultoria técnica mensal',
+    intro:'Acompanhamento técnico contínuo da sua empresa: conformidade com as normas vigentes (NRs) e com os órgãos ambientais, monitoramento e gestão técnica, evitando multas e riscos. Soluções completas em um só lugar, da execução à gestão.',
+    params:[ { k:'vigencia', l:'Vigência do contrato', t:'select', o:['6 meses','12 meses','24 meses','Prazo indeterminado'] }, { k:'visitas', l:'Visitas técnicas por mês', t:'text' },
+             { k:'servicos', l:'Serviços incluídos', t:'checks', o:SERV_CONS, full:true }, { k:'atividade', l:'Atividade / porte da empresa', t:'text', full:true } ],
+    stats:[['20+','anos de atuação em serviços técnicos especializados'], ['NRs','conformidade com as normas vigentes e órgãos ambientais'], ['1','parceiro para operação e gestão técnica']],
+    difs:[['Rigor técnico e legal','Conformidade com as NRs e com os órgãos ambientais, evitando multas e riscos.'], ['Tecnologia avançada','Equipamentos de última geração para monitoramento de gases, ruídos e controle fitossanitário.'],
+          ['Equipe especializada','Profissionais treinados em segurança do trabalho e medicina ocupacional.'], ['Atendimento integrado','Da execução operacional à gestão técnica, otimizando seu tempo e investimento.'],
+          ['Credenciada no MAPA','Registros BR-PR 0765 e BR-SC 0649: segurança jurídica para a sua empresa.'], ['Mensalidade previsível','Valor mensal definido em contrato, sem surpresas.']],
+    fluxo:[['Diagnóstico','Levantamento da sua operação e das exigências aplicáveis.'], ['Plano de atendimento','Definição dos serviços, visitas e prazos.'], ['Visitas e monitoramentos','Execução técnica no seu local.'], ['Relatórios e laudos','Documentação para auditorias e fiscalizações.'], ['Acompanhamento mensal','Revisão do que foi feito e do que vem no mês seguinte.']],
+    requisitos:[],
+    obs:'Os serviços incluídos, o número de visitas e a vigência estão descritos acima. Serviços fora do escopo podem ser contratados à parte, com orçamento prévio.',
+    pagamento:'Boleto bancário', parcelamento:'Mensalidade com vencimento a combinar', prazo:'Início em até 15 dias após a assinatura do contrato',
+    passos:['Aprove esta proposta|Confirme os serviços e a vigência. Ajustamos o escopo sem custo antes do contrato.','Assine o contrato|Formalizamos a contratação e agendamos o diagnóstico inicial.','Acompanhamento mensal|Executamos o plano, com visitas e relatórios todo mês.'],
+    cat:[['Consultoria técnica ambiental','mensalidade','mês'],['Consultoria fitossanitária','mensalidade','mês'],['Monitoramento de gases','por medição','serv'],['Gestão de ruídos','por medição','serv'],['Segurança do trabalho','mensalidade','mês'],['Medicina ocupacional','mensalidade','mês'],['Gestão de resíduos','mensalidade','mês'],['Visita técnica adicional','por visita','visita']]
+  },
+  dedetizacao: {
+    nome:'Dedetização', curto:'Dedetização', ico:'os',
+    titulo:'Controle de pragas e dedetização',
+    intro:'Controle de pragas para empresas e residências, com o rigor técnico de quem atua há mais de 20 anos no mercado industrial e residencial. Seu ambiente mais limpo, com aplicação por equipe treinada e produtos adequados a cada praga.',
+    params:[ { k:'tipo', l:'Tipo de imóvel', t:'select', o:['Empresarial','Residencial','Condomínio / indústria'] }, { k:'area', l:'Área a tratar (m²)', t:'text' },
+             { k:'pragas', l:'Pragas a controlar', t:'checks', o:PRAGAS, full:true }, { k:'periodicidade', l:'Periodicidade', t:'select', o:['Aplicação pontual','Mensal','Bimestral','Trimestral','Semestral'] }, { k:'garantia', l:'Garantia do serviço', t:'text' } ],
+    stats:[['20+','anos de experiência em controle de pragas'], ['6','frentes de controle de pragas'], ['MAPA','empresa credenciada: BR-PR 0765 · BR-SC 0649']],
+    difs:[['Controle integrado','Combinamos inspeção, prevenção e aplicação para resolver a causa, não só o sintoma.'], ['Equipe treinada','Aplicadores e responsável técnico habilitados.'],
+          ['Produtos adequados','Cada praga recebe o produto e o método certos, com princípio ativo e dosagem registrados.'], ['Comprovante do serviço','Ordem de serviço com produtos aplicados e área tratada.'],
+          ['Empresarial e residencial','Atendemos indústrias, comércios, condomínios e residências.'], ['Atendimento integrado','Orçamento, execução e acompanhamento com um só parceiro.']],
+    fluxo:[['Vistoria','Avaliamos o local e as pragas envolvidas.'], ['Plano de controle','Método, produtos e prazos definidos para o seu caso.'], ['Aplicação','Execução por equipe treinada, com cuidado com pessoas e animais.'], ['Ordem de serviço','Você recebe o registro do que foi aplicado.'], ['Acompanhamento','Retorno e reaplicação conforme a periodicidade combinada.']],
+    requisitos:['Informar previamente áreas com crianças, animais, alimentos ou equipamentos sensíveis.','Liberar o acesso aos locais a serem tratados no dia combinado.','Seguir as orientações de retorno ao ambiente passadas pelo aplicador.'],
+    obs:'Os valores consideram a área e as pragas descritas. Mudanças de área, de pragas ou de acesso podem alterar o valor; avisaremos antes de qualquer cobrança adicional.',
+    pagamento:'A combinar', parcelamento:'À vista, após a execução', prazo:'Agendamento conforme disponibilidade da equipe',
+    passos:['Aprove esta proposta|Confirme as áreas e as pragas. Se algo mudar, ajustamos sem custo.','Agende a aplicação|Combinamos dia e horário e as orientações de preparo do ambiente.','Aplicação e ordem de serviço|Executamos o controle e você recebe o registro do serviço.'],
+    cat:[['Controle integrado de pragas','aplicação','serv'],['Controle de roedores','aplicação','serv'],['Dedetização de baratas','aplicação','serv'],['Dedetização de cupins','aplicação','serv'],['Manejo de pombos','aplicação','serv'],['Controle de insetos voadores','aplicação','serv'],['Contrato mensal de controle de pragas','mensalidade','mês'],['Visita de retorno / garantia','por visita','visita']]
+  }
+};
+const aOrc = k => ORC_AREAS[k] || ORC_AREAS.ht;
+const brl = v => 'R$ ' + BRL(v || 0);
+
+/* ---- cálculo e número ---- */
+const calcItens = it => (it||[]).reduce((s, x)=>s + (Number(x.qtd)||0) * (Number(x.unit)||0), 0);
+const calcTotal = (it, desc) => Math.max(0, r2(calcItens(it) - (Number(desc)||0)));
+function proxNumero(){
+  const ano = TODAY.slice(0,4); const nums = (DB.orc||[]).map(o=>String(o.numero)).filter(n=>n.startsWith(ano + '-')).map(n=>parseInt(n.split('-')[1], 10)||0);
+  return `${ano}-${String(Math.max(0, ...nums) + 1).padStart(4, '0')}`;
+}
+const addDias = (iso, d) => { const t = new Date(iso + 'T12:00:00'); t.setDate(t.getDate() + d); return t.toISOString().slice(0,10); };
+const statusOrc = o => (o.status === 'enviado' && o.validade && String(o.validade) < TODAY) ? ['Vencido','warn'] : (ORC_STATUS[o.status] || ['—','']);
+
+/* ---- listagem ---- */
+const COR = { area:'', st:'', q:'', tab:'lista' };
+function orcamentos(){
+  const lst = DB.orc.slice().sort((a,b)=>String(b.numero).localeCompare(String(a.numero)));
+  const f = lst.filter(o=>(!COR.area || o.area===COR.area) && (!COR.st || o.status===COR.st) && (!COR.q || [o.numero, o.cliente, o.doc, o.cidade].join(' ').toLowerCase().includes(COR.q.toLowerCase())));
+  const mes = TODAY.slice(0,7), doMes = lst.filter(o=>String(o.emissao).startsWith(mes));
+  const abertos = lst.filter(o=>o.status==='enviado' && !(o.validade && String(o.validade) < TODAY));
+  const aprov = lst.filter(o=>o.status==='aprovado' && String(o.emissao).startsWith(mes));
+  const dec = lst.filter(o=>o.status==='aprovado' || o.status==='recusado'), taxa = dec.length ? sum(dec.filter(o=>o.status==='aprovado'), o=>1) / dec.length * 100 : null;
+  const tab = (k,t)=>`<button class="${COR.tab===k?'on':''}" data-ot="${k}">${t}</button>`;
+  $('#app').innerHTML = `
+  <div class="pagehead"><div><h2>Orçamentos</h2><p>Propostas comerciais de serviço móvel HT, consultoria mensal e dedetização, prontas para enviar em PDF.</p></div>
+    <div class="acts">${Object.entries(ORC_AREAS).map(([k, a])=>`<a class="btn ${k==='ht'?'primary':''}" href="#/orcamentos/novo?area=${k}" style="text-decoration:none;text-align:center">+ ${a.nome}</a>`).join('')}</div></div>
+  <div class="tabs">${tab('lista','Orçamentos')}${tab('catalogo','Serviços e preços')}</div>
+  <div id="orc-body"></div>`;
+  $$('[data-ot]').forEach(b=>b.onclick = ()=>{ COR.tab = b.dataset.ot; orcamentos(); });
+  const body = $('#orc-body');
+  if(COR.tab === 'catalogo') return orcCatalogo(body);
+  body.innerHTML = `
+  <div class="cards">
+    <div class="card"><div class="l">Emitidos em ${mLabel(mes)}</div><div class="v">${doMes.length}</div><div class="s">${R$k(sum(doMes, o=>o.total))} em propostas</div></div>
+    <div class="card"><div class="l">Aguardando resposta</div><div class="v">${abertos.length}</div><div class="s">${R$k(sum(abertos, o=>o.total))} · enviados e dentro da validade</div></div>
+    <div class="card"><div class="l">Aprovados em ${mLabel(mes)}</div><div class="v">${aprov.length}</div><div class="s">${R$k(sum(aprov, o=>o.total))}</div></div>
+    <div class="card"><div class="l">Taxa de aprovação</div><div class="v">${taxa==null?'–':N0(taxa)+'%'}</div><div class="s">aprovados ÷ (aprovados + recusados)</div></div>
+  </div>
+  <div class="filters" style="grid-template-columns:minmax(150px,200px) minmax(130px,170px) minmax(220px,1fr)">
+    <div class="field"><label>Área</label><select id="o-area"><option value="">Todas</option>${Object.entries(ORC_AREAS).map(([k,a])=>`<option value="${k}" ${COR.area===k?'selected':''}>${a.nome}</option>`).join('')}</select></div>
+    <div class="field"><label>Situação</label><select id="o-st"><option value="">Todas</option>${Object.entries(ORC_STATUS).map(([k,s])=>`<option value="${k}" ${COR.st===k?'selected':''}>${s[0]}</option>`).join('')}</select></div>
+    <div class="field"><label>Buscar cliente, nº ou CNPJ</label><input id="o-q" type="search" value="${esc(COR.q)}"></div></div>
+  ${f.length ? `<div class="table-wrap"><table><thead><tr><th>Nº</th><th>Emissão</th><th>Cliente</th><th>Área</th><th class="num">Valor</th><th>Validade</th><th>Situação</th><th></th></tr></thead><tbody>
+    ${f.map(o=>{ const s = statusOrc(o); return `<tr><td><b>${esc(o.numero)}</b></td><td>${dBR(o.emissao)}</td><td class="wrap"><b>${esc(o.cliente)}</b>${o.cidade?`<div class="mini">${esc(o.cidade)}</div>`:''}</td><td>${esc(aOrc(o.area).nome)}</td>
+      <td class="num">${o.total>0?BRL(o.total):'<span class="muted">a combinar</span>'}</td><td>${o.validade?dBR(o.validade):'–'}</td>
+      <td><select data-ost="${esc(o.id)}" style="padding:3px 6px;font-size:12.5px">${Object.entries(ORC_STATUS).map(([k,v])=>`<option value="${k}" ${o.status===k?'selected':''}>${v[0]}</option>`).join('')}</select>${s[0]==='Vencido'?' <span class="badge warn">vencido</span>':''}</td>
+      <td style="white-space:nowrap"><a class="btn sm" href="#/orcamentos/${esc(o.id)}/proposta" style="text-decoration:none">Proposta</a> <a class="btn sm" href="#/orcamentos/${esc(o.id)}" style="text-decoration:none">Editar</a></td></tr>`; }).join('')}</tbody></table></div>`
+    : `<div class="card empty">${lst.length ? 'Nenhum orçamento neste filtro.' : 'Nenhum orçamento ainda. Use um dos botões acima para criar o primeiro.'}</div>`}`;
+  $('#o-area').onchange = e=>{ COR.area = e.target.value; orcamentos(); }; $('#o-st').onchange = e=>{ COR.st = e.target.value; orcamentos(); };
+  $('#o-q').oninput = e=>{ COR.q = e.target.value; clearTimeout(orcamentos._t); orcamentos._t = setTimeout(()=>{ const p = e.target.selectionStart; orcamentos(); const i = $('#o-q'); i.focus(); i.setSelectionRange(p, p); }, 350); };
+  $$('[data-ost]').forEach(s=>s.onchange = async ()=>{
+    const o = DB.orc.find(x=>x.id===s.dataset.ost); try{ await dbUpdate('orcamentos', { status: s.value, ...carimbo() }, 'id', o.id); o.status = s.value; toast('Situação atualizada.'); orcamentos(); }catch(e){ toast('Erro: ' + e.message, true); s.value = o.status; } });
+}
+
+/* ---- catálogo de serviços e preços ---- */
+function orcCatalogo(box){
+  const cat = DB.orc_cat.slice().sort((a,b)=>String(a.area).localeCompare(String(b.area)) || (a.ordem||0)-(b.ordem||0) || String(a.descricao).localeCompare(String(b.descricao)));
+  box.innerHTML = `
+  <div class="pagehead" style="margin-bottom:10px"><div><p style="margin:0">Itens que podem ser adicionados a um orçamento com um clique, com unidade e preço. Os preços são sugestões: dá para alterar o valor dentro de cada orçamento.</p></div>
+    <div class="acts">${cat.length ? '' : '<button class="btn" id="oc-padrao">Carregar serviços padrão</button>'}<button class="btn primary" id="oc-novo">+ Novo item</button></div></div>
+  ${Object.entries(ORC_AREAS).map(([k, a])=>{ const it = cat.filter(x=>x.area===k); return `<h4 class="sechead">${a.nome}</h4>
+    ${it.length ? `<div class="table-wrap"><table><thead><tr><th>Descrição</th><th>Detalhe</th><th>Unidade</th><th class="num">Preço (R$)</th><th>Situação</th><th></th></tr></thead><tbody>
+      ${it.map(x=>`<tr><td class="wrap"><b>${esc(x.descricao)}</b></td><td class="wrap">${esc(x.detalhe)||'<span class="muted">–</span>'}</td><td>${esc(x.unidade)}</td><td class="num">${x.preco!=null?BRL(x.preco):'<span class="badge warn">defina</span>'}</td><td><span class="badge ${x.ativo===false?'bad':'good'}">${x.ativo===false?'Inativo':'Ativo'}</span></td><td><button class="btn sm" data-oc-ed="${esc(x.id)}">Editar</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="card empty">Nenhum item nesta área.</div>'}`; }).join('')}`;
+  $('#oc-novo').onclick = ()=>editarCatalogo(null);
+  if($('#oc-padrao')) $('#oc-padrao').onclick = async ()=>{
+    try{ const rows = Object.entries(ORC_AREAS).flatMap(([k, a])=>a.cat.map((c, i)=>({ id: uid('oc'), area:k, descricao:c[0], detalhe:c[1], unidade:c[2], preco:null, ativo:true, ordem:i + 1 })));
+      await dbInsert('orcamento_catalogo', rows); DB.orc_cat.push(...rows); toast('Serviços padrão carregados. Agora defina os preços.'); orcamentos(); }catch(e){ toast('Erro: ' + e.message, true); } };
+  $$('[data-oc-ed]').forEach(b=>b.onclick = ()=>editarCatalogo(DB.orc_cat.find(x=>x.id===b.dataset.ocEd)));
+}
+function editarCatalogo(x){
+  const novo = !x; x = x || { area:'ht', descricao:'', detalhe:'', unidade:'serv', preco:null, ativo:true, ordem:99 };
+  abrirEdicao({
+    titulo: novo ? 'Novo item do catálogo' : 'Editar item do catálogo',
+    campos: [ { k:'area', l:'', label:'Área', type:'select', opts: Object.entries(ORC_AREAS).map(([k,a])=>[k, a.nome]) }, { k:'unidade', label:'Unidade (un, m³, mês, serv…)' },
+              { k:'descricao', label:'Descrição', full:true, required:true }, { k:'detalhe', label:'Detalhe (aparece abaixo da descrição)', full:true },
+              { k:'preco', label:'Preço sugerido (R$)', type:'number', step:'0.01' }, { k:'ordem', label:'Ordem', type:'number' }, { k:'ativo', label:'Ativo (aparece na lista de itens)', type:'checkbox' } ],
+    valores: x,
+    onSave: async v=>{
+      if(!v.descricao) throw new Error('Informe a descrição.');
+      const row = { area: v.area, descricao: v.descricao, detalhe: v.detalhe, unidade: v.unidade || 'un', preco: v.preco, ativo: v.ativo, ordem: v.ordem != null ? Math.round(v.ordem) : 99 };
+      if(novo){ const n = { id: uid('oc'), ...row }; await dbInsert('orcamento_catalogo', [n]); DB.orc_cat.push(n); } else { await dbUpdate('orcamento_catalogo', row, 'id', x.id); Object.assign(x, row); }
+    },
+    onDelete: novo ? null : async ()=>{ await dbDelete('orcamento_catalogo', 'id', x.id); DB.orc_cat = DB.orc_cat.filter(z=>z.id !== x.id); }
+  });
+}
+
+/* ---- editor ---- */
+let OE = null;
+function novoOrc(area, base){
+  const a = aOrc(area);
+  return { id:null, numero: proxNumero(), area, status:'rascunho', cliente:'', doc:'', contato:'', telefone:'', email:'', cidade:'', endereco:'', vendedor: USER || '', emissao: TODAY, validade: addDias(TODAY, 15),
+           params:{}, itens:[], desconto:0, observacoes: a.obs, pagamento: a.pagamento, parcelamento: a.parcelamento, prazo: a.prazo, ...(base || {}) };
+}
+function orcEditor(id, q){
+  if(id === 'novo') OE = novoOrc(['ht','consultoria','dedetizacao'].includes(q.area) ? q.area : 'ht');
+  else { const o = DB.orc.find(x=>x.id === id); if(!o){ location.hash = '#/orcamentos'; return; } OE = JSON.parse(JSON.stringify(o)); OE.itens = OE.itens || []; OE.params = OE.params || {}; }
+  desenhaEditor();
+}
+function campoParam(p){
+  const v = OE.params[p.k];
+  if(p.t === 'select') return `<div class="field ${p.full?'full':''}"><label>${esc(p.l)}</label><select data-pk="${p.k}"><option value="">—</option>${p.o.map(o=>`<option ${v===o?'selected':''}>${esc(o)}</option>`).join('')}</select></div>`;
+  if(p.t === 'checks') return `<div class="field full"><label>${esc(p.l)}</label><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 14px">${p.o.map(o=>`<label class="checkrow" style="text-transform:none;letter-spacing:0;font-size:14px;color:var(--text)"><input type="checkbox" data-pc="${p.k}" value="${esc(o)}" ${(v||[]).includes(o)?'checked':''}> ${esc(o)}</label>`).join('')}</div></div>`;
+  return `<div class="field ${p.full?'full':''}"><label>${esc(p.l)}</label><input data-pk="${p.k}" value="${esc(v||'')}"></div>`;
+}
+function desenhaEditor(){
+  const a = aOrc(OE.area), novo = !OE.id, nomes = [...new Set([...(DB.clientes||[]).map(c=>c.nome), ...DB.orc.map(o=>o.cliente)].filter(Boolean))].sort((x,y)=>x.localeCompare(y));
+  $('#app').innerHTML = `
+  <a href="#/orcamentos" style="text-decoration:none;color:var(--text-muted);font-size:13px">← Orçamentos</a>
+  <div class="pagehead" style="margin-top:6px"><div><h2>${novo ? 'Novo orçamento' : 'Orçamento ' + esc(OE.numero)}</h2><p>${esc(a.titulo)}</p></div>
+    <div class="acts">${novo ? '' : `<button class="btn" id="oe-dup">Duplicar</button><a class="btn" href="#/orcamentos/${esc(OE.id)}/proposta" style="text-decoration:none;text-align:center">Ver proposta / PDF</a>`}<button class="btn primary" id="oe-save">Salvar</button></div></div>
+  <div class="card" style="margin-bottom:14px"><h4>Serviço e situação</h4><div class="fgrid">
+    <div class="field"><label>Área do orçamento</label><select id="oe-area" ${novo?'':'disabled'}>${Object.entries(ORC_AREAS).map(([k,x])=>`<option value="${k}" ${OE.area===k?'selected':''}>${x.nome}</option>`).join('')}</select></div>
+    <div class="field"><label>Situação</label><select id="oe-status">${Object.entries(ORC_STATUS).map(([k,s])=>`<option value="${k}" ${OE.status===k?'selected':''}>${s[0]}</option>`).join('')}</select></div>
+    <div class="field"><label>Data de emissão</label><input type="date" id="oe-emissao" value="${esc(OE.emissao)}"></div>
+    <div class="field"><label>Validade (dias)</label><input type="number" id="oe-vdias" min="1" value="${OE.validade ? Math.max(1, daysBetween(OE.emissao, OE.validade)) : 15}"></div>
+    <div class="field"><label>Vendedor / responsável</label><input id="oe-vendedor" value="${esc(OE.vendedor||'')}"></div>
+    <div class="field"><label>Nº do orçamento</label><input id="oe-numero" value="${esc(OE.numero)}" ${novo?'':'readonly'}></div></div></div>
+  <div class="card" style="margin-bottom:14px"><h4>Cliente</h4><div class="fgrid">
+    <div class="field full"><label>Cliente (escolha da lista ou digite um novo)</label><input id="oe-cliente" list="oe-clientes" value="${esc(OE.cliente)}" autocomplete="off"><datalist id="oe-clientes">${nomes.map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div>
+    <div class="field"><label>CNPJ / CPF</label><input id="oe-doc" value="${esc(OE.doc||'')}"></div><div class="field"><label>A/C (contato)</label><input id="oe-contato" value="${esc(OE.contato||'')}"></div>
+    <div class="field"><label>Telefone</label><input id="oe-telefone" value="${esc(OE.telefone||'')}"></div><div class="field"><label>E-mail</label><input id="oe-email" type="email" value="${esc(OE.email||'')}"></div>
+    <div class="field"><label>Cidade / UF</label><input id="oe-cidade" value="${esc(OE.cidade||'')}"></div><div class="field"><label>Endereço do serviço</label><input id="oe-endereco" value="${esc(OE.endereco||'')}"></div></div></div>
+  <div class="card" style="margin-bottom:14px"><h4>Resumo técnico — ${esc(a.nome)}</h4><div class="fgrid">${a.params.map(campoParam).join('')}</div></div>
+  <div class="card" style="margin-bottom:14px"><h4>Itens do orçamento</h4><div id="oe-itens"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:end"><div class="field" style="min-width:260px;flex:1"><label>Adicionar do catálogo</label><select id="oe-cat"><option value="">Escolha um serviço…</option>${DB.orc_cat.filter(c=>c.area===OE.area && c.ativo!==false).sort((x,y)=>(x.ordem||0)-(y.ordem||0)).map(c=>`<option value="${esc(c.id)}">${esc(c.descricao)}${c.preco!=null?' — '+brl(c.preco):''}</option>`).join('')}</select></div>
+      <button class="btn" id="oe-livre">+ Item livre</button></div>
+    ${DB.orc_cat.length ? '' : '<p class="hint">O catálogo está vazio: em Orçamentos › Serviços e preços você carrega os serviços padrão e define os preços.</p>'}</div>
+  <div class="card" style="margin-bottom:14px"><h4>Condições</h4><div class="fgrid">
+    <div class="field"><label>Forma de pagamento</label><input id="oe-pagamento" value="${esc(OE.pagamento||'')}"></div><div class="field"><label>Parcelamento / vencimento</label><input id="oe-parcelamento" value="${esc(OE.parcelamento||'')}"></div>
+    <div class="field full"><label>Prazo de execução</label><input id="oe-prazo" value="${esc(OE.prazo||'')}"></div>
+    <div class="field full"><label>Observações (aparecem na proposta)</label><textarea id="oe-obs" rows="4" style="width:100%">${esc(OE.observacoes||'')}</textarea></div></div></div>
+  ${novo ? '' : `<div style="margin-bottom:14px">${souAdmin() ? '<button class="btn ghost" id="oe-del" style="color:var(--bad)">Excluir orçamento</button>' : ''}</div>`}
+  <div class="hintbox" id="oe-msg" hidden></div>`;
+  desenhaItens();
+  const msg = t=>{ const m = $('#oe-msg'); m.textContent = t; m.className = 'hintbox bad'; m.hidden = !t; };
+  $('#oe-area').onchange = e=>{ const antigo = aOrc(OE.area); lerForm(); const prev = OE.area; OE.area = e.target.value; const n = aOrc(OE.area);
+    if(!OE.observacoes || OE.observacoes === antigo.obs) OE.observacoes = n.obs; ['pagamento','parcelamento','prazo'].forEach(k=>{ if(!OE[k] || OE[k] === antigo[k]) OE[k] = n[k]; }); OE.params = {}; OE.itens = []; desenhaEditor(); };
+  $('#oe-cliente').onchange = ()=>{ const nome = $('#oe-cliente').value.trim().toLowerCase(); const c = (DB.clientes||[]).find(x=>String(x.nome).toLowerCase() === nome || String(x.apelidos||'').toLowerCase().split(/[;,]/).map(s=>s.trim()).includes(nome));
+    if(c){ if(!$('#oe-telefone').value) $('#oe-telefone').value = c.contato || ''; if(!$('#oe-endereco').value) $('#oe-endereco').value = c.endereco || ''; if(!$('#oe-cidade').value) $('#oe-cidade').value = c.municipio || ''; OE.cliente_os_id = c.id; return; }
+    const o = DB.orc.filter(x=>String(x.cliente).toLowerCase() === nome).sort((p,q)=>String(q.emissao).localeCompare(String(p.emissao)))[0];
+    if(o){ ['doc','contato','telefone','email','cidade','endereco'].forEach(k=>{ const el = $('#oe-' + k); if(el && !el.value) el.value = o[k] || ''; }); } };
+  $('#oe-cat').onchange = e=>{ const c = DB.orc_cat.find(x=>x.id === e.target.value); if(!c) return; lerForm(); OE.itens.push({ desc:c.descricao, detalhe:c.detalhe || '', qtd:1, un:c.unidade || 'un', unit: c.preco != null ? Number(c.preco) : null }); desenhaItens(); e.target.value = ''; };
+  $('#oe-livre').onclick = ()=>{ lerForm(); OE.itens.push({ desc:'', detalhe:'', qtd:1, un:'serv', unit:null }); desenhaItens(); };
+  $('#oe-save').onclick = async ()=>{
+    lerForm(); msg('');
+    if(!OE.cliente.trim()){ msg('Informe o cliente.'); return; }
+    if(!OE.itens.length){ msg('Adicione pelo menos um item ao orçamento.'); return; }
+    if(OE.itens.some(i=>!String(i.desc).trim())){ msg('Há item sem descrição.'); return; }
+    const row = { numero: OE.numero, area: OE.area, status: OE.status, cliente: OE.cliente.trim(), cliente_os_id: OE.cliente_os_id || null, doc: OE.doc || null, contato: OE.contato || null, telefone: OE.telefone || null, email: OE.email || null, cidade: OE.cidade || null, endereco: OE.endereco || null,
+      vendedor: OE.vendedor || null, emissao: OE.emissao, validade: OE.validade, params: OE.params, itens: OE.itens.map(i=>({ desc:i.desc.trim(), detalhe:i.detalhe || '', qtd:Number(i.qtd)||0, un:i.un || '', unit:i.unit == null ? null : Number(i.unit) })),
+      desconto: Number(OE.desconto)||0, total: calcTotal(OE.itens, OE.desconto), observacoes: OE.observacoes || null, pagamento: OE.pagamento || null, parcelamento: OE.parcelamento || null, prazo: OE.prazo || null };
+    $('#oe-save').disabled = true;
+    try{
+      if(!OE.id){
+        for(let t = 0; t < 3; t++){ try{ const n = { id: uid('or'), ...row, criado_por: USER || 'Escritório' }; await dbInsert('orcamentos', [n]); DB.orc.push({ ...n, created_at: new Date().toISOString() }); OE.id = n.id; break; }
+          catch(e){ if(/duplicate|unique|orcamentos_numero/i.test(e.message) && t < 2){ row.numero = OE.numero = proxNumero(); continue; } throw e; } }
+      } else { await dbUpdate('orcamentos', { ...row, ...carimbo() }, 'id', OE.id); Object.assign(DB.orc.find(x=>x.id === OE.id), row); }
+      toast('Orçamento ' + row.numero + ' salvo.'); location.hash = '#/orcamentos/' + OE.id + '/proposta';
+    }catch(e){ console.error(e); $('#oe-save').disabled = false; msg('Não foi possível salvar: ' + e.message); }
+  };
+  if($('#oe-dup')) $('#oe-dup').onclick = ()=>{ lerForm(); const c = novoOrc(OE.area, { cliente: OE.cliente, doc: OE.doc, contato: OE.contato, telefone: OE.telefone, email: OE.email, cidade: OE.cidade, endereco: OE.endereco, params: JSON.parse(JSON.stringify(OE.params)), itens: JSON.parse(JSON.stringify(OE.itens)),
+      desconto: OE.desconto, observacoes: OE.observacoes, pagamento: OE.pagamento, parcelamento: OE.parcelamento, prazo: OE.prazo }); OE = c; desenhaEditor(); toast('Cópia criada: ajuste e salve para gerar o novo número.'); };
+  if($('#oe-del')) $('#oe-del').onclick = async ()=>{ if(!confirm('Excluir o orçamento ' + OE.numero + '? Isso não pode ser desfeito.')) return; try{ await dbDelete('orcamentos', 'id', OE.id); DB.orc = DB.orc.filter(x=>x.id !== OE.id); toast('Orçamento excluído.'); location.hash = '#/orcamentos'; }catch(e){ toast('Erro: ' + e.message, true); } };
+}
+function lerForm(){
+  const g = id => { const el = $('#' + id); return el ? el.value : undefined; };
+  ['status','emissao','vendedor','cliente','doc','contato','telefone','email','cidade','endereco','pagamento','parcelamento','prazo'].forEach(k=>{ const v = g('oe-' + k); if(v !== undefined) OE[k] = v; });
+  const obs = g('oe-obs'); if(obs !== undefined) OE.observacoes = obs;
+  if($('#oe-numero') && !$('#oe-numero').readOnly) OE.numero = $('#oe-numero').value.trim() || OE.numero;
+  const vd = parseInt(g('oe-vdias'), 10); if(OE.emissao) OE.validade = addDias(OE.emissao, vd > 0 ? vd : 15);
+  OE.params = {}; $$('[data-pk]').forEach(el=>{ if(el.value) OE.params[el.dataset.pk] = el.value; });
+  $$('[data-pc]').forEach(el=>{ if(el.checked){ (OE.params[el.dataset.pc] = OE.params[el.dataset.pc] || []).push(el.value); } });
+  const d = $('#oe-desc'); if(d) OE.desconto = parseFloat(d.value) || 0;
+}
+function desenhaItens(){
+  const box = $('#oe-itens'); const tot = ()=>{ const t = calcItens(OE.itens), dsc = Number(OE.desconto) || 0; return { t, dsc, f: calcTotal(OE.itens, dsc) }; };
+  const resumo = ()=>{ const r = tot(); $('#oe-resumo').innerHTML = `Itens <b>${brl(r.t)}</b> · desconto <b>− ${brl(r.dsc)}</b> · <span style="font-size:17px">Total <b style="color:var(--accent)">${brl(r.f)}</b></span>`; };
+  box.innerHTML = `${OE.itens.length ? `<div class="table-wrap"><table style="min-width:720px"><thead><tr><th>Descrição</th><th style="width:70px" class="num">Qtd.</th><th style="width:80px">Un.</th><th style="width:120px" class="num">Valor unit. (R$)</th><th style="width:110px" class="num">Total</th><th style="width:40px"></th></tr></thead><tbody>
+    ${OE.itens.map((i, n)=>`<tr><td class="wrap"><input data-i="${n}" data-f="desc" value="${esc(i.desc)}" placeholder="Descrição do serviço"><input data-i="${n}" data-f="detalhe" value="${esc(i.detalhe||'')}" placeholder="Detalhe (opcional)" style="margin-top:4px;font-size:12px"></td>
+      <td><input data-i="${n}" data-f="qtd" type="number" step="0.01" min="0" value="${i.qtd ?? ''}" style="text-align:right"></td><td><input data-i="${n}" data-f="un" value="${esc(i.un||'')}"></td>
+      <td><input data-i="${n}" data-f="unit" type="number" step="0.01" min="0" value="${i.unit ?? ''}" style="text-align:right" placeholder="0,00"></td><td class="num" id="oe-lt-${n}">${BRL((Number(i.qtd)||0) * (Number(i.unit)||0))}</td><td><button class="btn sm" data-del="${n}" title="Remover item">✕</button></td></tr>`).join('')}</tbody></table></div>`
+    : '<div class="card empty">Nenhum item. Escolha um serviço do catálogo ou adicione um item livre.</div>'}
+    <div style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-top:10px"><div class="field" style="max-width:200px"><label>Desconto (R$)</label><input id="oe-desc" type="number" step="0.01" min="0" value="${OE.desconto || ''}" placeholder="0,00"></div><div id="oe-resumo" style="text-align:right"></div></div>`;
+  resumo();
+  $$('[data-i]', box).forEach(el=>el.oninput = ()=>{ const it = OE.itens[+el.dataset.i], f = el.dataset.f; it[f] = (f === 'qtd' || f === 'unit') ? (el.value === '' ? null : parseFloat(el.value)) : el.value; const lt = $('#oe-lt-' + el.dataset.i); if(lt) lt.textContent = BRL((Number(it.qtd)||0) * (Number(it.unit)||0)); resumo(); });
+  $$('[data-del]', box).forEach(b=>b.onclick = ()=>{ lerForm(); OE.itens.splice(+b.dataset.del, 1); desenhaItens(); });
+  const d = $('#oe-desc'); if(d) d.oninput = ()=>{ OE.desconto = parseFloat(d.value) || 0; resumo(); };
+}
+
+/* ---- proposta (documento para imprimir / salvar em PDF) ---- */
+function propostaHtml(o){
+  const a = aOrc(o.area), p = o.params || {}, nome1 = String(o.contato || o.cliente || '').trim().split(/\s+/)[0] || 'cliente';
+  const sub = calcItens(o.itens), dsc = Number(o.desconto) || 0, tot = o.total != null ? Number(o.total) : calcTotal(o.itens, dsc), val = x => x == null || x === 0 ? '<span style="color:#8a8a85">a combinar</span>' : BRL(x);
+  const par = a.params.map(x=>{ const v = p[x.k]; const txt = Array.isArray(v) ? v.join(' · ') : v; return txt ? `<div class="k ${x.full || x.t==='checks' ? 'wide' : ''}"><span>${esc(x.l)}</span><b>${esc(txt)}</b></div>` : ''; }).join('');
+  const cli = [['Cliente', o.cliente, true], ['CNPJ / CPF', o.doc], ['A/C', o.contato], ['Telefone', o.telefone], ['E-mail', o.email], ['Cidade / UF', o.cidade], ['Endereço do serviço', o.endereco, true], ['Responsável', o.vendedor]]
+    .filter(x=>x[1]).map(x=>`<div class="k ${x[2]?'wide':''}"><span>${x[0]}</span><b>${esc(x[1])}</b></div>`).join('');
+  return `<article class="orc-doc">
+    <header class="od-top"><div class="od-logos"><img src="logo-mann.png" alt="MANN"><i></i><img src="logo-exata.png" alt="EXATA"></div><div class="od-pill">PROPOSTA COMERCIAL · ${esc(a.nome.toUpperCase())}</div></header>
+    <section class="od-hero"><small>${esc(a.titulo.toUpperCase())} · PROPOSTA PERSONALIZADA</small><h1>Olá, <em>${esc(nome1)}</em>.<br>Sua proposta chegou.</h1><div class="od-rule"></div><p>${esc(a.intro)}</p>
+      <div class="od-meta"><div><span>Nº ORÇAMENTO</span><b>${esc(o.numero)}</b></div><div><span>DATA EMISSÃO</span><b>${dBR(o.emissao)}</b></div><div><span>VÁLIDA ATÉ</span><b>${o.validade ? dBR(o.validade) : '–'}</b></div><div class="hl"><span>VALOR TOTAL</span><b>${tot > 0 ? brl(tot) : 'A combinar'}</b></div></div></section>
+    <section class="od-sec"><h3>Por que a Mann Group?</h3><p class="od-lead">Com mais de 20 anos de atuação, a Exata Ambiental é referência em serviços especializados para o mercado industrial e residencial. Credenciada junto ao Ministério da Agricultura (MAPA) sob os registros BR-PR 0765 e BR-SC 0649, constrói parcerias sólidas e trata cada cliente com respeito absoluto.</p>
+      <div class="od-stats">${a.stats.map(s=>`<div><b>${esc(s[0])}</b><span>${esc(s[1])}</span></div>`).join('')}</div></section>
+    <section class="od-sec"><h3>Dados do cliente</h3><div class="od-grid">${cli}</div></section>
+    ${par ? `<section class="od-sec"><h3>Resumo técnico do serviço</h3><div class="od-grid">${par}</div></section>` : ''}
+    <section class="od-sec"><h3>Diferenciais Mann Group</h3><div class="od-difs">${a.difs.map(d=>`<div><b>${esc(d[0])}</b><span>${esc(d[1])}</span></div>`).join('')}</div></section>
+    <section class="od-sec"><h3>Como funciona</h3><ol class="od-fluxo">${a.fluxo.map((f, i)=>`<li><i>${i + 1}</i><div><b>${esc(f[0])}</b><span>${esc(f[1])}</span></div></li>`).join('')}</ol>
+      ${a.requisitos.length ? `<h4>${o.area==='ht' ? 'Condições para realizar o tratamento' : 'O que precisamos de você'}</h4><ul class="od-req">${a.requisitos.map(r=>`<li>${esc(r)}</li>`).join('')}</ul>` : ''}</section>
+    <section class="od-sec od-keep"><h3>Itens do orçamento</h3><table class="od-tab"><thead><tr><th>Descrição</th><th class="n">Qtd.</th><th>Un.</th><th class="n">Vlr. unit.</th><th class="n">Total</th></tr></thead><tbody>
+      ${o.itens.map(i=>`<tr><td><b>${esc(i.desc)}</b>${i.detalhe?`<div>${esc(i.detalhe)}</div>`:''}</td><td class="n">${i.qtd == null ? '' : (Number.isInteger(Number(i.qtd)) ? N0(i.qtd) : BRL(i.qtd))}</td><td>${esc(i.un||'')}</td><td class="n">${val(i.unit)}</td><td class="n">${val((Number(i.qtd)||0) * (Number(i.unit)||0))}</td></tr>`).join('')}</tbody></table>
+      <div class="od-tot"><div><span>Subtotal</span><b>${brl(sub)}</b></div>${dsc ? `<div><span>Desconto</span><b style="color:#2f8f5b">− ${brl(dsc)}</b></div>` : ''}<div class="g"><span>TOTAL</span><b>${tot > 0 ? brl(tot) : 'A combinar'}</b></div></div>
+      ${o.observacoes ? `<div class="od-obs"><span>OBSERVAÇÕES</span><p>${esc(o.observacoes).replace(/\n/g, '<br>')}</p></div>` : ''}</section>
+    <section class="od-sec od-keep"><h3>Condições comerciais</h3><div class="od-cond"><div><span>FORMA DE PAGAMENTO</span><b>${esc(o.pagamento || '—')}</b></div><div><span>PARCELAMENTO / VENCIMENTO</span><b>${esc(o.parcelamento || '—')}</b></div><div><span>PRAZO</span><b>${esc(o.prazo || '—')}</b></div></div>
+      ${o.validade ? `<div class="od-valid">Esta proposta é válida até <b>${dBR(o.validade)}</b>. Após esse prazo, os valores poderão ser revisados.</div>` : ''}</section>
+    <section class="od-sec od-keep"><h3>Próximos passos</h3><div class="od-passos">${a.passos.map((s, i)=>{ const [t, d] = s.split('|'); return `<div><i>${i + 1}</i><b>${esc(t)}</b><span>${esc(d)}</span></div>`; }).join('')}</div><p class="od-fim">Pronto para dar o próximo passo? <b>Fale agora com nosso time.</b></p></section>
+    <footer class="od-foot"><div><b>MANN GROUP · EXATA AMBIENTAL</b><span>Registros MAPA BR-PR 0765 · BR-SC 0649</span></div><div><span>${esc(EMPRESA.fone)} · WhatsApp ${esc(EMPRESA.zap)}</span><span>${esc(EMPRESA.email)} · ${esc(EMPRESA.site)}</span><span>${esc(EMPRESA.end)}</span></div></footer></article>`;
+}
+function textoZap(o){
+  const a = aOrc(o.area), nome1 = String(o.contato || o.cliente || '').trim().split(/\s+/)[0];
+  return `Olá, ${nome1}! Segue a proposta ${o.numero} da Mann Group / Exata Ambiental — ${a.nome}.\nValor total: ${o.total > 0 ? brl(o.total) : 'a combinar'}\nVálida até ${o.validade ? dBR(o.validade) : '—'}.\nQualquer dúvida estamos à disposição: ${EMPRESA.fone} · ${EMPRESA.email}`;
+}
+function propostaTela(id){
+  const o = DB.orc.find(x=>x.id === id); if(!o){ location.hash = '#/orcamentos'; return; }
+  $('#app').innerHTML = `<div class="od-bar"><a class="btn" href="#/orcamentos" style="text-decoration:none">← Orçamentos</a><a class="btn" href="#/orcamentos/${esc(o.id)}" style="text-decoration:none">Editar</a>
+    <button class="btn" id="od-zap">Copiar mensagem p/ WhatsApp</button><button class="btn" id="od-enviado">${o.status==='rascunho' ? 'Marcar como enviado' : 'Situação: ' + esc(statusOrc(o)[0])}</button><button class="btn primary" id="od-print">Imprimir / Salvar PDF</button></div>
+    <p class="hint" style="margin:0 0 10px">No diálogo de impressão escolha “Salvar como PDF” e desligue “Cabeçalhos e rodapés” para o documento sair limpo.</p>${propostaHtml(o)}`;
+  $('#od-print').onclick = ()=>{ const t = document.title; document.title = `Proposta ${o.numero} - ${o.cliente}`; window.print(); setTimeout(()=>document.title = t, 500); };
+  $('#od-zap').onclick = async ()=>{ try{ await navigator.clipboard.writeText(textoZap(o)); toast('Mensagem copiada. Cole no WhatsApp ou e-mail junto com o PDF.'); }catch(e){ prompt('Copie a mensagem:', textoZap(o)); } };
+  $('#od-enviado').onclick = async ()=>{ if(o.status !== 'rascunho') return; try{ await dbUpdate('orcamentos', { status:'enviado', ...carimbo() }, 'id', o.id); o.status = 'enviado'; toast('Marcado como enviado.'); propostaTela(id); }catch(e){ toast('Erro: ' + e.message, true); } };
 }
 
 /* ============================ CORREÇÃO MANUAL DOS LANÇAMENTOS ============================ */
