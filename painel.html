@@ -361,33 +361,30 @@ iframe.embed{width:100%;height:calc(100vh - 150px);min-height:620px;border:0;bor
   .orc-doc .od-pill{color:#fff!important;border-color:rgba(255,255,255,.7)!important;} .orc-doc .od-hero h1 em,.orc-doc .od-stats b,.orc-doc .od-tot .g b,.orc-doc .od-meta .hl b{color:#c00000!important;}
   .orc-doc td,.orc-doc th{white-space:normal!important;} .orc-doc td.n,.orc-doc th.n{white-space:nowrap!important;}
 }
-/* ===== laudo técnico (Dedetização) — layout limpo ===== */
+/* ===== laudo técnico (Dedetização) — mesmo desenho do modelo usado pela Exata ===== */
 iframe.embed.com-abas{height:calc(100vh - 200px);}
-.lau-doc{--r:#c00000;--mut:#77756f;--ln:#e3e0d9;max-width:794px;margin:0 auto 30px;background:#fff;color:#1b1b19;border:1px solid #ddd;border-radius:6px;padding:34px 46px 24px;font-family:'IBM Plex Sans',sans-serif;font-size:12px;line-height:1.5;page:lau;}
+.lau-doc{--r:#e22019;--g:#8a8a8a;max-width:794px;margin:0 auto 30px;background:#fff;color:#111;border:1px solid #ddd;border-radius:4px;padding:18px 34px 14px;font-family:'Cambria','Georgia','Times New Roman',serif;font-size:12px;line-height:1.45;page:lau;}
 .lau-doc *{box-sizing:border-box;}
-.lau-doc .ld-head{display:flex;justify-content:space-between;align-items:center;} .lau-doc .ld-head img{height:54px;display:block;}
-.lau-doc .ld-num{text-align:right;} .lau-doc .ld-num b{display:block;font-size:13px;} .lau-doc .ld-num span{color:var(--mut);font-size:11px;}
-.lau-doc .ld-line{height:2px;background:var(--r);margin:12px 0 22px;}
-.lau-doc .ld-tit{text-align:center;margin-bottom:22px;} .lau-doc h1{font:600 17px/1.3 'IBM Plex Sans',sans-serif;margin:0;text-transform:none;letter-spacing:0;color:#1b1b19;} .lau-doc .ld-tit small{display:block;margin-top:5px;font-size:9.5px;letter-spacing:.2em;color:var(--r);font-weight:600;}
-.lau-doc h2{font:600 9.5px 'IBM Plex Sans',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);margin:0 0 5px;} 
-.lau-doc section{margin-top:18px;} .lau-doc .ld-cols{display:grid;grid-template-columns:1fr 1fr;gap:34px;} .lau-doc .ld-cols section{margin-top:0;}
-.lau-doc p{margin:0;} .lau-doc .n{font-weight:600;font-size:13px;margin-bottom:1px;} .lau-doc .ld-cols p{color:#3b3b38;}
-.lau-doc .ld-dl{margin:0;} .lau-doc .ld-dl div{display:grid;grid-template-columns:140px 1fr;gap:10px;padding:4px 0;border-bottom:1px solid var(--ln);} .lau-doc dt{color:var(--mut);} .lau-doc dd{margin:0;font-weight:500;}
-.lau-doc .lt{width:100%;border-collapse:collapse;font-size:11.5px;min-width:0;} .lau-doc .lt th{text-align:left;font-weight:600;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);padding:3px 0;border-bottom:1px solid #bdbab2;position:static;white-space:normal;background:none;} .lau-doc .lt td{padding:5px 0;border-bottom:1px solid var(--ln);}
-.lau-doc .lp{font-size:12px;color:#2c2c29;} .lau-doc .lj{text-align:justify;line-height:1.6;}
-.lau-doc .ld-val{display:flex;align-items:baseline;gap:10px;margin-top:20px;padding-left:12px;border-left:4px solid var(--r);flex-wrap:wrap;} .lau-doc .ld-val span{color:var(--mut);font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;} .lau-doc .ld-val b{font-size:18px;margin-right:22px;} .lau-doc .ld-val .s{font-size:10px;} .lau-doc .ld-val b.s{font-size:13px;}
-.lau-doc .ld-fim{display:grid;grid-template-columns:1fr 250px;gap:30px;align-items:end;margin-top:26px;}
-.lau-doc .ld-carim{height:70px;border:1px dashed #c4c1b9;border-radius:4px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;} .lau-doc .ld-carim.off{border:0;} .lau-doc .ld-carim span{font-size:9px;color:#a5a29b;letter-spacing:.1em;text-transform:uppercase;}
-.lau-doc .ld-assin{text-align:center;} .lau-doc .ld-assin img{height:56px;display:block;margin:0 auto -12px;mix-blend-mode:multiply;} .lau-doc .ld-assin i{display:block;border-top:1px solid #1b1b19;margin-bottom:3px;} .lau-doc .ld-assin b{display:block;font-size:12px;} .lau-doc .ld-assin span{color:var(--mut);font-size:10.5px;}
-.lau-doc .ld-foot{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:22px;padding-top:9px;border-top:1px solid var(--ln);font-size:9.5px;color:var(--mut);} .lau-doc .ld-foot p{margin:0;} .lau-doc .ld-foot b{color:#1b1b19;} .lau-doc .ld-qr{width:54px;height:54px;flex:none;} .lau-doc .ld-qr svg{width:100%;height:100%;display:block;}
-@page lau{ size:A4 portrait; margin:10mm 12mm; }
+.lau-doc .ld-head{text-align:center;} .lau-doc .ld-head img{height:62px;display:block;margin:0 auto 5px;}
+.lau-doc .ld-band{height:5px;background:linear-gradient(90deg,var(--r) 0,var(--r) 22%,var(--g) 22%,var(--g) 100%);margin:0 -34px;}
+.lau-doc .ld-slogan{text-align:right;font-weight:700;font-size:11px;margin:10px 0 8px;letter-spacing:.01em;}
+.lau-doc h1{font:700 15px 'Cambria','Georgia',serif;text-align:center;margin:0 0 12px;text-transform:none;letter-spacing:0;color:#111;}
+.lau-doc h2{font:400 12.5px 'Cambria','Georgia',serif;margin:8px 0 3px;text-transform:none;letter-spacing:0;color:#111;display:flex;align-items:center;gap:9px;} .lau-doc h2::before{content:"";width:5px;height:5px;background:#111;border-radius:50%;flex:none;margin-left:6px;}
+.lau-doc .lbox{border:1px solid #8c8c8c;padding:4px 7px;} .lau-doc .lr{display:flex;gap:30px;flex-wrap:wrap;padding:1px 0;} .lau-doc .lr b{font-weight:700;} .lau-doc .lbox p{margin:2px 0;}
+.lau-doc .lcert p{margin:3px 0 6px;text-align:justify;} .lau-doc .lcert .lval{text-align:center;font-weight:700;margin:9px 0 3px;} .lau-doc .lcert .lprox{text-align:center;margin:0 0 4px;font-size:11.5px;}
+.lau-doc .ld-fim{display:grid;grid-template-columns:1fr 250px;gap:20px;align-items:end;margin-top:8px;} .lau-doc .ld-data{margin:6px 0 0;font-size:12.5px;}
+.lau-doc .ld-carim{margin-top:8px;height:58px;border:1px dashed #b5b5b5;display:flex;align-items:flex-end;justify-content:center;padding-bottom:3px;} .lau-doc .ld-carim span{font-size:9px;color:#999;letter-spacing:.1em;text-transform:uppercase;font-family:'IBM Plex Sans',sans-serif;}
+.lau-doc .ld-assin{text-align:right;font-size:11px;} .lau-doc .ld-assin img{height:56px;display:block;margin:0 0 -14px auto;mix-blend-mode:multiply;} .lau-doc .ld-assin b{display:block;}
+.lau-doc .ld-foot{margin-top:10px;} .lau-doc .ld-foot .ld-band{margin:0 -34px 6px;} .lau-doc .ld-fl{display:flex;justify-content:center;align-items:center;gap:16px;text-align:center;font-size:10px;position:relative;} .lau-doc .ld-fl p{margin:0;} .lau-doc .ld-ver{font-size:8.5px;color:#666;font-family:'IBM Plex Sans',sans-serif;}
+.lau-doc .ld-qr{width:50px;height:50px;position:absolute;right:0;top:-2px;} .lau-doc .ld-qr svg{width:100%;height:100%;display:block;}
+@page lau{ size:A4 portrait; margin:8mm 10mm; }
 @media print{
   body.lau-mode{background:#fff!important;} body.lau-mode .topbar,body.lau-mode .od-bar,body.lau-mode #print-head,body.lau-mode .hint,body.lau-mode .tabs{display:none!important;}
   body.lau-mode .lau-doc{border:0!important;border-radius:0!important;margin:0!important;max-width:none!important;padding:0!important;font-size:11.5px!important;}
-  .lau-doc,.lau-doc *{-webkit-print-color-adjust:exact;print-color-adjust:exact;} .lau-doc .lt{font-size:11px!important;} .lau-doc .lt th{font-size:9px!important;padding:3px 0!important;} .lau-doc .lt td{padding:5px 0!important;font-size:11px!important;}
-  .lau-doc section,.lau-doc .ld-fim,.lau-doc .ld-val{break-inside:avoid;}
+  .lau-doc,.lau-doc *{-webkit-print-color-adjust:exact;print-color-adjust:exact;} .lau-doc .ld-band{margin-left:0!important;margin-right:0!important;}
+  .lau-doc .ld-fim,.lau-doc .lcert{break-inside:avoid;}
 }
-@media (max-width:640px){ .lau-doc{padding:18px 16px;} .lau-doc .ld-cols,.lau-doc .ld-fim{grid-template-columns:1fr;gap:16px;} .lau-doc .ld-dl div{grid-template-columns:110px 1fr;} .lau-doc .ld-foot{flex-direction:column;align-items:flex-start;} }
+@media (max-width:640px){ .lau-doc{padding:14px 14px;} .lau-doc .ld-band,.lau-doc .ld-foot .ld-band{margin-left:-14px;margin-right:-14px;} .lau-doc .lr{gap:4px 16px;} .lau-doc .ld-fim{grid-template-columns:1fr;} .lau-doc .ld-assin{text-align:center;} .lau-doc .ld-assin img{margin:0 auto -14px;} }
 </style>
 </head>
 <body>
@@ -2200,10 +2197,10 @@ const L_UNIDADES = {
   curitiba:{ nome:'Curitiba', cnpj:'00.093.600/0001-41', end:'Rua Ronald José Carboni, 330 - Curitiba - PR', licenca:'', ext:'Rua Ronald José Carboni, 330' }
 };
 const L_TIPOS = {
-  desinsetizacao:{ nome:'Desinsetização', meses:6, firma:'controle de pragas urbanas (desinsetização)', exec:'controle de pragas urbanas (desinsetização) nas instalações do contratante' },
-  desinsetizacao_caixa:{ nome:'Desinsetização + higienização de reservatório', meses:6, firma:'controle de pragas urbanas (desinsetização)', exec:'controle de pragas urbanas (desinsetização) e higienização do reservatório de água nas instalações do contratante' },
-  caixa_dedetizacao:{ nome:'Higienização de reservatório + dedetização', meses:6, firma:'controle de pragas urbanas (desinsetização)', exec:'higienização de reservatório de água e dedetização das instalações do contratante' },
-  desratizacao:{ nome:'Desratização', meses:1, firma:'controle de pragas urbanas (desratização)', exec:'controle de roedores (desratização) nas instalações do contratante' },
+  desinsetizacao:{ nome:'Desinsetização', meses:6, firma:'controle de pragas urbanas (desinsetização)', exec:'controle de pragas urbanas (desinsetização) nas instalações do referido estabelecimento' },
+  desinsetizacao_caixa:{ nome:'Desinsetização + higienização de reservatório', meses:6, firma:'controle de pragas urbanas (desinsetização)', exec:'controle de pragas urbanas (desinsetização), juntamente com a higienização do reservatório de água nas instalações do referido estabelecimento' },
+  caixa_dedetizacao:{ nome:'Higienização de reservatório + dedetização', meses:6, firma:'controle de pragas urbanas (desinsetização)', exec:'higienização de reservatório de água e dedetização das instalações' },
+  desratizacao:{ nome:'Desratização', meses:1, firma:'controle de pragas urbanas (desratização)', exec:'controle de roedores (desratização) nas instalações da referida empresa' },
   veiculo:{ nome:'Dedetização de veículo', meses:6, firma:'controle de pragas e vetores', exec:'dedetização no veículo placa {placa}' }
 };
 const PRAGAS_LAUDO = ['Baratas','Formigas','Cupins','Roedores','Moscas','Mosquitos','Aranhas','Escorpiões','Pulgas e carrapatos','Traças e outros insetos'];
@@ -2222,7 +2219,7 @@ function proxLaudo(){
 function novoLaudo(base){
   const t = base && base.tipo || 'desinsetizacao';
   return { id:null, numero: proxLaudo(), os_id:null, tipo:t, status:'rascunho', data: TODAY, validade: addMeses(TODAY, L_TIPOS[t].meses), texto_execucao: execTxt(t, ''), cliente:'', cnpj:'', telefone:'', email:'', endereco:'', cep:'', cidade:'', placa:'',
-           unidade:'mandirituba', produtos:[], responsavel:'Geraldo Adolfo Mann', crea:'CREA Nacional 170355476-6', local_emissao:'Curitiba', obs:'', area_tratada:'', pragas:'', metodo:'', orientacoes:'', emergencia:'', proxima_visita:'', formato:'completo', carimbo:false, codigo:null, ...(base || {}) };
+           unidade:'mandirituba', produtos:[], responsavel:'Geraldo Adolfo Mann', crea:'CREA Nacional 170355476-6', local_emissao:'Curitiba', obs:'', area_tratada:'', pragas:'', metodo:'', orientacoes:'', emergencia:'', proxima_visita:'', formato:'simples', carimbo:false, codigo:null, ...(base || {}) };
 }
 
 /* ---- navegação da área de Dedetização ---- */
@@ -2315,7 +2312,7 @@ function desenhaLaudo(){
   <div class="card" style="margin-bottom:14px"><h4>Emissão</h4><div class="fgrid">
     <div class="field"><label>Responsável técnico</label><input id="le-resp" value="${esc(LE.responsavel||'')}"></div><div class="field"><label>Registro (CREA)</label><input id="le-crea" value="${esc(LE.crea||'')}"></div>
     <div class="field"><label>Cidade de emissão</label><input id="le-local" value="${esc(LE.local_emissao||'')}"></div><div class="field"><label>Situação</label><select id="le-status">${Object.entries(L_STATUS).map(([k,s])=>`<option value="${k}" ${LE.status===k?'selected':''}>${s[0]}</option>`).join('')}</select></div>
-    <div class="field"><label>Texto do certificado</label><select id="le-formato"><option value="completo" ${LE.formato!=='simples'?'selected':''}>Completo (quadro-resumo + frase curta)</option><option value="simples" ${LE.formato==='simples'?'selected':''}>Simples (parágrafo único, como no modelo antigo)</option></select></div>
+    <div class="field"><label>Texto do certificado</label><select id="le-formato"><option value="simples" ${LE.formato!=='completo'?'selected':''}>Modelo atual da Exata (parágrafo único)</option><option value="completo" ${LE.formato==='completo'?'selected':''}>Resumido (frase mais curta)</option></select></div>
     <div class="field" style="justify-content:flex-end"><label class="checkrow" style="text-transform:none;letter-spacing:0;font-size:14px;color:var(--text)"><input type="checkbox" id="le-carimbo" ${LE.carimbo?'checked':''}> Reservar espaço para carimbo</label></div>
     <div class="field full"><label>Observação interna (não aparece no laudo)</label><input id="le-obs" value="${esc(LE.obs||'')}"></div></div></div>
   ${novo || !souAdmin() ? '' : '<div style="margin-bottom:14px"><button class="btn ghost" id="le-del" style="color:var(--bad)">Excluir laudo</button></div>'}
@@ -2354,7 +2351,7 @@ function desenhaLaudo(){
     if(LE.tipo === 'veiculo' && !LE.placa){ msg('Informe a placa do veículo.'); return; }
     const row = { numero:LE.numero, os_id:LE.os_id || null, tipo:LE.tipo, status:LE.status, data:LE.data, validade:LE.validade, texto_execucao:LE.texto_execucao, cliente:LE.cliente.trim(), cnpj:LE.cnpj || null, telefone:LE.telefone || null, email:LE.email || null, endereco:LE.endereco || null, cep:LE.cep || null,
       cidade:LE.cidade || null, placa:LE.placa || null, unidade:LE.unidade, produtos:LE.produtos.filter(p=>p.nome.trim()), responsavel:LE.responsavel || null, crea:LE.crea || null, local_emissao:LE.local_emissao || 'Curitiba', obs:LE.obs || null,
-      area_tratada:LE.area_tratada || null, pragas:LE.pragas || null, metodo:LE.metodo || null, orientacoes:LE.orientacoes || null, emergencia:LE.emergencia || null, proxima_visita:LE.proxima_visita || null, formato:LE.formato || 'completo', carimbo:!!LE.carimbo, codigo:LE.codigo || novoCodigo() };
+      area_tratada:LE.area_tratada || null, pragas:LE.pragas || null, metodo:LE.metodo || null, orientacoes:LE.orientacoes || null, emergencia:LE.emergencia || null, proxima_visita:LE.proxima_visita || null, formato:LE.formato || 'simples', carimbo:!!LE.carimbo, codigo:LE.codigo || novoCodigo() };
     $('#le-save').disabled = true;
     try{
       if(!LE.id){ for(let k = 0; k < 3; k++){ try{ const n = { id: uid('lg'), ...row, criado_por: USER || 'Escritório' }; await dbInsert('laudos', [n]); DB.laudos.push({ ...n, created_at: new Date().toISOString() }); LE.id = n.id; break; }
@@ -2389,26 +2386,28 @@ function desenhaProds(){
 function laudoHtml(l, assin, qr){
   const t = L_TIPOS[l.tipo] || L_TIPOS.desinsetizacao, un = L_UNIDADES[l.unidade] || L_UNIDADES.mandirituba, texto = l.texto_execucao || execTxt(l.tipo, l.placa);
   const dataBR = dBR(l.data), val = l.validade ? dBR(l.validade) : '—', local = String(l.local_emissao || 'Curitiba');
-  const dl = (k, v)=> v ? `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>` : '';
-  const cli = [l.endereco, l.cep ? 'CEP ' + l.cep : '', l.cidade].filter(Boolean).join(' · ');
-  const prods = (l.produtos || []).filter(p=>p && p.nome), temReg = prods.some(p=>p.registro);
-  const certCompleto = `A <b>EXATA – Expurgo, Dedetização e Fumigação</b>, empresa especializada no controle e manejo integrado de pragas urbanas, por meio de sua unidade operacional de ${esc(un.nome)}, <b>certifica</b> que em <b>${dataBR}</b> executou, para <b>${esc(l.cliente)}</b>, o serviço de ${esc(texto)}.`;
-  const certSimples = `A <b>EXATA – Expurgo, Dedetização e Fumigação</b>, empresa especializada no controle e manejo integrado de pragas urbanas, inscrita no CNPJ ${esc(L_SEDE.cnpj)}, estabelecida a ${esc(L_SEDE.end)}, através da unidade operacional de ${esc(un.nome)}${l.unidade === 'mandirituba' ? ' estabelecida na ' + esc(un.ext) : ''} (CNPJ: ${esc(un.cnpj)}), firma que presta serviços de ${esc(t.firma)} para <b>${esc(l.cliente)}</b>, pessoa jurídica de direito privado${l.cnpj ? ', CNPJ: ' + esc(l.cnpj) : ''}${cli ? ', com sede em ' + esc(cli) : ''}, certifica que no dia <b>${dataBR}</b>, foram executados serviços de ${esc(texto)}.`;
+  const kv = (k, v, b)=> v ? `<span>${k}: ${b ? '<b>' + esc(v) + '</b>' : esc(v)}</span>` : '';
+  const row = (...c)=>`<div class="lr">${c.filter(Boolean).join('')}</div>`;
+  const cli = [l.endereco, l.cep ? 'CEP: ' + l.cep : ''].filter(Boolean).join(' – ');
+  const sede = [l.cidade, cli].filter(Boolean).join(', ');
+  const prods = (l.produtos || []).filter(p=>p && p.nome);
+  const extra = l.area_tratada || l.pragas || l.metodo || l.placa;
+  const certSimples = `A <b>EXATA – Expurgo, Dedetização e Fumigação</b>, empresa especializada no controle e manejo integrado de pragas urbanas, inscrita no CNPJ ${esc(L_SEDE.cnpj)}, estabelecida a ${esc(L_SEDE.end)}, através da unidade operacional de ${esc(un.nome)}${l.unidade === 'mandirituba' ? ' estabelecida na ' + esc(un.ext) : ''} CNPJ: ${esc(un.cnpj)}, firma que presta serviços de ${esc(t.firma)} para <b>${esc(l.cliente)}</b>, pessoa jurídica de direito privado${l.cnpj ? ', CNPJ: ' + esc(l.cnpj) : ''}${sede ? ', com sede em ' + esc(sede) : ''}, certifica que no dia <b>${dataBR}</b>, foram executados serviços de ${esc(texto)}.`;
+  const certResumido = `A <b>EXATA – Expurgo, Dedetização e Fumigação</b>, empresa especializada no controle e manejo integrado de pragas urbanas, inscrita no CNPJ ${esc(L_SEDE.cnpj)}, através da unidade operacional de ${esc(un.nome)} (CNPJ: ${esc(un.cnpj)}), certifica que no dia <b>${dataBR}</b> executou, para <b>${esc(l.cliente)}</b>${l.cnpj ? ' (CNPJ: ' + esc(l.cnpj) + ')' : ''}, serviços de ${esc(texto)}.`;
   return `<article class="lau-doc">
-    <header class="ld-head"><img src="logo-exata.png" alt="EXATA"><div class="ld-num"><b>Laudo nº ${esc(l.numero)}</b><span>${esc(local)}, ${dataBR}</span></div></header>
-    <div class="ld-line"></div>
-    <div class="ld-tit"><h1>Laudo Técnico de Controle e Manejo Integrado de Pragas Urbanas</h1><small>EXPURGO, FUMIGAÇÃO E DEDETIZAÇÃO</small></div>
-    <div class="ld-cols">
-      <section><h2>Contratante</h2><p class="n">${esc(l.cliente)}</p>${l.cnpj ? `<p>CNPJ ${esc(l.cnpj)}</p>` : ''}${l.endereco ? `<p>${esc(l.endereco)}</p>` : ''}<p>${esc([l.cep ? 'CEP ' + l.cep : '', l.cidade].filter(Boolean).join(' · '))}</p>${l.telefone ? `<p>${esc(l.telefone)}</p>` : ''}</section>
-      <section><h2>Prestadora do serviço</h2><p class="n">${esc(L_SEDE.fantasia)} · ${esc(L_SEDE.razao)}</p><p>CNPJ ${esc(L_SEDE.cnpj)} · ${esc(L_SEDE.fone)}</p><p>${esc(L_SEDE.end)}</p><p>Unidade ${esc(un.nome)} · CNPJ ${esc(un.cnpj)}${un.licenca ? ' · Licença sanitária ' + esc(un.licenca) : ''}</p></section></div>
-    <section><h2>Serviço executado</h2><dl class="ld-dl">${dl('Serviço', t.nome)}${dl('Data da execução', dataBR)}${dl('Veículo (placa)', l.placa)}${dl('Local / áreas', l.area_tratada)}${dl('Pragas-alvo', l.pragas)}${dl('Método', l.metodo)}</dl></section>
-    ${prods.length ? `<section><h2>Produtos utilizados</h2><table class="lt"><thead><tr><th>Produto</th><th>Princípio ativo</th>${temReg ? '<th>Registro</th>' : ''}<th>FISPQ</th></tr></thead><tbody>${prods.map(p=>`<tr><td><b>${esc(p.nome)}</b></td><td>${esc(p.pa||'')}</td>${temReg ? `<td>${esc(p.registro||'')}</td>` : ''}<td>${esc(p.fispq||'')}</td></tr>`).join('')}</tbody></table></section>` : ''}
-    ${l.orientacoes || l.emergencia ? `<section><h2>Orientações</h2>${l.orientacoes ? `<p class="lp">${esc(l.orientacoes).replace(/\n/g, '<br>')}</p>` : ''}${l.emergencia ? `<p class="lp"><b>Emergência toxicológica:</b> ${esc(l.emergencia)}</p>` : ''}</section>` : ''}
-    <section><h2>Certificado</h2><p class="lp lj">${l.formato === 'simples' ? certSimples : certCompleto}</p></section>
-    <div class="ld-val"><span>Válido até</span><b>${val}</b>${l.proxima_visita ? `<span class="s">Próxima visita recomendada</span><b class="s">${dBR(l.proxima_visita)}</b>` : ''}</div>
-    <div class="ld-fim"><div class="ld-carim ${l.carimbo ? '' : 'off'}">${l.carimbo ? '<span>Carimbo</span>' : ''}</div>
-      <div class="ld-assin">${assin ? `<img src="${assin}" alt="">` : '<div style="height:56px"></div>'}<i></i><b>${esc(l.responsavel || '')}</b><span>Responsável técnico · ${esc(l.crea || '')}</span></div></div>
-    <footer class="ld-foot"><p><b>EXATA AMBIENTAL</b> · ${esc(L_SEDE.fone)} / (41) 99176-0988 · ${esc(EMPRESA.email)} · ${esc(EMPRESA.site)}${l.codigo ? `<br>Documento eletrônico · verifique a autenticidade pelo QR code ou em ${esc(location.host)}/verificar.html · código <b>${esc(l.codigo)}</b>` : ''}</p>${qr ? `<div class="ld-qr">${qr}</div>` : ''}</footer></article>`;
+    <header class="ld-head"><img src="logo-exata.png" alt="EXATA"></header><div class="ld-band"></div>
+    <p class="ld-slogan">EXPURGO, FUMIGAÇÃO E DEDETIZAÇÃO</p>
+    <h1>Laudo Técnico de Controle e Manejo Integrado de Pragas Urbanas</h1>
+    <h2>Contratada</h2><div class="lbox">${row(kv('Nome Fantasia', L_SEDE.fantasia, 1))}${row(kv('Razão Social', L_SEDE.razao), kv('CNPJ', L_SEDE.cnpj), kv('Telefone', L_SEDE.fone))}${row(kv('Endereço', L_SEDE.end))}</div>
+    <h2>Execução - Unidade Operacional - ${esc(un.nome)}</h2><div class="lbox">${row(kv('Nome Fantasia', L_SEDE.fantasia, 1))}${row(kv('Razão Social', L_SEDE.razao), kv('CNPJ', un.cnpj), kv('Telefone', L_SEDE.fone))}${row(kv('Endereço', un.end))}${un.licenca ? row(kv('Licença Sanitária', un.licenca)) : ''}</div>
+    <h2>Contratante</h2><div class="lbox">${row(kv('Nome', l.cliente, 1), kv('CNPJ', l.cnpj), kv('Telefone', l.telefone))}${row(kv('Endereço', l.endereco), kv('CEP', l.cep))}${row(kv('Cidade', l.cidade))}</div>
+    ${extra ? `<h2>Serviço Executado</h2><div class="lbox">${row(kv('Serviço', t.nome), kv('Data', dataBR))}${row(kv('Veículo (placa)', l.placa))}${row(kv('Local / áreas tratadas', l.area_tratada))}${row(kv('Pragas-alvo', l.pragas))}${row(kv('Método de aplicação', l.metodo))}</div>` : ''}
+    ${prods.length ? `<h2>Produtos Utilizados</h2><div class="lbox">${prods.map(p=>row(kv('Nome', p.nome), kv('P.A', p.pa), kv('Registro', p.registro), kv('FISPQ', p.fispq))).join('')}</div>` : ''}
+    ${l.orientacoes || l.emergencia ? `<h2>Orientações</h2><div class="lbox">${l.orientacoes ? `<p>${esc(l.orientacoes).replace(/\n/g, '<br>')}</p>` : ''}${l.emergencia ? `<p><b>Emergência toxicológica:</b> ${esc(l.emergencia)}</p>` : ''}</div>` : ''}
+    <h2>Certificado</h2><div class="lbox lcert"><p>${l.formato === 'completo' ? certResumido : certSimples}</p><p class="lval">CERTIFICAMOS O PRESENTE COM VALIDADE ATÉ: ${val}</p>${l.proxima_visita ? `<p class="lprox">Próxima visita recomendada: ${dBR(l.proxima_visita)}</p>` : ''}</div>
+    <div class="ld-fim"><div><p class="ld-data">${esc(local.toUpperCase())}, ${dExt(l.data)}</p>${l.carimbo ? '<div class="ld-carim"><span>Carimbo</span></div>' : ''}</div>
+      <div class="ld-assin">${assin ? `<img src="${assin}" alt="">` : '<div style="height:70px"></div>'}<b>${esc(l.responsavel || '')}</b><b>${esc(l.crea || '')}</b></div></div>
+    <footer class="ld-foot"><div class="ld-band"></div><div class="ld-fl"><p><b>EXATA AMBIENTAL</b> - ${esc(L_SEDE.fone)} / (41) 99176-0988<br>${esc(local.toUpperCase())}${l.codigo ? `<br><span class="ld-ver">Autenticidade: ${esc(location.host)}/verificar.html · código ${esc(l.codigo)}</span>` : ''}</p>${qr ? `<div class="ld-qr">${qr}</div>` : ''}</div></footer></article>`;
 }async function qrSvg(url){
   try{ await carregaScript('https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js'); const q = qrcode(0, 'M'); q.addData(url); q.make(); return q.createSvgTag({ cellSize: 3, margin: 0, scalable: true }); }catch(e){ console.error(e); return ''; }
 }
