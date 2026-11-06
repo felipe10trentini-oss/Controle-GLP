@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 
 :root{
@@ -931,7 +932,7 @@ function custosBody(){
   const tab = (k,t)=>`<button class="${CS.tab===k?'on':''}" data-t="${k}">${t}</button>`;
   const pendTot = pendencias(rows).total;
   $('#c-body').innerHTML = `
-  <div class="tabs" id="c-tabs">${tab('resumo','Resumo')}${tab('fechamento','Fechamento mensal')}${tab('veiculo','Veículo × Mês')}${tab('lanc','Lançamentos')}${tab('abast','Abastecimento')}${tab('pend',`Pendências${pendTot?' ('+pendTot+')':''}`)}</div>
+  <div class="tabs" id="c-tabs">${tab('resumo','Resumo')}${tab('fechamento','Fechamento mensal')}${tab('veiculo','Veículo × Mês')}${tab('lanc','Lançamentos')}${tab('abast','Abastecimento')}${tab('pend',`Pendências${pendTot?' ('+pendTot+')':''}`)}${tab('omie','Omie')}</div>
   <div id="c-tab"></div>`;
   $$('#c-tabs button').forEach(b=>b.onclick = ()=>{ CS.tab = b.dataset.t; custosBody(); });
   const box = $('#c-tab');
@@ -940,6 +941,7 @@ function custosBody(){
   else if(CS.tab==='veiculo') custoVeiculo(box, rows);
   else if(CS.tab==='lanc') custoLanc(box, rows, total);
   else if(CS.tab==='abast') custoAbast(box);
+  else if(CS.tab==='omie') custoOmie(box);
   else custoPend(box, rows);
   bindAbrirArq();
 }
@@ -1122,6 +1124,187 @@ $('#form-lanc').addEventListener('submit', async e=>{
   f.elements.cnpj.addEventListener('input', ()=>{ const d = onlyDig(f.elements.cnpj.value).slice(0, 14); f.elements.cnpj.value = d.length === 14 ? fmtCnpj(d) : d; });
   f.addEventListener('reset', ()=>aviso('', ''));
 })();
+
+/* ============================ OMIE: PLANILHA DE CONTAS A PAGAR ============================
+   Preenche o modelo oficial do Omie (Omie_Contas_Pagar) com os lançamentos de custos.
+   O modelo é editado direto no XML para manter intactas as validações, as colunas e o layout do Omie. */
+const OMIE_MODELO = 'omie/modelo-contas-pagar.xlsx';
+const OMIE_PADRAO = { contas:{ 'MANN':'', 'EXATA SC':'', '*':'' }, categorias:{}, venc_dias:0, projeto_veiculo:false };
+
+const omieTitulo = s => String(s||'').toLowerCase().replace(/(^|[\s\-\/(])([a-zà-ú])/g, (m,a,b)=>a+b.toUpperCase()).replace(/\b(De|Do|Da|Dos|Das|E)\b/g, x=>x.toLowerCase()).replace(/\b(Ipva|Glp)\b/g, x=>x.toUpperCase());
+const omieSerial = iso => { const [y,m,d] = String(iso).slice(0,10).split('-').map(Number); return Math.round((Date.UTC(y,m-1,d) - Date.UTC(1899,11,30)) / 86400000); };
+const omieSomaDias = (iso, n) => { const [y,m,d] = String(iso).slice(0,10).split('-').map(Number); return new Date(Date.UTC(y,m-1,d+n)).toISOString().slice(0,10); };
+const omieCnpj = v => { const d = String(v||'').replace(/\D/g,''); return d.length===14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : ''; };
+
+// nome do fornecedor como o Omie espera: sem a cidade que o painel acrescenta depois do traço
+function omieFornecedor(l){
+  const bruto = String(l.desc||'').trim();
+  const [nome, ...resto] = bruto.split(' — ');
+  let limpo = nome.trim(), extra = resto.join(' — ').trim();
+  const par = limpo.match(/\s*\(([^)]{2,40})\)\s*$/);
+  if(par){ extra = [par[1], extra].filter(Boolean).join(' — '); limpo = limpo.slice(0, par.index).trim(); }
+  limpo = limpo.replace(/[\s\-–]+$/,'');
+  return { nome: limpo, extra };
+}
+
+// uma linha da planilha para cada lançamento
+function omieLinha(l, cfg){
+  const f = omieFornecedor(l), cnpj = omieCnpj(l.cnpj_fornecedor);
+  const nfNum = String(l.nf||'').replace(/['"\s]/g,'').replace(/^\d{1,3}(\.\d{3})+$/, m=>m.replace(/\./g,''));   // 18.477 -> 18477
+  const nf = /^\d{1,20}$/.test(nfNum) ? nfNum : '';
+  const chave = /^\d{44}$/.test(String(l.chave_nfe||'')) ? l.chave_nfe : '';
+  const obs = [];
+  if(l.veic) obs.push('Veículo ' + l.veic);
+  if(cnpj) obs.push('Fornecedor: ' + f.nome);
+  if(f.extra) obs.push(l.fonte==='glp' ? f.extra : 'Local: ' + f.extra);
+  const o = String(l.obs||'').trim();
+  if(o) obs.push(/^\d+$/.test(o) && l.cat==='COMBUSTÍVEL' ? 'KM ' + o : o);
+  if(String(l.nf||'').trim() && !nf) obs.push('Documento: ' + String(l.nf).trim());
+  if(l.motorista) obs.push('Nota entregue por ' + l.motorista);
+  const conta = (cfg.contas && (cfg.contas[l.empresa||'*'] || cfg.contas['*'])) || '';
+  const data = String(l.data||'').slice(0,10);
+  return {
+    B: String(l.id).slice(0,20),
+    C: (cnpj || f.nome).slice(0,60),
+    D: ((cfg.categorias && cfg.categorias[l.cat]) || omieTitulo(l.cat)).slice(0,70),
+    E: conta.slice(0,40),
+    F: Math.round(Number(l.valor)*100)/100,
+    H: cfg.projeto_veiculo && l.veic ? String(l.veic).slice(0,70) : '',
+    I: data ? omieSerial(data) : null,
+    J: data ? omieSerial(data) : null,
+    K: data ? omieSerial(omieSomaDias(data, +cfg.venc_dias||0)) : null,
+    S: obs.join(' | '),
+    Y: nf,
+    Z: chave,
+    _semCnpj: !cnpj, _fornecedor: f.nome
+  };
+}
+
+const omieColNum = s => [...s].reduce((n,c)=>n*26 + c.charCodeAt(0)-64, 0);
+const omieXml = s => String(s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const OMIE_NUM = new Set(['F','I','J','K','L','M','N','O','P','Q','R']);
+
+// monta o .xlsx a partir do modelo (ArrayBuffer) e das linhas
+async function omieMontarXlsx(linhas, modelo){
+  const zip = await JSZip.loadAsync(modelo);
+  let sh = await zip.file('xl/worksheets/sheet1.xml').async('string');
+  let ss = await zip.file('xl/sharedStrings.xml').async('string');
+  // estilos de cada coluna, lidos das linhas 6 e 7 do modelo
+  const estilo = {};
+  for(const rn of [6,7]){
+    const m = sh.match(new RegExp('<row r="' + rn + '"[\\s\\S]*?</row>'));
+    if(m) for(const c of m[0].matchAll(/<c r="([A-Z]+)\d+" s="(\d+)"/g)) if(!(c[1] in estilo)) estilo[c[1]] = c[2];
+  }
+  const cols = Object.keys(estilo).sort((a,b)=>omieColNum(a)-omieColNum(b));
+  const nSi = (ss.match(/<si>/g)||[]).length; let novos = '', usos = 0; const mapa = new Map();
+  const si = t => { usos++; if(!mapa.has(t)){ mapa.set(t, nSi + mapa.size); novos += '<si><t xml:space="preserve">' + omieXml(t) + '</t></si>'; } return mapa.get(t); };
+  let rows = '';
+  linhas.forEach((ln, i)=>{
+    const r = 6 + i; let cel = '';
+    for(const col of cols){
+      const v = ln[col], s = estilo[col];
+      if(v === undefined || v === null || v === ''){ cel += '<c r="' + col + r + '" s="' + s + '"/>'; continue; }
+      cel += OMIE_NUM.has(col) ? '<c r="' + col + r + '" s="' + s + '"><v>' + v + '</v></c>' : '<c r="' + col + r + '" s="' + s + '" t="s"><v>' + si(String(v)) + '</v></c>';
+    }
+    rows += '<row r="' + r + '" spans="1:63">' + cel + '</row>';
+  });
+  sh = sh.replace(/<row r="(?:[6-9]|\d{2,})"[\s\S]*?<\/row>/g, '');          // tira as linhas de exemplo vazias (6 em diante)
+  sh = sh.replace('</sheetData>', rows + '</sheetData>');
+  sh = sh.replace(/<dimension ref="[^"]*"\/>/, '<dimension ref="A1:BK' + Math.max(8, 5 + linhas.length) + '"/>');
+  const cnt = +(ss.match(/ count="(\d+)"/)||[0,0])[1], uni = +(ss.match(/uniqueCount="(\d+)"/)||[0,0])[1];
+  ss = ss.replace(/ count="\d+"/, ' count="' + (cnt + usos) + '"').replace(/uniqueCount="\d+"/, 'uniqueCount="' + (uni + mapa.size) + '"').replace('</sst>', novos + '</sst>');
+  zip.file('xl/worksheets/sheet1.xml', sh, { createFolders:false }); zip.file('xl/sharedStrings.xml', ss, { createFolders:false });
+  return zip.generateAsync({ type:'uint8array', platform:'DOS', compression:'DEFLATE', mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+
+/* ============================ CUSTOS > OMIE (tela) ============================ */
+let OMIE_CFG = null;
+async function omieCarregarCfg(){
+  if(OMIE_CFG) return OMIE_CFG;
+  let dados = {};
+  try{ const { data } = await sb.from('omie_config').select('dados').eq('id','main').maybeSingle(); dados = (data && data.dados) || {}; }catch(e){}
+  OMIE_CFG = { ...OMIE_PADRAO, ...dados, contas:{ ...OMIE_PADRAO.contas, ...(dados.contas||{}) }, categorias:{ ...(dados.categorias||{}) } };
+  return OMIE_CFG;
+}
+const OMIE_EMP = [['', 'Todas as empresas'], ['MANN', 'MANN'], ['EXATA SC', 'EXATA SC'], ['*', 'Sem empresa definida']];
+const OMIE_ST = { mes:'', emp:'' };
+
+async function custoOmie(box){
+  box.innerHTML = '<div class="card empty">Carregando…</div>';
+  const cfg = await omieCarregarCfg();
+  const meses = mesesDe(DB.custos).reverse();
+  if(!meses.length){ box.innerHTML = '<div class="card empty">Nenhum lançamento ainda.</div>'; return; }
+  if(!OMIE_ST.mes || !meses.includes(OMIE_ST.mes)){
+    const hj = new Date(), ant = new Date(hj.getFullYear(), hj.getMonth() - 1, 1), mesAnt = ant.getFullYear() + '-' + String(ant.getMonth() + 1).padStart(2,'0');   // o normal é fechar o mês que acabou
+    OMIE_ST.mes = (CS.ano && CS.mes && meses.includes(CS.ano + '-' + CS.mes)) ? CS.ano + '-' + CS.mes : meses.includes(mesAnt) ? mesAnt : meses[0];
+  }
+  const chaveEmp = l => ['MANN','EXATA SC'].includes(l.empresa) ? l.empresa : '*';
+  const sel = DB.custos.filter(l=>l.comp===OMIE_ST.mes && (!OMIE_ST.emp || chaveEmp(l)===OMIE_ST.emp))
+    .sort((a,b)=>(a.data||'').localeCompare(b.data||'') || String(a.id).localeCompare(String(b.id)));
+  const linhas = sel.map(l=>({ l, o: omieLinha(l, cfg) }));
+  const total = sum(sel, l=>l.valor);
+  const semCnpj = linhas.filter(x=>x.o._semCnpj);
+  const forn = [...new Set(semCnpj.map(x=>x.o._fornecedor))].sort((a,b)=>a.localeCompare(b));
+  const semConta = [...new Set(linhas.filter(x=>!x.o.E).map(x=>x.l.empresa && chaveEmp(x.l)!=='*' ? x.l.empresa : 'sem empresa'))];
+  const semData = linhas.filter(x=>!x.o.J);
+  const cats = [...new Set(DB.custos.map(l=>l.cat))].sort();
+  const nomeConta = k => k==='*' ? 'Sem empresa definida' : k;
+  box.innerHTML = `
+  <p class="fin-note">Preenche a planilha oficial <b>Omie_Contas_Pagar</b> com os lançamentos do mês (por competência), pronta para importar em <i>Contas a Pagar</i> no Omie. A planilha é gerada na hora, com o que está no sistema agora; é só baixar no fim de cada mês.</p>
+  <div class="filters" style="grid-template-columns:repeat(auto-fit,minmax(180px,260px))">
+    <div class="field"><label>Mês (competência)</label><select id="om-mes">${meses.map(m=>`<option value="${m}" ${m===OMIE_ST.mes?'selected':''}>${MESES_L[+m.slice(5,7)-1]}/${m.slice(0,4)}</option>`).join('')}</select></div>
+    <div class="field"><label>Empresa</label><select id="om-emp">${OMIE_EMP.map(([v,t])=>`<option value="${v}" ${v===OMIE_ST.emp?'selected':''}>${t}</option>`).join('')}</select></div>
+  </div>
+  <div class="cards">
+    <div class="card"><div class="l">Lançamentos na planilha</div><div class="v">${N0(sel.length)}</div><div class="s">${mLabel(OMIE_ST.mes)}</div></div>
+    <div class="card"><div class="l">Total</div><div class="v">${R$(total)}</div><div class="s">valor bruto das contas</div></div>
+    <div class="card"><div class="l">Fornecedor pelo CNPJ</div><div class="v">${N0(sel.length - semCnpj.length)}<span style="font-size:14px;font-weight:500"> de ${N0(sel.length)}</span></div><div class="s">${semCnpj.length ? N0(semCnpj.length) + ' vão pelo nome' : 'todos com CNPJ'}</div></div>
+  </div>
+  ${semConta.length ? `<div class="hintbox warn" style="margin:0 0 12px">Falta informar a <b>conta corrente do Omie</b> (${semConta.map(esc).join(', ')}). Preencha em “Configuração” abaixo e salve. Ela é obrigatória na planilha.</div>` : ''}
+  ${semData.length ? `<div class="hintbox bad" style="margin:0 0 12px">${semData.length} lançamento(s) sem data: corrija antes de importar.</div>` : ''}
+  <div class="acts" style="margin:0 0 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn primary" id="om-baixar" ${!sel.length ? 'disabled' : ''}>Baixar planilha do Omie (.xlsx)</button>
+    <span class="muted" style="font-size:12.5px">Arquivo: Omie_Contas_Pagar_${OMIE_ST.mes}${OMIE_ST.emp ? '_' + OMIE_ST.emp.replace('*','sem-empresa').replace(/\s+/g,'-') : ''}.xlsx</span></div>
+  <details class="card" ${semConta.length ? 'open' : ''} style="margin-bottom:14px"><summary style="cursor:pointer;font-weight:600">Configuração do Omie</summary>
+    <div style="margin-top:12px;display:grid;gap:12px">
+      <div class="filters" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+        ${['MANN','EXATA SC','*'].map(k=>`<div class="field"><label>Conta corrente — ${esc(nomeConta(k))} *</label><input data-om-conta="${esc(k)}" maxlength="40" placeholder="Nome da conta no Omie" value="${esc(cfg.contas[k]||'')}"></div>`).join('')}
+        <div class="field"><label>Dias até o vencimento</label><input id="om-venc" type="number" min="0" max="365" value="${+cfg.venc_dias||0}"></div>
+      </div>
+      <label style="display:flex;gap:8px;align-items:center;font-size:13.5px"><input type="checkbox" id="om-proj" ${cfg.projeto_veiculo?'checked':''}> Usar o veículo como <b>Projeto</b> no Omie (cria um projeto por veículo, se ainda não existir)</label>
+      <div><b style="font-size:13px">Categorias:</b> <span class="muted" style="font-size:12.5px">escreva o nome exato da categoria no Omie. Se deixar em branco, vai o nome do painel.</span>
+        <div class="filters" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin-top:8px">${cats.map(c=>`<div class="field"><label>${esc(c)}</label><input data-om-cat="${esc(c)}" maxlength="70" placeholder="${esc(omieTitulo(c))}" value="${esc(cfg.categorias[c]||'')}"></div>`).join('')}</div></div>
+      <div><button class="btn primary" id="om-salvar">Salvar configuração</button></div>
+    </div></details>
+  ${forn.length ? `<details class="card" style="margin-bottom:14px"><summary style="cursor:pointer;font-weight:600">Fornecedores sem CNPJ (${forn.length})</summary>
+    <p class="fin-note" style="margin-top:10px">O Omie só aceita fornecedor já cadastrado. Estes seguem pelo nome: confira se o nome é igual ao cadastro do Omie. Os lançamentos feitos pelo operador a partir de 29/10 já guardam o CNPJ.</p>
+    <div style="columns:2 260px;font-size:13px">${forn.map(n=>`<div>${esc(n)}</div>`).join('')}</div></details>` : ''}
+  <div class="table-wrap"><table><thead><tr><th>Data</th><th>Fornecedor</th><th>Categoria no Omie</th><th class="num">Valor</th><th>NF</th><th>Observações</th></tr></thead><tbody>
+    ${linhas.length ? linhas.map(({l,o})=>`<tr><td>${l.data?dBR(l.data):'–'}</td><td class="wrap">${esc(o.C)}${o._semCnpj?' <span class="badge warn">sem CNPJ</span>':''}</td><td>${esc(o.D)}</td><td class="num">${BRL(l.valor)}</td><td>${esc(o.Y)||'–'}</td><td class="wrap" style="font-size:12px;color:var(--text-muted)">${esc(o.S)}</td></tr>`).join('') : '<tr><td colspan="6" class="muted" style="text-align:center">Nenhum lançamento neste mês.</td></tr>'}</tbody></table></div>`;
+  $('#om-mes').onchange = e=>{ OMIE_ST.mes = e.target.value; custoOmie(box); };
+  $('#om-emp').onchange = e=>{ OMIE_ST.emp = e.target.value; custoOmie(box); };
+  $('#om-salvar').onclick = async ()=>{
+    const novo = { contas:{}, categorias:{}, venc_dias: Math.max(0, +$('#om-venc').value || 0), projeto_veiculo: $('#om-proj').checked };
+    $$('[data-om-conta]').forEach(i=>novo.contas[i.dataset.omConta] = i.value.trim());
+    $$('[data-om-cat]').forEach(i=>{ if(i.value.trim()) novo.categorias[i.dataset.omCat] = i.value.trim(); });
+    const { error } = await sb.from('omie_config').upsert({ id:'main', dados: novo, atualizado_em: new Date().toISOString(), atualizado_por: USER || null });
+    if(error){ toast('Não foi possível salvar: ' + error.message, true); return; }
+    OMIE_CFG = null; toast('Configuração do Omie salva.'); custoOmie(box);
+  };
+  $('#om-baixar').onclick = async ()=>{
+    if(semConta.length){ toast('Preencha a conta corrente do Omie na configuração.', true); return; }
+    if(typeof JSZip === 'undefined'){ toast('Biblioteca de planilha não carregou. Recarregue a página.', true); return; }
+    const b = $('#om-baixar'); b.disabled = true; b.textContent = 'Gerando…';
+    try{
+      const { data, error } = await sb.storage.from(BUCKET).download(OMIE_MODELO);
+      if(error || !data) throw new Error((error && error.message) || 'modelo do Omie não encontrado no sistema');
+      const bytes = await omieMontarXlsx(linhas.map(x=>x.o), await data.arrayBuffer());
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([bytes], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      a.download = 'Omie_Contas_Pagar_' + OMIE_ST.mes + (OMIE_ST.emp ? '_' + OMIE_ST.emp.replace('*','sem-empresa').replace(/\s+/g,'-') : '') + '.xlsx'; a.click();
+      toast(N0(linhas.length) + ' contas na planilha. Agora é só importar no Omie.');
+    }catch(e){ toast('Não foi possível gerar a planilha: ' + e.message, true); }
+    b.disabled = false; b.textContent = 'Baixar planilha do Omie (.xlsx)';
+  };
+}
 
 /* ============================ QUILOMETRAGEM ============================ */
 function km(){
