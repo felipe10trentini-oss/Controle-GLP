@@ -555,6 +555,7 @@ footer.note{margin-top:34px;font-size:12px;color:var(--text-muted);border-top:1p
       <button class="btn" id="btn-os-produtos">Produtos</button>
       <button class="btn" id="btn-os-clientes">Clientes</button>
       <button class="btn" id="btn-csv-os">Exportar CSV</button>
+      <button class="btn" id="btn-fin-os" title="Planilha do mês com os serviços realizados, para o financeiro">Exportar para o financeiro</button>
     </div>
     <div class="os-filters">
       <div class="field"><label>Ano</label><select id="os-f-ano"><option value="">Todos</option></select></div>
@@ -697,6 +698,22 @@ footer.note{margin-top:34px;font-size:12px;color:var(--text-muted);border-top:1p
       <button type="button" class="btn" id="btn-novo-cliente-os">+ Novo cliente</button>
       <div class="spacer"></div>
       <button type="button" class="btn primary" id="clientes-os-fechar">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-fin">
+  <div class="modal" style="max-width:460px;">
+    <h3>Exportar para o financeiro</h3>
+    <p class="hint" style="margin-top:-8px;margin-bottom:14px;">Gera uma planilha Excel com os serviços <b>realizados</b> no mês escolhido: valores, forma de pagamento, NF-e e um resumo por serviço, aplicador e pagamento.</p>
+    <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+      <div class="field"><label>Mês</label><select id="fin-mes"></select></div>
+      <div class="field"><label>Ano</label><select id="fin-ano"></select></div>
+    </div>
+    <div class="hint" id="fin-resumo" style="margin-top:12px;line-height:1.5;"></div>
+    <div class="form-actions" style="margin-top:16px;">
+      <button type="button" class="btn" id="fin-cancel">Cancelar</button>
+      <button type="button" class="btn primary" id="fin-baixar">Baixar planilha</button>
     </div>
   </div>
 </div>
@@ -2266,6 +2283,224 @@ document.getElementById('btn-csv-os').onclick = ()=>{
     filteredOs().map(o=>[o.numero||'', fmtDate(o.data), o.horario||'', o.cliente||'', o.contato||'', o.endereco||'', o.municipio||'',
       tipoLabel(o.tipo), o.valor, o.aplicador||'', o.status||'', o.pagamento||'', o.nfe||'', o.obs||''])
   );
+};
+
+/* ---- exportação do mês para o financeiro (Excel formatado) ---- */
+const modalFin = document.getElementById('modal-fin');
+function finLista(){
+  const mes = document.getElementById('fin-mes').value, ano = document.getElementById('fin-ano').value;
+  const doMes = ORDENS_SERVICO.filter(o=>o.data && o.data.slice(0,4)===ano && String(monthIdx(o.data))===mes);
+  return {
+    realizadas: doMes.filter(o=>o.status==='Realizada').sort((a,b)=>a.data.localeCompare(b.data) || String(a.numero||'').localeCompare(String(b.numero||''))),
+    agendadas: doMes.filter(o=>(o.status||'Agendada')==='Agendada').length,
+    canceladas: doMes.filter(o=>o.status==='Cancelada').length
+  };
+}
+function finAtualizaResumo(){
+  const {realizadas, agendadas, canceladas} = finLista();
+  const total = realizadas.reduce((s,o)=>s+(Number(o.valor)||0),0);
+  const sp = realizadas.filter(o=>!String(o.pagamento||'').trim()).length;
+  let t = `<b>${realizadas.length}</b> serviço(s) realizado(s) · <b>R$ ${BRL(total)}</b>`;
+  if(sp) t += `<br>${sp} sem forma de pagamento registrada (aparecem destacadas na planilha).`;
+  if(agendadas) t += `<br><span style="color:var(--accent);">Atenção: ${agendadas} ordem(ns) do mês ainda estão como "Agendada" e não entram na planilha.</span>`;
+  if(canceladas) t += `<br>${canceladas} cancelada(s) não entram na planilha.`;
+  document.getElementById('fin-resumo').innerHTML = t;
+  document.getElementById('fin-baixar').disabled = !realizadas.length;
+}
+document.getElementById('btn-fin-os').onclick = ()=>{
+  const fm = document.getElementById('fin-mes'), fa = document.getElementById('fin-ano');
+  const hoje = new Date();
+  const anoFiltro = document.getElementById('os-f-ano').value, mesFiltro = document.getElementById('os-f-mes').value;
+  const anos = [...new Set([String(hoje.getFullYear()), ...ORDENS_SERVICO.map(o=>o.data ? o.data.slice(0,4) : null).filter(Boolean)])].sort().reverse();
+  fm.innerHTML = MESES.map((m,i)=>`<option value="${i}">${m}</option>`).join('');
+  fa.innerHTML = anos.map(a=>`<option>${a}</option>`).join('');
+  fm.value = mesFiltro!=='' ? mesFiltro : String(hoje.getMonth());
+  fa.value = anoFiltro || String(hoje.getFullYear());
+  finAtualizaResumo();
+  modalFin.classList.add('open');
+};
+document.getElementById('fin-mes').addEventListener('change', finAtualizaResumo);
+document.getElementById('fin-ano').addEventListener('change', finAtualizaResumo);
+document.getElementById('fin-cancel').onclick = ()=>modalFin.classList.remove('open');
+
+let _excelJsPromise = null;
+function carregaExcelJs(){
+  if(window.ExcelJS) return Promise.resolve();
+  if(!_excelJsPromise) _excelJsPromise = new Promise((ok, falha)=>{
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+    s.onload = ok; s.onerror = ()=>{ _excelJsPromise = null; falha(new Error('Não foi possível carregar o gerador de planilhas. Verifique a internet.')); };
+    document.head.appendChild(s);
+  });
+  return _excelJsPromise;
+}
+async function imagemBase64(url){
+  try{
+    const r = await fetch(url); if(!r.ok) return null;
+    const b = await r.blob();
+    return await new Promise(res=>{ const fr = new FileReader(); fr.onload = ()=>res(fr.result); fr.onerror = ()=>res(null); fr.readAsDataURL(b); });
+  }catch(e){ return null; }
+}
+
+async function gerarPlanilhaFinanceiro(){
+  const mesIdx = +document.getElementById('fin-mes').value, ano = document.getElementById('fin-ano').value;
+  const {realizadas} = finLista();
+  await carregaExcelJs();
+  const COR = {verm:'FFC00000', escuro:'FF2B2B2B', faixa:'FFF6F1F0', borda:'FFD9D2D0', cinza:'FF6B6B69', alerta:'FFFFF2CC', alertaTxt:'FF8A5A00', branco:'FFFFFFFF'};
+  const FMT_R$ = '"R$" #,##0.00';
+  const fino = {style:'thin', color:{argb:COR.borda}};
+  const bordas = {top:fino, left:fino, bottom:fino, right:fino};
+  const preenche = argb => ({type:'pattern', pattern:'solid', fgColor:{argb}});
+  const periodo = MESES[mesIdx] + ' de ' + ano;
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Controle Geral'; wb.created = new Date();
+  const ws = wb.addWorksheet('Serviços realizados', {
+    views:[{state:'frozen', ySplit:8, showGridLines:false}],
+    pageSetup:{orientation:'landscape', paperSize:9, fitToPage:true, fitToWidth:1, fitToHeight:0, horizontalCentered:true,
+               margins:{left:0.4, right:0.4, top:0.5, bottom:0.6, header:0.25, footer:0.3}},
+    headerFooter:{oddFooter:'&L&8Controle Geral · Dedetização&C&8Página &P de &N&R&8Emitido em &D'}
+  });
+  const cols = [['OS',10],['Data',12],['Cliente',30],['Endereço',34],['Município',20],['Serviço',30],['Aplicador',18],['Valor (R$)',15],['Pagamento',17],['NF-e',12],['Observações',30]];
+  ws.columns = cols.map(([h,w])=>({width:w}));
+  const N = cols.length, ultima = 'K';
+
+  // cabeçalho com logos e título
+  ws.getRow(1).height = 58;
+  const [lx, lm] = await Promise.all([imagemBase64('logo-exata.png'), imagemBase64('logo-mann.png')]);
+  if(lx){ const id = wb.addImage({base64:lx, extension:'png'}); ws.addImage(id, {tl:{col:0.15,row:0.12}, ext:{width:100,height:50}}); }
+  if(lm){ const id = wb.addImage({base64:lm, extension:'png'}); ws.addImage(id, {tl:{col:2.15,row:0.12}, ext:{width:151,height:50}}); }
+  ws.mergeCells('A2:'+ultima+'2');
+  const t = ws.getCell('A2'); t.value = 'Serviços realizados — ' + periodo;
+  t.font = {name:'Calibri', size:18, bold:true, color:{argb:COR.branco}}; t.fill = preenche(COR.verm);
+  t.alignment = {vertical:'middle', horizontal:'left', indent:1}; ws.getRow(2).height = 34;
+  ws.mergeCells('A3:'+ultima+'3');
+  const st = ws.getCell('A3');
+  st.value = 'Dedetização · Exata Ambiental / Mann  ·  Emitido em ' + new Date().toLocaleDateString('pt-BR');
+  st.font = {name:'Calibri', size:10, italic:true, color:{argb:COR.cinza}}; st.alignment = {vertical:'middle', indent:1}; ws.getRow(3).height = 20;
+  ws.getRow(4).height = 8;
+
+  // indicadores
+  const total = realizadas.reduce((s,o)=>s+(Number(o.valor)||0),0);
+  const comPag = realizadas.filter(o=>String(o.pagamento||'').trim());
+  const semPag = realizadas.filter(o=>!String(o.pagamento||'').trim());
+  const soma = l => l.reduce((s,o)=>s+(Number(o.valor)||0),0);
+  const semNf = realizadas.filter(o=>!String(o.nfe||'').trim()).length;
+  const cards = [
+    ['A','B','Serviços realizados', realizadas.length, '0'],
+    ['C','C','Valor total', total, FMT_R$],
+    ['D','E','Com pagamento registrado', soma(comPag), FMT_R$],
+    ['F','G','Sem pagamento registrado', soma(semPag), FMT_R$],
+    ['H','K','Sem NF-e informada (serviços)', semNf, '0']
+  ];
+  cards.forEach(([a,b,rot,val,fmt])=>{
+    if(a!==b){ ws.mergeCells(`${a}5:${b}5`); ws.mergeCells(`${a}6:${b}6`); }
+    const r = ws.getCell(a+'5'); r.value = rot; r.font = {name:'Calibri', size:9, bold:true, color:{argb:COR.cinza}};
+    r.alignment = {horizontal:'center', vertical:'middle'};
+    const v = ws.getCell(a+'6'); v.value = val; v.numFmt = fmt;
+    v.font = {name:'Calibri', size:16, bold:true, color:{argb: (rot.startsWith('Sem') && val>0) ? COR.alertaTxt : COR.escuro}};
+    v.alignment = {horizontal:'center', vertical:'middle'};
+    for(let c = a.charCodeAt(0); c<=b.charCodeAt(0); c++){
+      const L = String.fromCharCode(c);
+      ['5','6'].forEach(rw=>{ const cell = ws.getCell(L+rw); cell.fill = preenche(COR.faixa);
+        cell.border = {top: rw==='5'?{style:'medium', color:{argb:COR.verm}}:undefined, left: L===a?fino:undefined, right: L===b?fino:undefined, bottom: rw==='6'?fino:undefined}; });
+    }
+  });
+  ws.getRow(5).height = 20; ws.getRow(6).height = 30; ws.getRow(7).height = 10;
+
+  // tabela
+  const H = 8;
+  const hr = ws.getRow(H); hr.height = 30;
+  cols.forEach(([h],i)=>{
+    const c = hr.getCell(i+1); c.value = h; c.font = {name:'Calibri', size:11, bold:true, color:{argb:COR.branco}};
+    c.fill = preenche(COR.escuro); c.alignment = {horizontal:'center', vertical:'middle', wrapText:true}; c.border = bordas;
+  });
+  realizadas.forEach((o,i)=>{
+    const [y,m,d] = o.data.split('-');
+    const pag = String(o.pagamento||'').trim();
+    const nfe = String(o.nfe||'').trim();
+    const row = ws.getRow(H+1+i);
+    const local = [o.endereco].filter(Boolean).join(', ');
+    const valores = [o.numero||'', new Date(Date.UTC(+y, +m-1, +d)), o.cliente||'', local, o.municipio||'', tipoLabel(o.tipo)+(o.descricao?' — '+o.descricao:''),
+      String(o.aplicador||'').trim()||'—', o.valor!=null && o.valor!=='' ? Number(o.valor) : null, pag||'Não informado', nfe||'—', o.obs||''];
+    valores.forEach((v,j)=>{
+      const c = row.getCell(j+1); c.value = v; c.border = bordas;
+      c.font = {name:'Calibri', size:10, color:{argb:COR.escuro}};
+      if(i%2===1) c.fill = preenche(COR.faixa);
+      c.alignment = {vertical:'middle', wrapText:[2,3,5,10].includes(j), horizontal:[0,1,8,9].includes(j) ? 'center' : (j===7 ? 'right' : 'left')};
+    });
+    row.getCell(2).numFmt = 'dd/mm/yyyy';
+    row.getCell(8).numFmt = FMT_R$;
+    row.getCell(1).font = {name:'Calibri', size:10, bold:true, color:{argb:COR.verm}};
+    if(!pag){ const c = row.getCell(9); c.fill = preenche(COR.alerta); c.font = {name:'Calibri', size:10, italic:true, color:{argb:COR.alertaTxt}}; }
+    const linhas = Math.max(1, Math.ceil((local.length||1)/36), Math.ceil(String(valores[5]).length/32), Math.ceil(String(o.cliente||'').length/32), Math.ceil(String(o.obs||'').length/32));
+    row.height = Math.max(22, 14*linhas+8);
+  });
+  const ult = H + realizadas.length;
+  const tr = ws.getRow(ult+1); tr.height = 28;
+  ws.mergeCells(`A${ult+1}:G${ult+1}`);
+  const lt = tr.getCell(1); lt.value = `TOTAL · ${realizadas.length} serviço${realizadas.length===1?'':'s'}`; lt.alignment = {horizontal:'right', vertical:'middle', indent:1};
+  const vt = tr.getCell(8); vt.value = {formula:`SUM(H${H+1}:H${ult})`, result:total}; vt.numFmt = FMT_R$; vt.alignment = {horizontal:'right', vertical:'middle'};
+  for(let j=1;j<=N;j++){ const c = tr.getCell(j); c.fill = preenche(COR.escuro); c.font = {name:'Calibri', size:12, bold:true, color:{argb:COR.branco}}; c.border = bordas; }
+  ws.autoFilter = {from:{row:H, column:1}, to:{row:ult, column:N}};
+  ws.pageSetup.printTitlesRow = `${H}:${H}`;
+  ws.pageSetup.printArea = `A1:${ultima}${ult+1}`;
+
+  // aba de resumo
+  const rs = wb.addWorksheet('Resumo', {views:[{showGridLines:false}], pageSetup:{orientation:'portrait', paperSize:9, fitToPage:true, fitToWidth:1, fitToHeight:0, horizontalCentered:true}});
+  rs.columns = [{width:42},{width:12},{width:18},{width:12}];
+  rs.mergeCells('A1:D1');
+  const rt = rs.getCell('A1'); rt.value = 'Resumo — ' + periodo; rt.font = {name:'Calibri', size:16, bold:true, color:{argb:COR.branco}};
+  rt.fill = preenche(COR.verm); rt.alignment = {vertical:'middle', indent:1}; rs.getRow(1).height = 32;
+  let r = 3;
+  const bloco = (titulo, chave) => {
+    const g = new Map();
+    realizadas.forEach(o=>{ const k = chave(o); const x = g.get(k) || {q:0, v:0}; x.q++; x.v += Number(o.valor)||0; g.set(k, x); });
+    const lista = [...g.entries()].sort((a,b)=>b[1].v-a[1].v || b[1].q-a[1].q);
+    [titulo,'Qtd','Valor (R$)','%'].forEach((h,i)=>{
+      const c = rs.getRow(r).getCell(i+1); c.value = h; c.font = {name:'Calibri', size:11, bold:true, color:{argb:COR.branco}};
+      c.fill = preenche(COR.escuro); c.border = bordas; c.alignment = {horizontal:i?'center':'left', vertical:'middle', indent:i?0:1};
+    });
+    rs.getRow(r).height = 24; r++;
+    const ini = r;
+    lista.forEach(([k,x],i)=>{
+      const row = rs.getRow(r);
+      row.getCell(1).value = k; row.getCell(2).value = x.q; row.getCell(3).value = x.v;
+      row.getCell(4).value = total ? x.v/total : 0;
+      row.getCell(3).numFmt = FMT_R$; row.getCell(4).numFmt = '0.0%';
+      for(let j=1;j<=4;j++){ const c = row.getCell(j); c.border = bordas; c.font = {name:'Calibri', size:10, color:{argb:COR.escuro}};
+        if(i%2===1) c.fill = preenche(COR.faixa);
+        c.alignment = {vertical:'middle', horizontal:j===1?'left':(j===3?'right':'center'), indent:j===1?1:0, wrapText:j===1}; }
+      row.height = 20; r++;
+    });
+    const row = rs.getRow(r);
+    row.getCell(1).value = 'Total'; row.getCell(2).value = {formula:`SUM(B${ini}:B${r-1})`, result:realizadas.length};
+    row.getCell(3).value = {formula:`SUM(C${ini}:C${r-1})`, result:total}; row.getCell(3).numFmt = FMT_R$;
+    row.getCell(4).value = total ? 1 : 0; row.getCell(4).numFmt = '0.0%';
+    for(let j=1;j<=4;j++){ const c = row.getCell(j); c.font = {name:'Calibri', size:10, bold:true, color:{argb:COR.escuro}}; c.fill = preenche('FFEAE2E0');
+      c.border = {top:{style:'medium', color:{argb:COR.verm}}, left:fino, right:fino, bottom:fino};
+      c.alignment = {horizontal:j===1?'left':(j===3?'right':'center'), vertical:'middle', indent:j===1?1:0}; }
+    row.height = 22; r += 2;
+  };
+  bloco('Por tipo de serviço', o=>tipoLabel(o.tipo)||'Não informado');
+  bloco('Por aplicador', o=>String(o.aplicador||'').trim()||'Não informado');
+  bloco('Por forma de pagamento', o=>String(o.pagamento||'').trim()||'Não informado');
+  bloco('Por município', o=>String(o.municipio||'').trim()||'Não informado');
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `Servicos realizados - ${MESES[mesIdx]} ${ano}.xlsx`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+document.getElementById('fin-baixar').onclick = async ()=>{
+  const b = document.getElementById('fin-baixar'); const txt = b.textContent;
+  b.disabled = true; b.textContent = 'Gerando…';
+  try{ await gerarPlanilhaFinanceiro(); modalFin.classList.remove('open'); toast('Planilha gerada.'); }
+  catch(e){ console.error(e); toast('Erro ao gerar a planilha: ' + (e.message||e), true); }
+  finally{ b.textContent = txt; finAtualizaResumo(); }
 };
 
 function nextOsNumero(dataStr){
