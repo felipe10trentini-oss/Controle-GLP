@@ -407,6 +407,12 @@ iframe.embed.com-abas{height:calc(100vh - 200px);}
 .ag-hora{font:600 15px var(--font-mono);}
 .ag-acoes{display:flex;gap:5px;margin-top:5px;}
 .ag-acoes select{padding:4px 6px;font-size:12px;flex:1;min-width:0;}
+.ag-item{cursor:pointer;gap:4px;}
+.ag-item:hover{filter:brightness(.98);box-shadow:0 3px 10px rgba(0,0,0,.14);}
+.ag-item:focus-visible{outline:3px solid var(--text);outline-offset:2px;}
+.ag-cliente{font-size:15px;line-height:1.25;}
+.ag-qtd{font-size:12.5px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.ag-rota{border:1px solid var(--border);border-radius:8px;padding:9px 12px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--surface-2);font-size:13.5px;}
 .ag-item.forte{border:3px solid var(--cor,var(--border));box-shadow:0 2px 6px rgba(0,0,0,.10);}
 .ag-ordinal{font:700 13px var(--font-display);text-transform:uppercase;letter-spacing:.05em;color:var(--cor);border-bottom:2px solid var(--cor);padding-bottom:3px;margin-bottom:3px;}
 .ag-trats{display:flex;flex-direction:column;gap:7px;margin:5px 0 3px;}
@@ -1916,29 +1922,39 @@ function agLigaData(){
   $$('[data-ag-ir]').forEach(b=>b.onclick = ()=>{ AG.data = b.dataset.agIr; agDesenha(); });
   $('#ag-data').onchange = e=>{ if(e.target.value){ AG.data = e.target.value; agDesenha(); } };
 }
+// no cartão só o essencial (cliente, horário e quantidade); o resto e as ações ficam na janela que abre ao tocar nele
 function agCartao(j, it, vi, num, forte){
   const st = AG_ST[j.status] || AG_ST.agendado, c = agCliente(j), n = j.ciclos || 1;
-  const horas = String(j.hora_ciclos || '').split(','), quants = String(j.quant || '').split(' + '), avisos = /^Aviso /.test(j.obs || '') ? j.obs.slice(6).split(' · ')[0].split(', ') : [];
+  const horas = String(j.hora_ciclos || '').split(','), quants = String(j.quant || '').split(' + '), porCiclo = n > 1 && quants.length === n;
+  const qtd = t => t ? `<div class="ag-qtd" title="${esc(t)}">${esc(t)}</div>` : '';
   // um bloco por tratamento quando o mesmo cliente tem mais de um
   const blocos = n > 1 ? `<div class="ag-trats">${Array.from({ length:n }, (_, k)=>{
       const hora = horas[k] || (j.status !== 'realizado' && it ? paraHora(it.ini + k * (j.duracao_min || 240)) : '');
-      return `<div class="ag-trat"><b>${num ? num + k : k + 1}º tratamento</b>${hora ? ` <span class="mono">${esc(hora)}</span>` : ''}<div class="mini">${[quants.length === n ? esc(quants[k]) : '', avisos.length === n ? 'Aviso ' + esc(avisos[k]) : ''].filter(Boolean).join(' · ')}</div></div>`; }).join('')}</div>` : '';
-  const resto = n > 1 ? [quants.length === n ? '' : esc(j.quant), esc(j.material)].filter(Boolean).join(' · ') : [esc(j.quant), esc(j.material)].filter(Boolean).join(' · ');
-  const obs = avisos.length === n && n > 1 ? String(j.obs).split(' · ').slice(1).join(' · ') : j.obs;
-  return `<div class="ag-item ${forte ? 'forte' : ''}" draggable="true" data-id="${esc(j.id)}" ${j.veic ? `style="--cor:${corVeic(j.veic)}"` : ''}>
+      return `<div class="ag-trat"><b>${num ? num + k : k + 1}º tratamento</b>${hora ? ` <span class="mono">${esc(hora)}</span>` : ''}${porCiclo ? qtd(quants[k]) : ''}</div>`; }).join('')}</div>` : '';
+  return `<div class="ag-item ${forte ? 'forte' : ''}" draggable="true" data-id="${esc(j.id)}" role="button" tabindex="0" ${j.veic ? `style="--cor:${corVeic(j.veic)}"` : ''}>
     ${forte && n === 1 && num ? `<div class="ag-ordinal">${num}º tratamento</div>` : ''}
     <div class="ag-topo"><span class="ag-hora">${it ? paraHora(it.ini) : (j.hora_real || j.hora_marcada || '—')}</span><span class="badge ${st[1]}">${st[0]}</span></div>
-    <b>${esc(j.cliente)}</b>
-    <div class="mini">${esc(j.cidade || (c && c.cidade) || 'cidade não informada')}${it && it.km >= 1 ? ` · ${N0(it.km)} km do anterior` : ''}${it && it.ped ? ` · pedágio R$ ${BRL(it.ped)}` : ''}</div>
+    <b class="ag-cliente">${esc(j.cliente)}</b>
+    <div class="mini muted">${esc(j.cidade || (c && c.cidade) || 'cidade não informada')}</div>
     ${blocos}
-    <div class="mini">${resto}</div>
+    ${porCiclo ? '' : qtd(j.quant)}
     ${j.hora_marcada ? `<div class="mini"><span class="badge warn">hora marcada ${esc(j.hora_marcada)}</span>${it && it.atraso ? ' <span class="badge bad">chega atrasado</span>' : ''}</div>` : ''}
-    ${obs ? `<div class="mini">${esc(obs)}</div>` : ''}
-    <div class="ag-acoes">
-      <select data-ag-veic="${esc(j.id)}" aria-label="Veículo"><option value="">A distribuir</option>${HT.map(v=>`<option ${j.veic === v ? 'selected' : ''}>${v}</option>`).join('')}</select>
-      ${vi ? `<button class="btn sm" data-ag-sobe="${esc(j.id)}" aria-label="Subir">↑</button><button class="btn sm" data-ag-desce="${esc(j.id)}" aria-label="Descer">↓</button>` : ''}
-      <button class="btn sm" data-ag-ed="${esc(j.id)}">Abrir</button></div>
   </div>`;
+}
+// dentro da janela do serviço: posição na rota, distância e pedágio do trecho, e a troca de ordem
+function agMostraRota(id){
+  const box = $('#ag-rota'), j = DB.ht_ag.find(x=>x.id === id); if(!box || !j) return;
+  const data = String(j.data), lista = j.veic ? agDoVeic(data, j.veic) : [], i = lista.findIndex(x=>x.id === id);
+  if(i < 0){ box.hidden = true; return; }
+  const it = agPercorre(agVeic(data, j.veic), lista).itens[i], relogio = lista.every(x=>x.hora_real);
+  box.hidden = false;
+  box.innerHTML = `<div><b style="color:${corVeic(j.veic)}">${j.veic}</b> · ${i + 1}ª parada de ${lista.length} · ${j.hora_real ? 'feito às' : 'previsto'} ${paraHora(it.ini)}
+      <div class="mini">${[it.km >= 1 ? `${N0(it.km)} km desde a ${i ? 'parada anterior' : 'saída'}` : '', it.ped ? `pedágio do trecho R$ ${BRL(it.ped)}` : ''].filter(Boolean).join(' · ') || 'sem deslocamento relevante neste trecho'}</div></div>
+    ${lista.length < 2 ? '' : relogio ? '<span class="mini">Dia realizado: a ordem segue o horário.</span>' : `<div class="ag-links"><button type="button" class="btn sm" id="ag-subir" ${i === 0 ? 'disabled' : ''}>↑ Fazer antes</button><button type="button" class="btn sm" id="ag-descer" ${i === lista.length - 1 ? 'disabled' : ''}>↓ Fazer depois</button></div>`}`;
+  const passo = async d=>{ const l = lista.slice(), k = i + d; [l[i], l[k]] = [l[k], l[i]];
+    try{ await agRenumera(data, j.veic, l); AG.desfazer = null; agDesenha(); agMostraRota(id); }catch(e){ toast('Erro: ' + e.message, true); } };
+  if($('#ag-subir')) $('#ag-subir').onclick = ()=>passo(-1);
+  if($('#ag-descer')) $('#ag-descer').onclick = ()=>passo(1);
 }
 function agDia(){
   const data = AG.data, frota = agFrota(data), doDia = agDoDia(data), soltos = doDia.filter(j=>!j.veic || !HT.includes(j.veic));
@@ -1979,6 +1995,7 @@ function agDia(){
         <div class="ag-links">${link ? `<a class="btn sm" href="${esc(link)}" target="_blank" rel="noopener">Rota no Google Maps ↗</a>` : ''}<button class="btn sm" data-ag-copia="${vi.v}">Copiar</button></div></div>` : ''}
     </div>`; }).join('')}</div>
   <datalist id="ag-ops">${OPERADORES.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>
+  ${doDia.length ? '<p class="hint" style="margin-top:-6px">Toque em um serviço para ver os detalhes, trocar de veículo ou mudar a ordem. No computador, também dá para arrastar.</p>' : ''}
   <div class="sechead">Mapa do dia</div><div id="ag-mapa" class="ag-mapa"><div class="empty">${doDia.length ? 'Carregando o mapa…' : 'Nenhum serviço neste dia.'}</div></div><p class="hint" id="ag-mapa-aviso"></p>
   ${data >= TODAY ? agSugestoes(data, rotas) : ''}`;
   agLigaData();
@@ -1986,12 +2003,6 @@ function agDia(){
   $('#ag-organizar').onclick = agOrganizar; $('#ag-organizar').disabled = !doDia.length;
   $('#ag-copiar').onclick = ()=>agCopiar(rotas.filter(r=>r.per.itens.length)); $('#ag-copiar').disabled = !usados;
   $$('[data-ag-copia]').forEach(b=>b.onclick = ()=>agCopiar(rotas.filter(r=>r.vi.v === b.dataset.agCopia)));
-  $$('[data-ag-ed]').forEach(b=>b.onclick = ()=>agEditar(b.dataset.agEd));
-  $$('[data-ag-veic]').forEach(s=>s.onchange = ()=>agMover(s.dataset.agVeic, s.value));
-  const passo = async (id, d)=>{ const j = DB.ht_ag.find(x=>x.id === id); const l = agDoVeic(data, j.veic), i = l.findIndex(x=>x.id === id), k = i + d; if(k < 0 || k >= l.length) return; [l[i], l[k]] = [l[k], l[i]];
-    try{ await agRenumera(data, j.veic, l); AG.desfazer = null; agDesenha(); }catch(e){ toast('Erro: ' + e.message, true); } };
-  $$('[data-ag-sobe]').forEach(b=>b.onclick = ()=>passo(b.dataset.agSobe, -1));
-  $$('[data-ag-desce]').forEach(b=>b.onclick = ()=>passo(b.dataset.agDesce, 1));
   const dia = async (v, campos)=>{ const atual = (DB.ht_dia||[]).find(x=>String(x.data) === data && x.veic === v) || { data, veic:v, disponivel:true, origem:null, operador:null };
     const row = { ...atual, ...campos };
     try{ await dbUpsert('ht_dia', [row]); DB.ht_dia = [...DB.ht_dia.filter(x=>!(String(x.data) === data && x.veic === v)), row];
@@ -2002,7 +2013,8 @@ function agDia(){
   $$('[data-ag-origem]').forEach(c=>c.onchange = ()=>dia(c.dataset.agOrigem, { origem:c.value || null }));
   $$('[data-ag-volta]').forEach(c=>c.onchange = ()=>dia(c.dataset.agVolta, { volta:c.value === '' ? null : c.value === '1' }));
   // arrastar e soltar entre veículos (computador)
-  $$('.ag-item').forEach(el=>{ el.ondragstart = e=>{ e.dataTransfer.setData('text/plain', el.dataset.id); e.dataTransfer.effectAllowed = 'move'; }; });
+  $$('.ag-item').forEach(el=>{ el.onclick = ()=>agEditar(el.dataset.id); el.onkeydown = e=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); agEditar(el.dataset.id); } };
+    el.ondragstart = e=>{ e.dataTransfer.setData('text/plain', el.dataset.id); e.dataTransfer.effectAllowed = 'move'; }; });
   $$('[data-drop]').forEach(z=>{ z.ondragover = e=>{ e.preventDefault(); z.classList.add('alvo'); }; z.ondragleave = ()=>z.classList.remove('alvo');
     z.ondrop = e=>{ e.preventDefault(); z.classList.remove('alvo'); const id = e.dataTransfer.getData('text/plain'); const sobre = e.target.closest('.ag-item'); if(id) agMover(id, z.dataset.drop, sobre ? sobre.dataset.id : null); }; });
   $$('[data-ag-sug]').forEach(b=>b.onclick = ()=>{ const c = DB.ht_cli.find(x=>x.id === b.dataset.agSug); agEditar(null, { data, cliente:c.nome, cliente_id:c.id, veic:b.dataset.v || '' }); });
@@ -2462,6 +2474,7 @@ function agEditar(id, pre){
   d.innerHTML = `<form id="form-ag" method="dialog" autocomplete="off"><h3>${id ? 'Agendamento' : 'Novo agendamento'}</h3><div class="fgrid">
     <div class="field full"><label>Cliente</label><input name="cliente" list="ag-clis" value="${esc(j.cliente || '')}" placeholder="Comece a digitar o nome" required></div>
     <div class="hintbox full" id="ag-info" hidden></div>
+    <div class="ag-rota full" id="ag-rota" hidden></div>
     <div class="field"><label>Data</label><input type="date" name="data" value="${esc(j.data)}" required></div>
     <div class="field"><label>Cidade</label><input name="cidade" list="ag-cids" value="${esc(j.cidade || '')}"></div>
     <div class="field"><label>Veículo</label><select name="veic"><option value="">A distribuir</option>${HT.map(v=>`<option ${j.veic === v ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
@@ -2487,6 +2500,7 @@ function agEditar(id, pre){
     if(!id) f.horas.value = (c.duracao_min || 240) / 60;
   };
   f.cliente.onchange = ()=>preenche(true); if(j.cliente) preenche(false);
+  if(id) agMostraRota(id);
   f.veic.onchange = ()=>{ f.fixo.checked = !!f.veic.value; };
   $('#ag-fechar').onclick = ()=>d.close();
   if(id) $('#ag-excluir').onclick = async ()=>{ if(!confirm(`Excluir o agendamento de ${j.cliente} em ${dBR(j.data)}? (Para só desmarcar e manter o registro, use o status “Cancelado”.)`)) return;
