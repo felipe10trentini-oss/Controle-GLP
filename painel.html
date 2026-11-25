@@ -420,6 +420,8 @@ table.ag-sem td:first-child{min-width:90px;}
 .ag-cards{grid-template-columns:repeat(5,1fr);}
 @media (max-width:1000px){ .ag-cards{grid-template-columns:repeat(2,1fr);} }
 .ag-pe details summary{cursor:pointer;}
+#dlg-ag details summary{cursor:pointer;margin-top:6px;}
+.agp-lista{max-height:180px;overflow:auto;border:1px solid var(--border);border-radius:7px;padding:6px 9px;margin-top:4px;}
 </style>
 </head>
 <body>
@@ -653,7 +655,8 @@ const LOADERS = {
   ht_ag: async()=> await fetchAll('ht_agendamentos','id'),
   ht_bases: async()=> await fetchAll('ht_bases','id'),
   ht_vb: async()=> await fetchAll('ht_veiculo_base','id'),
-  ht_ped: async()=> (await fetchAll('ht_pedagios','id')).map(r=>({ ...r, valor:Number(r.valor) }))
+  ht_ped: async()=> (await fetchAll('ht_pedagios','id')).map(r=>({ ...r, valor:Number(r.valor) })),
+  ht_imp: async()=> await fetchAll('ht_importacoes','enviado_em')
 };
 async function need(...names){
   await Promise.all(names.map(async n=>{ if(!DB[n]) DB[n] = await LOADERS[n](); }));
@@ -849,8 +852,8 @@ async function go(){
     else if(key==='agendamento'){
       // o cadastro de clientes acompanha os certificados; a agenda é recarregada a cada visita (várias pessoas editam)
       if(!AG.sincronizado){ const { error } = await sb.rpc('ht_atualizar_clientes'); if(error) console.warn(error.message); else { AG.sincronizado = true; delete DB.ht_cli; } }
-      delete DB.ht_ag; delete DB.ht_dia;
-      await need('veiculos','ht_cli','ht_cid','ht_cfg','ht_vei','ht_dia','ht_ag','ht_bases','ht_vb','ht_ped'); if(token===goToken) agendamento(); }
+      delete DB.ht_ag; delete DB.ht_dia; delete DB.ht_imp;
+      await need('veiculos','ht_cli','ht_cid','ht_cfg','ht_vei','ht_dia','ht_ag','ht_bases','ht_vb','ht_ped','ht_imp'); if(token===goToken) agendamento(); }
     else if(key==='tratamentos'){ await need('veiculos','serv','arqs'); if(token===goToken) (sub && sub2 ? tratDetalhe(decodeURIComponent(sub).toUpperCase(), sub2) : sub ? tratVeic(decodeURIComponent(sub).toUpperCase()) : tratamentos()); }
     else if(key==='utilizacao'){ await need('veiculos','traj','folhas','leit'); if(token===goToken) (sub ? utilVeic(decodeURIComponent(sub).toUpperCase()) : utilizacao()); }
     else if(key==='lancar'){
@@ -1879,11 +1882,12 @@ function agDesenha(){
   const rolagem = window.scrollY;
   $('#app').innerHTML = `
   <div class="pagehead"><div><h2>Agendamento HT</h2><p>Programação diária por veículo, com os clientes vizinhos na mesma rota.</p></div>
-    <div class="acts">${AG.tab === 'dia' ? `<button class="btn" id="ag-copiar">Copiar programação</button><button class="btn" id="ag-organizar">Organizar rotas</button>` : ''}<button class="btn primary" id="ag-novo">+ Novo agendamento</button></div></div>
+    <div class="acts">${AG.tab === 'dia' ? `<button class="btn" id="ag-copiar">Copiar programação</button><button class="btn" id="ag-organizar">Organizar rotas</button>` : ''}<button class="btn" id="ag-planilha">Enviar planilha</button><button class="btn primary" id="ag-novo">+ Novo agendamento</button></div></div>
   <div class="tabs">${[['dia','Agenda do dia'],['semana','Semana'],['clientes','Clientes'],['veiculos','Veículos e bases'],['pedagios','Pedágios']].map(t=>`<button data-ag-tab="${t[0]}" class="${AG.tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</div>
   <div id="ag-corpo"></div>`;
   $$('[data-ag-tab]').forEach(b=>b.onclick = ()=>{ AG.tab = b.dataset.agTab; agDesenha(); });
   $('#ag-novo').onclick = ()=>agEditar(null, { data:AG.data });
+  $('#ag-planilha').onclick = agEnviarPlanilha;
   if(AG.tab === 'dia') agDia(); else if(AG.tab === 'semana') agSemana(); else if(AG.tab === 'clientes') agClientes(); else if(AG.tab === 'pedagios') agPedagiosTela(); else agVeiculos();
   window.scrollTo(0, rolagem);
 }
@@ -2177,6 +2181,152 @@ function agPedagiosTela(){
     if(f === 'valor' && !(v >= 0)){ toast('Valor inválido.', true); return; }
     try{ await dbUpdate('ht_pedagios', { [f]:v, ...carimbo() }, 'id', p.id); p[f] = v; AG.memoPed = new Map(); toast('Pedágio atualizado.'); }catch(e){ toast('Erro: ' + e.message, true); }
   });
+}
+
+/* ---- envio da planilha de serviços (grava só nas tabelas do agendamento) ---- */
+const AG_SEM_AVISO = 'Importado da planilha de serviços';
+const agTxt = v => { const s = v == null ? '' : String(v).trim(); return s || null; };
+const agDataExcel = v => typeof v === 'number' && v > 40000 && v < 60000 ? new Date(Date.UTC(1899, 11, 30) + Math.floor(v) * 86400000).toISOString().slice(0,10) : null;
+function agHoraExcel(v){
+  if(typeof v === 'number'){ if(!(v > 0 && (v < 1 || v % 1 > 0))) return null; const m = Math.round((v % 1) * 1440) % 1440; return String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0'); }
+  const x = String(v ?? '').match(/^\s*(\d{1,2})\s*[h:]\s*(\d{2})/i); return x ? x[1].padStart(2,'0') + ':' + x[2] : null;
+}
+// lê a aba "Serviços" e junta as linhas em um cartão por dia, veículo e cliente
+function agLerPlanilha(buffer, desde){
+  const wb = XLSX.read(buffer, { type:'array', cellDates:false });
+  const nome = wb.SheetNames.find(n=>normHt(n) === 'servicos');
+  if(!nome) throw new Error('Não encontrei a aba “Serviços” nesta planilha.');
+  const m = XLSX.utils.sheet_to_json(wb.Sheets[nome], { header:1, raw:true, defval:null, blankrows:false });
+  const cab = (m[0] || []).map(normHt);
+  const esperado = { 0:'aviso', 1:'data', 3:'cliente', 4:'local', 9:'veiculo' };
+  if(Object.entries(esperado).some(([i, n])=>cab[+i] !== n)) throw new Error('As colunas da aba “Serviços” mudaram de lugar. Esperado: Aviso, Data, Horário, Cliente, Local… Veículo.');
+  const linhas = [], fora = { semCliente:0, semVeiculo:0, semAviso:0 };
+  let ultima = '';
+  m.slice(1).forEach(r=>{
+    const data = agDataExcel(r[1]); if(!data || data < desde) return;
+    const cli = agTxt(r[3]), veic = String(r[9] ?? '').replace(/\s/g, '').slice(0,3).toUpperCase(), aviso = agTxt(r[0]);
+    if(!cli){ fora.semCliente++; return; }
+    if(!HT.includes(veic)){ fora.semVeiculo++; return; }
+    if(data < TODAY && !aviso){ fora.semAviso++; return; }   // dia que passou sem aviso: não foi realizado
+    if(data > ultima) ultima = data;
+    linhas.push({ data, veic, cli, k:normHt(cli), hora:agHoraExcel(r[2]), local:agTxt(r[4]), material:agTxt(r[5]), quant:agTxt(r[6]), op:agTxt(r[8]), aviso });
+  });
+  if(!linhas.length) throw new Error('Nenhum serviço encontrado a partir de ' + dBR(desde) + '.');
+  linhas.sort((a,b)=>a.data.localeCompare(b.data) || a.veic.localeCompare(b.veic) || (a.hora || '99').localeCompare(b.hora || '99'));
+  const grupos = new Map();
+  linhas.forEach(x=>{ const key = `plan:${x.data}:${x.veic}:${x.k}`; if(!grupos.has(key)) grupos.set(key, []); grupos.get(key).push(x); });
+  const cartoes = [...grupos].map(([importado, xs])=>{
+    const p = xs[0], feito = p.data <= TODAY && xs.every(x=>x.aviso), horas = xs.map(x=>x.hora).filter(Boolean), avisos = xs.map(x=>x.aviso).filter(Boolean);
+    const quant = xs.map(x=>x.quant).filter(Boolean).join(' + ').slice(0,400) || null;
+    return { importado, data:p.data, veic:p.veic, k:p.k, cliente:p.cli, local:(xs.find(x=>x.local) || {}).local || null, material:(xs.find(x=>x.material) || {}).material || null,
+      quant, ciclos:Math.min(10, xs.length), operador:(xs.find(x=>x.op) || {}).op || null, status: feito ? 'realizado' : 'agendado', hora_real: feito ? (horas[0] || null) : null,
+      hora_prevista:horas[0] || null, obs: avisos.length ? 'Aviso ' + avisos.join(', ') : AG_SEM_AVISO };
+  });
+  return { cartoes, fora, ultima, linhas:linhas.length };
+}
+// compara com a agenda: o que é novo, o que mudou e o que sumiu da planilha
+function agComparaPlanilha(lido, desde){
+  const todos = DB.ht_ag.filter(j=>String(j.data) >= desde);
+  const porChave = new Map(todos.filter(j=>j.importado).map(j=>[j.importado, j]));
+  const porDia = new Map(); todos.forEach(j=>{ const c = agCliente(j), ks = new Set([normHt(j.cliente), c ? c.chave : null].filter(Boolean)); ks.forEach(k=>{ const d = j.data + '|' + k; if(!porDia.has(d)) porDia.set(d, []); porDia.get(d).push(j); }); });
+  const usados = new Set(), pares = [];
+  lido.cartoes.forEach(c=>{ const j = porChave.get(c.importado); if(j){ usados.add(j.id); pares.push([c, j]); } else pares.push([c, null]); });
+  pares.forEach(par=>{
+    const [c, j] = par; if(j) return;
+    const cand = (porDia.get(c.data + '|' + c.k) || []).filter(x=>!usados.has(x.id));
+    const achado = cand.find(x=>x.veic === c.veic) || (cand.length === 1 ? cand[0] : null);
+    if(achado){ usados.add(achado.id); par[1] = achado; }
+  });
+  const novos = [], mudancas = []; let iguais = 0, mantidos = 0;
+  const igual = (a, b)=>(a ?? null) === (b ?? null);
+  pares.forEach(([c, j])=>{
+    if(!j){ novos.push(c); return; }
+    let campos = [];
+    if(c.status === 'realizado') campos = ['status','veic','hora_real','ciclos','quant','material','operador','obs'];   // serviço feito: vale a planilha
+    else if(j.status === 'agendado' && j.importado && !j.editado_em) campos = ['ciclos','quant','material','operador','hora_prevista'];   // programado que ninguém mexeu no sistema
+    else if(j.status !== 'realizado'){ mantidos++; return; }
+    const novo = {};
+    campos.forEach(f=>{ const v = f === 'obs' && j.obs && !/^(Aviso |Importado)/.test(j.obs) ? j.obs + ' · ' + c.obs : c[f];
+      if(f === 'obs' && String(j.obs || '').includes(c.obs)) return;
+      if(['quant','material','operador','hora_real','hora_prevista'].includes(f) && (v == null || v === '')) return;   // célula vazia não apaga o que já existe
+      if(!igual(j[f], v)) novo[f] = v; });
+    if(Object.keys(novo).length){ if(!j.importado && !porChave.has(c.importado)) novo.importado = c.importado; mudancas.push({ c, j, novo }); } else iguais++;
+  });
+  const sumiram = todos.filter(j=>j.importado && !usados.has(j.id) && String(j.data) <= lido.ultima);
+  return { novos, mudancas, iguais, mantidos, sumiram };
+}
+async function agAplicarPlanilha(lido, plano, arquivo, remover, passo){
+  // cidades que ainda não têm localização
+  const desconhecidas = [...new Set(plano.novos.map(c=>c.local).filter(x=>x && !agCidade(x)))].slice(0,10);
+  for(const nome of desconhecidas){ passo(`Localizando a cidade ${nome}…`); try{ await agAdicionarCidade(nome, 'PR'); }catch(e){ console.warn(nome, e.message); } }
+  // clientes novos no cadastro do agendamento
+  const novosCli = [];
+  plano.novos.forEach(c=>{ if(!agBuscaCliente({ cliente:c.cliente }) && !novosCli.some(x=>x.chave === c.k)){ const cid = agCidade(c.local);
+    novosCli.push({ id:uid('hc'), nome:c.cliente, chave:c.k, apelidos:[c.cliente], cidade: cid ? cid.nome : c.local, ativo:true, duracao_min:240 }); } });
+  if(novosCli.length){ passo(`Cadastrando ${novosCli.length} cliente(s) novo(s)…`); await dbInsert('ht_clientes', novosCli); DB.ht_cli.push(...novosCli); }
+  const ordens = {};
+  DB.ht_ag.forEach(j=>{ if(j.veic){ const k = j.data + j.veic; ordens[k] = Math.max(ordens[k] || 0, j.ordem || 0); } });
+  const linhas = plano.novos.map(c=>{ const cli = agBuscaCliente({ cliente:c.cliente }), cid = agCidade(c.local), k = c.data + c.veic; ordens[k] = (ordens[k] || 0) + 1;
+    return { id:uid('ag'), data:c.data, veic:c.veic, ordem:ordens[k], cliente_id: cli ? cli.id : null, cliente:c.cliente, cidade: cid ? cid.nome : (c.local || (cli && cli.cidade) || null), material:c.material, quant:c.quant, ciclos:c.ciclos,
+      operador:c.operador, status:c.status, hora_real:c.hora_real, hora_prevista:c.hora_prevista, obs:c.obs, importado:c.importado, fixo:true, criado_por:'Planilha · ' + (USER || 'envio') }; });
+  for(let i = 0; i < linhas.length; i += 200){ passo(`Gravando serviços novos… ${Math.min(i + 200, linhas.length)} de ${linhas.length}`); await dbInsert('ht_agendamentos', linhas.slice(i, i + 200)); }
+  let n = 0;
+  for(const m of plano.mudancas){ if(n++ % 10 === 0) passo(`Atualizando… ${n} de ${plano.mudancas.length}`); await dbUpdate('ht_agendamentos', m.novo, 'id', m.j.id); }
+  let removidos = 0;
+  if(remover) for(const j of plano.sumiram){ await dbDelete('ht_agendamentos', 'id', j.id); removidos++; }
+  await dbInsert('ht_importacoes', [{ id:uid('im'), arquivo, enviado_por:USER || 'Escritório', linhas:lido.linhas, novos:linhas.length, atualizados:plano.mudancas.length, removidos }]);
+  passo('Atualizando o cadastro de clientes…');
+  const { error } = await sb.rpc('ht_atualizar_clientes'); if(error) console.warn(error.message);
+  await reload('ht_ag', 'ht_cli', 'ht_imp');
+  return { novos:linhas.length, atualizados:plano.mudancas.length, removidos };
+}
+function agEnviarPlanilha(){
+  const d = agDialogo();
+  const ult = (DB.ht_imp || []).slice().sort((a,b)=>String(b.enviado_em).localeCompare(String(a.enviado_em)))[0];
+  d.innerHTML = `<form id="form-agp" method="dialog" autocomplete="off"><h3>Enviar planilha de serviços</h3>
+    <p class="hint" style="margin:0 0 10px">Escolha a planilha “Serviços Móvel HT”. Ela atualiza <b>somente o agendamento</b>: Tratamentos HT, Controle GLP e certificados não são alterados. Nada é gravado antes de você conferir.</p>
+    <div class="fgrid"><div class="field full"><label>Planilha (.xlsx)</label><input type="file" name="arq" accept=".xlsx,.xlsm"></div>
+    <div class="field"><label>Considerar a partir de</label><input type="date" name="desde" value="${TODAY.slice(0,4)}-01-01"></div>
+    <div class="field"><label>Último envio</label><input disabled value="${ult ? esc(new Date(ult.enviado_em).toLocaleString('pt-BR', { dateStyle:'short', timeStyle:'short' }) + ' · ' + (ult.enviado_por || '')) : 'nenhum'}"></div>
+    <div class="full" id="agp-res"></div></div>
+    <div class="dlg-actions"><button type="button" class="btn" id="agp-fechar">Fechar</button><button type="submit" class="btn primary" id="agp-ok" disabled>Atualizar agenda</button></div></form>`;
+  const f = $('#form-agp'), res = $('#agp-res'), ok = $('#agp-ok'); let atual = null, vez = 0, gravando = false;
+  $('#agp-fechar').onclick = ()=>{ if(!gravando) d.close(); };
+  const aviso = (t, k)=>{ res.innerHTML = `<div class="hintbox ${k || ''}">${esc(t)}</div>`; };
+  const le = async ()=>{
+    atual = null; ok.disabled = true; res.innerHTML = '';
+    const file = f.arq.files[0], desde = f.desde.value; if(!file || !desde) return;
+    const minha = ++vez; aviso('Lendo a planilha…');
+    await new Promise(r=>setTimeout(r, 40));
+    try{
+      let buf; try{ buf = await file.arrayBuffer(); }catch(e){ throw new Error('Não consegui abrir o arquivo. Salve a planilha, feche o Excel e escolha de novo.'); }
+      await reload('ht_ag');
+      const lido = agLerPlanilha(buf, desde), plano = agComparaPlanilha(lido, desde); if(minha !== vez) return;
+      atual = { lido, plano, nome:file.name };
+      const lista = (t, l, fmt)=> l.length ? `<details><summary class="mini">${t} (${l.length})</summary><div class="agp-lista">${l.slice(0,60).map(x=>`<div class="mini">${fmt(x)}</div>`).join('')}${l.length > 60 ? `<div class="mini">… e mais ${l.length - 60}</div>` : ''}</div></details>` : '';
+      const nada = !plano.novos.length && !plano.mudancas.length;
+      res.innerHTML = `<div class="hintbox">${lido.linhas} linha(s) lidas, até ${dBR(lido.ultima)}.<br><b>${plano.novos.length}</b> serviço(s) novo(s) · <b>${plano.mudancas.length}</b> atualização(ões) · ${plano.iguais} sem mudança${plano.mantidos ? ` · ${plano.mantidos} programado(s) ajustado(s) no sistema, mantidos como estão` : ''}.
+        ${lido.fora.semAviso ? `<br>${lido.fora.semAviso} linha(s) de dias passados sem número de aviso ficaram de fora.` : ''}${lido.fora.semVeiculo ? `<br>${lido.fora.semVeiculo} linha(s) sem veículo HT reconhecido.` : ''}</div>
+        ${lista('Ver novos', plano.novos, c=>`${dBR(c.data)} · ${c.veic} · ${esc(c.cliente)}${c.status === 'realizado' ? ' · realizado' : ' · programado'}`)}
+        ${lista('Ver atualizações', plano.mudancas, m=>`${dBR(m.j.data)} · ${esc(m.j.cliente)} · muda ${Object.keys(m.novo).filter(k=>k !== 'importado').map(k=>({ status:'situação', veic:'veículo', hora_real:'horário', hora_prevista:'horário', ciclos:'ciclos', quant:'quantidade', material:'material', operador:'operador', obs:'aviso' })[k]).join(', ')}`)}
+        ${plano.sumiram.length ? `<label class="checkrow" style="margin-top:8px"><input type="checkbox" name="remover"> Remover ${plano.sumiram.length} serviço(s) que não estão mais na planilha</label>${lista('Ver quais são', plano.sumiram, j=>`${dBR(j.data)} · ${j.veic || '–'} · ${esc(j.cliente)}`)}` : ''}`;
+      ok.disabled = nada && !plano.sumiram.length;
+      ok.textContent = nada && !plano.sumiram.length ? 'A agenda já está em dia' : 'Atualizar agenda';
+    }catch(e){ console.error(e); if(minha === vez) aviso(e.message || String(e), 'bad'); }
+  };
+  f.arq.onchange = le; f.desde.onchange = le;
+  f.onsubmit = async e=>{
+    e.preventDefault(); if(!atual || gravando) return;
+    const remover = !!(f.remover && f.remover.checked);
+    if(!atual.plano.novos.length && !atual.plano.mudancas.length && !remover){ toast('Marque a opção de remover ou feche a janela.', true); return; }
+    gravando = true; ok.disabled = true; f.arq.disabled = f.desde.disabled = true;
+    try{
+      const r = await agAplicarPlanilha(atual.lido, atual.plano, atual.nome, remover, t=>aviso(t));
+      gravando = false; d.close(); AG.desfazer = null; toast(`Agenda atualizada: ${r.novos} novo(s), ${r.atualizados} atualizado(s)${r.removidos ? `, ${r.removidos} removido(s)` : ''}.`); agDesenha();
+    }catch(err){ console.error(err); gravando = false; f.arq.disabled = f.desde.disabled = false; await reload('ht_ag', 'ht_cli').catch(()=>{}); aviso('Não foi possível gravar tudo: ' + err.message + ' Escolha o arquivo de novo para continuar de onde parou.', 'bad'); f.arq.value = ''; }
+  };
+  d.oncancel = e=>{ if(gravando) e.preventDefault(); };
+  d.showModal();
 }
 
 /* ---- janelas de edição ---- */
