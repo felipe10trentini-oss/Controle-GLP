@@ -417,6 +417,9 @@ iframe.embed.com-abas{height:calc(100vh - 200px);}
 table.ag-sem td{vertical-align:top;white-space:normal;min-width:135px;font-size:12.5px;}
 table.ag-sem td:first-child{min-width:90px;}
 .ag-cel{cursor:pointer;}
+.ag-cards{grid-template-columns:repeat(5,1fr);}
+@media (max-width:1000px){ .ag-cards{grid-template-columns:repeat(2,1fr);} }
+.ag-pe details summary{cursor:pointer;}
 </style>
 </head>
 <body>
@@ -647,7 +650,10 @@ const LOADERS = {
   ht_cfg: async()=> await fetchAll('ht_config','chave'),
   ht_vei: async()=> await fetchAll('ht_veiculos','veic'),
   ht_dia: async()=> await fetchAll('ht_dia','data'),
-  ht_ag: async()=> await fetchAll('ht_agendamentos','id')
+  ht_ag: async()=> await fetchAll('ht_agendamentos','id'),
+  ht_bases: async()=> await fetchAll('ht_bases','id'),
+  ht_vb: async()=> await fetchAll('ht_veiculo_base','id'),
+  ht_ped: async()=> (await fetchAll('ht_pedagios','id')).map(r=>({ ...r, valor:Number(r.valor) }))
 };
 async function need(...names){
   await Promise.all(names.map(async n=>{ if(!DB[n]) DB[n] = await LOADERS[n](); }));
@@ -844,7 +850,7 @@ async function go(){
       // o cadastro de clientes acompanha os certificados; a agenda é recarregada a cada visita (várias pessoas editam)
       if(!AG.sincronizado){ const { error } = await sb.rpc('ht_atualizar_clientes'); if(error) console.warn(error.message); else { AG.sincronizado = true; delete DB.ht_cli; } }
       delete DB.ht_ag; delete DB.ht_dia;
-      await need('veiculos','ht_cli','ht_cid','ht_cfg','ht_vei','ht_dia','ht_ag'); if(token===goToken) agendamento(); }
+      await need('veiculos','ht_cli','ht_cid','ht_cfg','ht_vei','ht_dia','ht_ag','ht_bases','ht_vb','ht_ped'); if(token===goToken) agendamento(); }
     else if(key==='tratamentos'){ await need('veiculos','serv','arqs'); if(token===goToken) (sub && sub2 ? tratDetalhe(decodeURIComponent(sub).toUpperCase(), sub2) : sub ? tratVeic(decodeURIComponent(sub).toUpperCase()) : tratamentos()); }
     else if(key==='utilizacao'){ await need('veiculos','traj','folhas','leit'); if(token===goToken) (sub ? utilVeic(decodeURIComponent(sub).toUpperCase()) : utilizacao()); }
     else if(key==='lancar'){
@@ -1635,7 +1641,7 @@ $('#form-sup-out').addEventListener('submit', async e=>{
 });
 
 /* ============================ AGENDAMENTO HT (agenda diária e rotas por veículo) ============================ */
-const AG = { memoCli:null, memoPonto:null, data:'', tab:'dia', desfazer:null, busca:'', antigos:false, sincronizado:false, mapa:null };
+const AG = { memoPed:new Map(), memoCli:null, memoPonto:null, data:'', tab:'dia', desfazer:null, busca:'', antigos:false, sincronizado:false, mapa:null };
 const AG_COR = { RHV:'#c00000', ATU:'#1f5ea8', JCV:'#2f8f5b', RIX:'#b8790f', TQV:'#7a5ea8' };
 const corVeic = v => AG_COR[v] || '#666';
 const AG_ST = { agendado:['Agendado','info'], confirmado:['Confirmado','warn'], realizado:['Realizado','good'], cancelado:['Cancelado','bad'] };
@@ -1687,17 +1693,54 @@ function agViagem(a, b){
   const km = reta(a, b) * 1.3; return { km, min: km / 60 * 60 };
 }
 
+/* ---- pedágios ---- */
+const agCfg = chave => ((DB.ht_cfg||[]).find(x=>x.chave === chave) || {}).valor;
+// praças no trajeto entre duas cidades: o caminho passa pela praça quando ir por ela não alonga a distância
+function agPracas(a, b){
+  if(!a || !b || a.cidade === b.cidade) return [];
+  const k = a.cidade + '>' + b.cidade; if(AG.memoPed.has(k)) return AG.memoPed.get(k);
+  const D = agCfg('dist_pedagio'), M = agCfg('matriz'); if(!D || !M) return null;
+  const i = D.cidades.indexOf(a.cidade), f = D.cidades.indexOf(b.cidade), mi = M.cidades.indexOf(a.cidade), mf = M.cidades.indexOf(b.cidade);
+  if(i < 0 || f < 0 || mi < 0 || mf < 0) return null;
+  const total = M.km[mi][mf], achadas = new Map();
+  const exata = D.exatas && D.exatas[k];   // rotas das bases: já conferidas pelo traçado
+  D.pontos.forEach(([id], j)=>{ const x = D.ida[i][j], y = D.volta[j][f]; if(x == null || y == null) return; if((exata ? exata.includes(id) : Math.abs(x + y - total) <= 0.6) && (!achadas.has(id) || x < achadas.get(id))) achadas.set(id, x); });
+  const grupos = new Set();
+  const lista = [...achadas].sort((p, q)=>p[1] - q[1]).map(([id])=>(DB.ht_ped||[]).find(p=>p.id === id)).filter(p=>{
+    if(!p || p.ativo === false) return false; if(!p.grupo) return true;   // pórticos do mesmo grupo cobram uma vez só
+    if(grupos.has(p.grupo)) return false; grupos.add(p.grupo); return true; });
+  AG.memoPed.set(k, lista); return lista;
+}
+
 /* ---- veículos no dia ---- */
 const agDoDia = data => (DB.ht_ag||[]).filter(j=>String(j.data) === data && j.status !== 'cancelado');
-const agDoVeic = (data, v)=> agDoDia(data).filter(j=>j.veic === v).sort((a,b)=>(a.ordem||99) - (b.ordem||99) || String(a.hora_marcada||'99').localeCompare(String(b.hora_marcada||'99')));
+const agDoVeic = (data, v)=> agDoDia(data).filter(j=>j.veic === v).sort((a,b)=>(a.ordem||99) - (b.ordem||99) || String(a.hora_real||a.hora_marcada||'99').localeCompare(String(b.hora_real||b.hora_marcada||'99')));
+// base do veículo numa data: cada mudança de base fica registrada com o dia em que passa a valer
+function agBaseEm(data, v){
+  const reg = (DB.ht_vb||[]).filter(x=>x.veic === v && String(x.desde) <= data).sort((a,b)=>String(b.desde).localeCompare(String(a.desde)))[0];
+  return reg ? (DB.ht_bases||[]).find(b=>b.id === reg.base_id) || null : null;
+}
+function agPontoBase(b){
+  const cid = agCidade(b.cidade);
+  if(b.lat != null && b.lon != null) return { lat:+b.lat, lon:+b.lon, cidade: cid ? cid.nome : b.cidade, exato:true, nome:b.nome };
+  return cid ? { lat:+cid.lat, lon:+cid.lon, cidade:cid.nome, exato:false, nome:b.nome } : null;
+}
+const agCfgVeic = v => (DB.ht_vei||[]).find(x=>x.veic === v) || { veic:v, base_cidade:'Curitiba', saida:'07:00', fim:'19:00', max_ciclos:3, eixos:1, volta_max_km:200, ativo:true };
+const agRegistroDia = (data, v)=> (DB.ht_dia||[]).find(x=>String(x.data) === data && x.veic === v) || {};
+const agBasePonto = (data, v)=>{ const b = agBaseEm(data, v); return (b && agPontoBase(b)) || pontoCidade(agCfgVeic(v).base_cidade) || pontoCidade('Curitiba'); };
+// onde o veículo dormiu: se naquele dia não voltou à base, devolve o último cliente atendido
+function agPernoite(data, v){
+  const js = agDoVeic(data, v); if(!js.length) return null;
+  const ult = agPonto(js[js.length - 1]); if(!ult) return null;
+  const volta = agRegistroDia(data, v).volta ?? (agViagem(ult, agBasePonto(data, v)).km <= (agCfgVeic(v).volta_max_km ?? 200));
+  return volta ? null : ult;
+}
+const agOrigemEscolhida = txt => { if(!txt) return null; if(txt.startsWith('base:')){ const b = (DB.ht_bases||[]).find(x=>x.id === txt.slice(5)); return b ? agPontoBase(b) : null; } return pontoCidade(txt); };
 function agVeic(data, v){
-  const cfg = (DB.ht_vei||[]).find(x=>x.veic === v) || { veic:v, base_cidade:'Curitiba', saida:'07:00', fim:'19:00', max_ciclos:3, ativo:true };
-  const dia = (DB.ht_dia||[]).find(x=>String(x.data) === data && x.veic === v) || {};
-  const base = pontoCidade(cfg.base_cidade) || pontoCidade('Curitiba');
-  // se na véspera o veículo terminou longe da base, a rota parte de lá
-  let origem = dia.origem ? pontoCidade(dia.origem) : null, daVespera = false;
-  if(!origem){ const ontem = agDoVeic(addDias(data, -1), v); const ult = ontem.length ? agPonto(ontem[ontem.length - 1]) : null;
-    if(ult && agViagem(base, ult).km > 150){ origem = ult; daVespera = true; } }
+  const cfg = agCfgVeic(v), dia = agRegistroDia(data, v), base = agBasePonto(data, v);
+  // se na véspera o veículo não voltou para a base, a rota parte de onde ele ficou
+  let origem = agOrigemEscolhida(dia.origem), daVespera = false;
+  if(!origem){ const p = agPernoite(addDias(data, -1), v); if(p){ origem = p; daVespera = true; } }
   return { v, cfg, dia, base, origem: origem || base, daVespera, disponivel: dia.disponivel !== false && cfg.ativo !== false, operador: dia.operador || cfg.operador || '' };
 }
 const agFrota = data => HT.map(v=>agVeic(data, v)).filter(x=>x.cfg.ativo !== false);
@@ -1705,26 +1748,32 @@ const agFrota = data => HT.map(v=>agVeic(data, v)).filter(x=>x.cfg.ativo !== fal
 // percorre as paradas na ordem dada e calcula horários, km e avisos
 function agPercorre(vi, paradas){
   const saida = paraMin(vi.cfg.saida) ?? 420, fim = paraMin(vi.cfg.fim) ?? 1140;
-  let t = saida, pos = vi.origem, km = 0, atraso = 0, ciclos = 0, antecipar = false, semLocal = 0;
+  const eixos = +(vi.cfg.eixos || 1), pracas = []; let semPedagio = false;
+  const cobra = (de, para)=>{ const l = agPracas(de, para); if(l === null){ semPedagio = true; return 0; } l.forEach(p=>pracas.push(p)); return l.reduce((s, p)=>s + +p.valor, 0) * eixos; };
+  let t = saida, pos = vi.origem, km = 0, atraso = 0, ciclos = 0, antecipar = false, semLocal = 0, pedagio = 0;
   const itens = paradas.map((j, i)=>{
     const p = agPonto(j), leg = p ? agViagem(pos, p) : { km:0, min:0, semLocal:true }; if(!p) semLocal++;
-    const marcada = paraMin(j.hora_marcada);
+    const marcada = paraMin(j.hora_marcada), real = paraMin(j.hora_real);
     let chega = t + leg.min;
     // primeiro serviço longe: o veículo sai na véspera ou de madrugada para chegar no começo do dia
     if(i === 0 && leg.min > 150){ antecipar = true; chega = Math.max(saida, marcada ?? saida + 60); }
-    const ini = marcada != null ? Math.max(chega, marcada) : chega;
-    const at = marcada != null && chega > marcada + 15 ? chega - marcada : 0; atraso += at;
+    const ini = real ?? (marcada != null ? Math.max(chega, marcada) : chega);
+    const at = real == null && marcada != null && chega > marcada + 15 ? chega - marcada : 0; atraso += at;
     const n = j.ciclos || 1; ciclos += n;
+    const ped = p ? cobra(pos, p) : 0; pedagio += ped;
     t = ini + n * (j.duracao_min || 240); km += leg.km; if(p) pos = p;
-    return { j, p, km:leg.km, min:leg.min, ini, fim:t, atraso:at };
+    return { j, p, km:leg.km, min:leg.min, ped, ini, fim:t, atraso:at };
   });
-  const volta = paradas.length ? agViagem(pos, vi.base) : { km:0, min:0 };
-  return { itens, km, kmVolta: volta.km, fim: paradas.length ? t : null, extra: paradas.length ? Math.max(0, t - fim) : 0, atraso, ciclos, antecipar, semLocal };
+  const ret = paradas.length ? agViagem(pos, vi.base) : { km:0, min:0 };
+  const volta = vi.dia.volta ?? (ret.km <= (vi.cfg.volta_max_km ?? 200));
+  const pedVolta = paradas.length && volta ? cobra(pos, vi.base) : 0; pedagio += pedVolta;
+  return { itens, km, kmVolta: ret.km, volta, kmDia: km + (volta ? ret.km : 0), pernoite: paradas.length && !volta ? pos : null, pedagio, pracas, semPedagio, eixos,
+    fim: paradas.length ? t : null, extra: paradas.length ? Math.max(0, t - fim) : 0, atraso, ciclos, antecipar, semLocal };
 }
 function agCusto(vi, paradas){
   if(!paradas.length) return 0;
   const r = agPercorre(vi, paradas);
-  let c = r.km + 0.35 * r.kmVolta + r.extra * 4 + r.atraso * 5 + Math.max(0, r.ciclos - (vi.cfg.max_ciclos || 3)) * 500 + 25;
+  let c = r.km + 0.35 * r.kmVolta + 0.6 * r.pedagio + r.extra * 4 + r.atraso * 5 + Math.max(0, r.ciclos - (vi.cfg.max_ciclos || 3)) * 500 + 25;
   paradas.forEach(j=>{ const cl = agCliente(j); if(cl && cl.veic_preferido) c += cl.veic_preferido === vi.v ? 0 : 60; else if(cl && cl.veic_freq && cl.veic_freq !== vi.v) c += 6; });
   return c;
 }
@@ -1826,15 +1875,16 @@ function agendamento(){
 }
 function agDesenha(){
   if(!location.hash.startsWith('#/agendamento')) return;
+  AG.memoPed = new Map();
   const rolagem = window.scrollY;
   $('#app').innerHTML = `
   <div class="pagehead"><div><h2>Agendamento HT</h2><p>Programação diária por veículo, com os clientes vizinhos na mesma rota.</p></div>
     <div class="acts">${AG.tab === 'dia' ? `<button class="btn" id="ag-copiar">Copiar programação</button><button class="btn" id="ag-organizar">Organizar rotas</button>` : ''}<button class="btn primary" id="ag-novo">+ Novo agendamento</button></div></div>
-  <div class="tabs">${[['dia','Agenda do dia'],['semana','Semana'],['clientes','Clientes'],['veiculos','Veículos']].map(t=>`<button data-ag-tab="${t[0]}" class="${AG.tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</div>
+  <div class="tabs">${[['dia','Agenda do dia'],['semana','Semana'],['clientes','Clientes'],['veiculos','Veículos e bases'],['pedagios','Pedágios']].map(t=>`<button data-ag-tab="${t[0]}" class="${AG.tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</div>
   <div id="ag-corpo"></div>`;
   $$('[data-ag-tab]').forEach(b=>b.onclick = ()=>{ AG.tab = b.dataset.agTab; agDesenha(); });
   $('#ag-novo').onclick = ()=>agEditar(null, { data:AG.data });
-  if(AG.tab === 'dia') agDia(); else if(AG.tab === 'semana') agSemana(); else if(AG.tab === 'clientes') agClientes(); else agVeiculos();
+  if(AG.tab === 'dia') agDia(); else if(AG.tab === 'semana') agSemana(); else if(AG.tab === 'clientes') agClientes(); else if(AG.tab === 'pedagios') agPedagiosTela(); else agVeiculos();
   window.scrollTo(0, rolagem);
 }
 function agNavData(passo){
@@ -1848,9 +1898,9 @@ function agLigaData(){
 function agCartao(j, it, vi){
   const st = AG_ST[j.status] || AG_ST.agendado, c = agCliente(j);
   return `<div class="ag-item" draggable="true" data-id="${esc(j.id)}">
-    <div class="ag-topo"><span class="ag-hora">${it ? paraHora(it.ini) : (j.hora_marcada || '—')}</span><span class="badge ${st[1]}">${st[0]}</span></div>
+    <div class="ag-topo"><span class="ag-hora">${it ? paraHora(it.ini) : (j.hora_real || j.hora_marcada || '—')}</span><span class="badge ${st[1]}">${st[0]}</span></div>
     <b>${esc(j.cliente)}</b>
-    <div class="mini">${esc(j.cidade || (c && c.cidade) || 'cidade não informada')}${it && it.km >= 1 ? ` · ${N0(it.km)} km do anterior` : ''}</div>
+    <div class="mini">${esc(j.cidade || (c && c.cidade) || 'cidade não informada')}${it && it.km >= 1 ? ` · ${N0(it.km)} km do anterior` : ''}${it && it.ped ? ` · pedágio R$ ${BRL(it.ped)}` : ''}</div>
     <div class="mini">${[(j.ciclos||1) > 1 ? j.ciclos + ' ciclos' : '', esc(j.quant), esc(j.material)].filter(Boolean).join(' · ')}</div>
     ${j.hora_marcada ? `<div class="mini"><span class="badge warn">hora marcada ${esc(j.hora_marcada)}</span>${it && it.atraso ? ' <span class="badge bad">chega atrasado</span>' : ''}</div>` : ''}
     ${j.obs ? `<div class="mini">${esc(j.obs)}</div>` : ''}
@@ -1863,23 +1913,26 @@ function agCartao(j, it, vi){
 function agDia(){
   const data = AG.data, frota = agFrota(data), doDia = agDoDia(data), soltos = doDia.filter(j=>!j.veic || !HT.includes(j.veic));
   const rotas = frota.map(vi=>({ vi, per: agPercorre(vi, agDoVeic(data, vi.v)) }));
-  const kmTot = rotas.reduce((s, r)=>s + r.per.km, 0), usados = rotas.filter(r=>r.per.itens.length).length, ciclos = doDia.reduce((s, j)=>s + (j.ciclos||1), 0);
+  const kmTot = rotas.reduce((s, r)=>s + r.per.kmDia, 0), pedTot = rotas.reduce((s, r)=>s + r.per.pedagio, 0), semPed = rotas.some(r=>r.per.semPedagio), usados = rotas.filter(r=>r.per.itens.length).length, ciclos = doDia.reduce((s, j)=>s + (j.ciclos||1), 0);
   const cidades = (DB.ht_cid||[]).map(c=>c.nome).sort((a,b)=>a.localeCompare(b));
   $('#ag-corpo').innerHTML = `
   ${agNavData(1)}
-  <div class="cards">
+  <div class="cards ag-cards">
     <div class="card"><div class="l">Serviços no dia</div><div class="v">${doDia.length}</div><div class="s">${ciclos} ciclo(s)</div></div>
     <div class="card"><div class="l">Veículos em rota</div><div class="v">${usados}</div><div class="s">de ${frota.filter(x=>x.disponivel).length} disponíveis</div></div>
     <div class="card"><div class="l">A distribuir</div><div class="v">${soltos.length}</div><div class="s">${soltos.length ? 'use “Organizar rotas”' : 'tudo distribuído'}</div></div>
-    <div class="card"><div class="l">Km estimados</div><div class="v">${N0(kmTot)}</div><div class="s">sem contar a volta à base</div></div>
+    <div class="card"><div class="l">Km estimados no dia</div><div class="v">${N0(kmTot)}</div><div class="s">ida e, quando volta, o retorno à base</div></div>
+    <div class="card"><div class="l">Pedágios estimados</div><div class="v">R$ ${BRL(pedTot)}</div><div class="s">${semPed ? 'há trecho sem cálculo de pedágio' : 'tarifa cheia, sem desconto de TAG'}</div></div>
   </div>
   ${AG.desfazer && AG.desfazer.data === data ? '<div class="note">Rotas reorganizadas automaticamente. <button class="btn sm" id="ag-desfazer">Desfazer</button></div>' : ''}
   ${soltos.length ? `<div class="card ag-soltos" data-drop=""><h4>A distribuir (${soltos.length})</h4><div class="ag-lista">${soltos.map(j=>agCartao(j, null, null)).join('')}</div></div>` : ''}
   <div class="ag-colunas">${rotas.map(({ vi, per })=>{
     const avisos = [];
     if(per.ciclos > (vi.cfg.max_ciclos||3)) avisos.push(`${per.ciclos} ciclos (o limite é ${vi.cfg.max_ciclos})`);
-    if(per.extra) avisos.push(`termina depois das ${vi.cfg.fim}`);
-    if(per.antecipar) avisos.push('primeiro cliente é longe: sair na véspera ou de madrugada');
+    const passado = data < TODAY;
+    if(per.extra && !passado) avisos.push(`termina depois das ${vi.cfg.fim}`);
+    if(per.antecipar && !passado) avisos.push('primeiro cliente é longe: sair na véspera ou de madrugada');
+    if(per.semPedagio) avisos.push('pedágio de algum trecho não calculado');
     if(per.semLocal) avisos.push('há cliente sem cidade: distância não calculada');
     if(!vi.disponivel && per.itens.length) avisos.push('veículo marcado como indisponível');
     const link = agMapsLink(vi, per);
@@ -1887,15 +1940,17 @@ function agDia(){
       <div class="ag-cab"><span class="ag-cod">${vi.v}</span><span class="mini">${per.itens.length ? per.itens.length + ' serviço(s)' : 'livre'}</span>
         <label class="checkrow mini"><input type="checkbox" data-ag-disp="${vi.v}" ${vi.disponivel ? 'checked' : ''}> disponível</label></div>
       <div class="ag-cfg"><input list="ag-ops" data-ag-op="${vi.v}" value="${esc(vi.operador)}" placeholder="Operador" aria-label="Operador">
-        <select data-ag-origem="${vi.v}" aria-label="Sai de"><option value="">Sai de ${esc(vi.origem ? vi.origem.cidade : '?')}${vi.daVespera ? ' (véspera)' : ''}</option>${cidades.map(c=>`<option value="${esc(c)}" ${vi.dia.origem === c ? 'selected' : ''}>Sai de ${esc(c)}</option>`).join('')}</select></div>
+        <select data-ag-origem="${vi.v}" aria-label="Sai de"><option value="">Sai de ${esc(vi.origem ? (vi.origem.nome || vi.origem.cidade) : '?')}${vi.daVespera ? ' (véspera)' : ''}</option><optgroup label="Bases">${(DB.ht_bases||[]).filter(b=>b.ativo !== false).map(b=>`<option value="base:${esc(b.id)}" ${vi.dia.origem === 'base:' + b.id ? 'selected' : ''}>Sai de ${esc(b.nome)}</option>`).join('')}</optgroup><optgroup label="Cidades">${cidades.map(c=>`<option value="${esc(c)}" ${vi.dia.origem === c ? 'selected' : ''}>Sai de ${esc(c)}</option>`).join('')}</optgroup></select>
+        <select data-ag-volta="${vi.v}" aria-label="Fim do dia"><option value="">Auto: ${per.volta ? 'volta à base' : 'pernoita fora'}</option><option value="1" ${vi.dia.volta === true ? 'selected' : ''}>Volta à base</option><option value="0" ${vi.dia.volta === false ? 'selected' : ''}>Pernoita fora</option></select></div>
       <div class="ag-lista">${per.itens.map(it=>agCartao(it.j, it, vi)).join('') || '<div class="ag-vazio">Arraste um serviço para cá</div>'}</div>
-      ${per.itens.length ? `<div class="ag-pe"><div><b>${N0(per.km)} km</b> · termina ${paraHora(per.fim)}${per.kmVolta > 20 ? ` · volta ${N0(per.kmVolta)} km` : ''}</div>
+      ${per.itens.length ? `<div class="ag-pe"><div><b>${N0(per.kmDia)} km no dia</b><br><span class="mini">${per.volta ? `ida ${N0(per.km)} + volta ${N0(per.kmVolta)} km` : `pernoita em ${esc(per.pernoite ? per.pernoite.cidade : '?')}`} · termina ${paraHora(per.fim)}</span></div>
+        <div><b>Pedágio R$ ${BRL(per.pedagio)}</b>${per.pracas.length ? `<details><summary class="mini">${per.pracas.length} passagem(ns)${per.eixos !== 1 ? ` · tarifa × ${String(per.eixos).replace('.', ',')}` : ''}</summary>${per.pracas.map(x=>`<div class="mini">${esc(x.nome)} (${esc(x.rodovia||'')}) · R$ ${BRL(+x.valor * per.eixos)}</div>`).join('')}</details>` : ''}</div>
         ${avisos.map(a=>`<div class="badge warn ag-aviso">${esc(a)}</div>`).join('')}
         <div class="ag-links">${link ? `<a class="btn sm" href="${esc(link)}" target="_blank" rel="noopener">Rota no Google Maps ↗</a>` : ''}<button class="btn sm" data-ag-copia="${vi.v}">Copiar</button></div></div>` : ''}
     </div>`; }).join('')}</div>
   <datalist id="ag-ops">${OPERADORES.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>
   <div class="sechead">Mapa do dia</div><div id="ag-mapa" class="ag-mapa"><div class="empty">${doDia.length ? 'Carregando o mapa…' : 'Nenhum serviço neste dia.'}</div></div>
-  ${agSugestoes(data, rotas)}`;
+  ${data >= TODAY ? agSugestoes(data, rotas) : ''}`;
   agLigaData();
   if($('#ag-desfazer')) $('#ag-desfazer').onclick = async ()=>{ try{ await agGrava(AG.desfazer.itens); AG.desfazer = null; toast('Organização anterior restaurada.'); agDesenha(); }catch(e){ toast('Erro: ' + e.message, true); } };
   $('#ag-organizar').onclick = agOrganizar; $('#ag-organizar').disabled = !doDia.length;
@@ -1915,6 +1970,7 @@ function agDia(){
   $$('[data-ag-disp]').forEach(c=>c.onchange = ()=>dia(c.dataset.agDisp, { disponivel:c.checked }));
   $$('[data-ag-op]').forEach(c=>c.onchange = ()=>dia(c.dataset.agOp, { operador:c.value.trim() || null }));
   $$('[data-ag-origem]').forEach(c=>c.onchange = ()=>dia(c.dataset.agOrigem, { origem:c.value || null }));
+  $$('[data-ag-volta]').forEach(c=>c.onchange = ()=>dia(c.dataset.agVolta, { volta:c.value === '' ? null : c.value === '1' }));
   // arrastar e soltar entre veículos (computador)
   $$('.ag-item').forEach(el=>{ el.ondragstart = e=>{ e.dataTransfer.setData('text/plain', el.dataset.id); e.dataTransfer.effectAllowed = 'move'; }; });
   $$('[data-drop]').forEach(z=>{ z.ondragover = e=>{ e.preventDefault(); z.classList.add('alvo'); }; z.ondragleave = ()=>z.classList.remove('alvo');
@@ -1947,7 +2003,7 @@ function agMapsLink(vi, per){
 }
 async function agCopiar(rotas){
   const txt = [`*Programação HT · ${diaSem(AG.data)}, ${dBR(AG.data)}*`, ...rotas.map(({ vi, per })=>
-    [`\n*${vi.v}${vi.operador ? ' · ' + vi.operador : ''}* (sai de ${vi.origem.cidade})`, ...per.itens.map((it, i)=>`${i+1}) ${paraHora(it.ini)} · ${it.j.cliente}${it.j.cidade ? ' · ' + it.j.cidade : ''}${(it.j.ciclos||1) > 1 ? ' · ' + it.j.ciclos + ' ciclos' : ''}${it.j.quant ? ' · ' + it.j.quant : ''}${it.j.obs && !/^Importado/.test(it.j.obs) ? ' · ' + it.j.obs : ''}`)].join('\n'))].join('\n');
+    [`\n*${vi.v}${vi.operador ? ' · ' + vi.operador : ''}* (sai de ${vi.origem.cidade})`, `Estimativa: ${N0(per.kmDia)} km · pedágio R$ ${BRL(per.pedagio)}`, ...per.itens.map((it, i)=>`${i+1}) ${paraHora(it.ini)} · ${it.j.cliente}${it.j.cidade ? ' · ' + it.j.cidade : ''}${(it.j.ciclos||1) > 1 ? ' · ' + it.j.ciclos + ' ciclos' : ''}${it.j.quant ? ' · ' + it.j.quant : ''}${it.j.obs && !/^Importado/.test(it.j.obs) ? ' · ' + it.j.obs : ''}`)].join('\n'))].join('\n');
   try{ await navigator.clipboard.writeText(txt); toast('Programação copiada. Cole no WhatsApp.'); }
   catch(e){ prompt('Copie o texto da programação:', txt); }
 }
@@ -1967,6 +2023,7 @@ async function agMapa(rotas, soltos){
     if(!per.itens.length) return; const cor = corVeic(vi.v), linha = [[vi.origem.lat, vi.origem.lon]];
     L.circleMarker(linha[0], { radius:6, color:cor, fillColor:'#fff', fillOpacity:1, weight:3 }).addTo(mapa).bindTooltip(`${vi.v} sai de ${esc(vi.origem.cidade)}`); todos.push(linha[0]);
     per.itens.forEach((it, i)=>{ if(!it.p) return; const pos = desloca(it.p); linha.push(pos); todos.push(pos); marca(pos, cor, i + 1, `${vi.v} · ${paraHora(it.ini)} · ${esc(it.j.cliente)} (${esc(it.p.cidade)})`); });
+    if(per.volta){ L.polyline([linha[linha.length - 1], [vi.base.lat, vi.base.lon]], { color:cor, weight:2, opacity:.35, dashArray:'2 7' }).addTo(mapa); }
     L.polyline(linha, { color:cor, weight:3, opacity:.75, dashArray:'6 6' }).addTo(mapa);
   });
   soltos.forEach(j=>{ const p = agPonto(j); if(!p) return; const pos = desloca(p); todos.push(pos); marca(pos, '#555', '?', `A distribuir · ${esc(j.cliente)} (${esc(p.cidade)})`); });
@@ -1977,10 +2034,12 @@ function agSemana(){
   const dias = [0,1,2,3,4,5,6].map(i=>addDias(seg, i)).filter((x, i)=>i < 6 || agDoDia(x).length);
   const linhas = [...HT.map(v=>[v, v]), ['', 'A distribuir']];
   $('#ag-corpo').innerHTML = `${agNavData(7)}
-  <div class="table-wrap"><table class="ag-sem"><thead><tr><th>Veículo</th>${dias.map(x=>`<th>${diaSem(x)}<br>${dBR(x).slice(0,5)}</th>`).join('')}</tr></thead><tbody>
-  ${linhas.map(([v, nome])=>`<tr><td><b style="color:${v ? corVeic(v) : 'inherit'}">${nome}</b></td>${dias.map(x=>{ const l = v ? agDoVeic(x, v) : agDoDia(x).filter(j=>!j.veic);
-    const ind = v && !agVeic(x, v).disponivel;
-    return `<td class="ag-cel" data-ag-diaw="${x}">${l.map(j=>`<div><span class="mono">${esc(j.hora_prevista || j.hora_marcada || '')}</span> ${esc(j.cliente)}<span class="mini"> ${esc(j.cidade||'')}</span></div>`).join('') || `<span class="muted">${ind ? 'indisponível' : '·'}</span>`}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>
+  <div class="table-wrap"><table class="ag-sem"><thead><tr><th>Veículo</th>${dias.map(x=>`<th>${diaSem(x)}<br>${dBR(x).slice(0,5)}</th>`).join('')}<th>Semana</th></tr></thead><tbody>
+  ${linhas.map(([v, nome])=>{ let km = 0, ped = 0, qt = 0;
+    const cels = dias.map(x=>{ const l = v ? agDoVeic(x, v) : agDoDia(x).filter(j=>!j.veic); const vi = v ? agVeic(x, v) : null; let rod = '';
+      if(vi && l.length){ const r = agPercorre(vi, l); km += r.kmDia; ped += r.pedagio; qt += l.length; rod = `<div class="mini mono">${N0(r.kmDia)} km${r.pedagio ? ' · R$ ' + BRL(r.pedagio) : ''}</div>`; }
+      return `<td class="ag-cel" data-ag-diaw="${x}">${l.map(j=>`<div><span class="mono">${esc(j.hora_real || j.hora_prevista || j.hora_marcada || '')}</span> ${esc(j.cliente)}<span class="mini"> ${esc(j.cidade||'')}</span></div>`).join('') + rod || `<span class="muted">${vi && !vi.disponivel ? 'indisponível' : '·'}</span>`}</td>`; }).join('');
+    return `<tr><td><b style="color:${v ? corVeic(v) : 'inherit'}">${nome}</b></td>${cels}<td class="mono">${v ? `<b>${N0(km)} km</b><div class="mini">pedágio R$ ${BRL(ped)}</div><div class="mini">${qt} serviço(s)</div>` : ''}</td></tr>`; }).join('')}</tbody></table></div>
   <p class="hint">Toque em um dia para abrir a agenda dele.</p>`;
   agLigaData();
   $$('[data-ag-diaw]').forEach(c=>c.onclick = ()=>{ AG.data = c.dataset.agDiaw; AG.tab = 'dia'; agDesenha(); });
@@ -2001,19 +2060,122 @@ function agClientes(){
   $$('[data-ag-cli]').forEach(b=>b.onclick = ()=>agEditarCliente(b.dataset.agCli));
 }
 function agVeiculos(){
-  const cidades = (DB.ht_cid||[]).map(c=>c.nome).sort((a,b)=>a.localeCompare(b));
-  $('#ag-corpo').innerHTML = `<div class="table-wrap"><table><thead><tr><th>Veículo</th><th>Cidade base</th><th>Saída</th><th>Fim do dia</th><th>Máx. ciclos/dia</th><th>Operador padrão</th><th>Na agenda</th></tr></thead><tbody>
-  ${HT.map(v=>{ const c = agVeic(TODAY, v).cfg; return `<tr data-v="${v}"><td><b style="color:${corVeic(v)}">${v}</b></td>
-    <td><select data-c="base_cidade">${cidades.map(x=>`<option ${x === c.base_cidade ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></td>
+  const bases = (DB.ht_bases||[]).slice().sort((a,b)=>a.nome.localeCompare(b.nome)), ativas = bases.filter(b=>b.ativo !== false);
+  const hist = (DB.ht_vb||[]).slice().sort((a,b)=>String(b.desde).localeCompare(String(a.desde)) || a.veic.localeCompare(b.veic));
+  const nomeBase = id => (bases.find(b=>b.id === id) || {}).nome || '?';
+  $('#ag-corpo').innerHTML = `
+  <div class="sechead" style="margin-top:0">Base de origem de cada veículo</div>
+  <div class="table-wrap"><table><thead><tr><th>Veículo</th><th>Base hoje</th><th>Mudar para</th><th>Vale a partir de</th><th></th></tr></thead><tbody>
+  ${HT.map(v=>{ const atual = agBaseEm(TODAY, v), futura = hist.filter(h=>h.veic === v && String(h.desde) > TODAY).pop();
+    return `<tr data-vb="${v}"><td><b style="color:${corVeic(v)}">${v}</b></td><td>${esc(atual ? atual.nome : '–')}${futura ? `<div class="mini">muda para ${esc(nomeBase(futura.base_id))} em ${dBR(futura.desde)}</div>` : ''}</td>
+    <td><select data-f="base">${ativas.map(b=>`<option value="${esc(b.id)}" ${atual && atual.id === b.id ? 'selected' : ''}>${esc(b.nome)}</option>`).join('')}</select></td>
+    <td><input type="date" data-f="desde" value="${TODAY}"></td><td><button class="btn sm" data-ag-mudar="${v}">Aplicar</button></td></tr>`; }).join('')}</tbody></table></div>
+  <p class="hint">A mudança vale da data escolhida em diante; os dias anteriores continuam com a base antiga. Para um único dia diferente, use o campo “Sai de” na agenda do dia.</p>
+  <div class="sechead">Locais de base</div>
+  <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Cidade</th><th>Endereço</th><th>Localização</th><th></th></tr></thead><tbody>
+  ${bases.map(b=>`<tr><td><b>${esc(b.nome)}</b>${b.ativo === false ? ' <span class="badge bad">inativa</span>' : ''}</td><td>${esc(b.cidade)}</td><td class="wrap">${esc(b.endereco || '–')}</td><td>${b.lat != null ? '<span class="badge good">endereço exato</span>' : '<span class="mini">pela cidade</span>'}</td><td><button class="btn sm" data-ag-base="${esc(b.id)}">Editar</button></td></tr>`).join('')}</tbody></table></div>
+  <div class="ag-links" style="margin-top:8px"><button class="btn sm" id="ag-nova-base">+ Nova base</button><button class="btn sm" id="ag-nova-cidade">+ Adicionar cidade</button></div>
+  <div class="sechead">Regras de cada veículo</div>
+  <div class="table-wrap"><table><thead><tr><th>Veículo</th><th>Saída</th><th>Fim do dia</th><th>Máx. ciclos/dia</th><th>Pedágio (categoria)</th><th>Volta à base até (km)</th><th>Operador padrão</th><th>Na agenda</th></tr></thead><tbody>
+  ${HT.map(v=>{ const c = agCfgVeic(v); return `<tr data-v="${v}"><td><b style="color:${corVeic(v)}">${v}</b></td>
     <td><input type="time" data-c="saida" value="${esc(c.saida)}"></td><td><input type="time" data-c="fim" value="${esc(c.fim)}"></td>
-    <td><input type="number" min="1" max="8" data-c="max_ciclos" value="${c.max_ciclos}" style="width:80px"></td><td><input data-c="operador" value="${esc(c.operador || '')}" list="ag-ops2"></td>
+    <td><input type="number" min="1" max="8" data-c="max_ciclos" value="${c.max_ciclos}" style="width:70px"></td>
+    <td><select data-c="eixos">${[[1,'Carro / caminhonete (1×)'],[1.5,'Com reboque de 1 eixo (1,5×)'],[2,'Caminhão 2 eixos (2×)'],[3,'3 eixos (3×)'],[4,'4 eixos (4×)']].map(([n, t])=>`<option value="${n}" ${+c.eixos === n ? 'selected' : ''}>${t}</option>`).join('')}</select></td>
+    <td><input type="number" min="0" step="10" data-c="volta_max_km" value="${c.volta_max_km ?? 200}" style="width:90px"></td>
+    <td><input data-c="operador" value="${esc(c.operador || '')}" list="ag-ops2"></td>
     <td><input type="checkbox" data-c="ativo" ${c.ativo !== false ? 'checked' : ''} style="width:auto"></td></tr>`; }).join('')}</tbody></table></div>
   <datalist id="ag-ops2">${OPERADORES.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>
-  <p class="hint">Essas regras são usadas pelo botão “Organizar rotas”. Para um dia específico (veículo parado, saindo de outra cidade, outro operador), ajuste direto na agenda do dia.</p>`;
+  <p class="hint">“Volta à base até”: se o último cliente estiver a essa distância ou menos, o sistema conta o retorno no km e no pedágio do dia; se estiver mais longe, considera pernoite e no dia seguinte o veículo sai de lá.</p>
+  <div class="sechead">Histórico de mudanças de base</div>
+  <div class="table-wrap"><table><thead><tr><th>A partir de</th><th>Veículo</th><th>Base</th><th>Quem registrou</th><th></th></tr></thead><tbody>
+  ${hist.map(h=>`<tr><td>${dBR(h.desde)}</td><td>${h.veic}</td><td>${esc(nomeBase(h.base_id))}</td><td>${esc(h.criado_por || '–')}</td><td>${hist.filter(x=>x.veic === h.veic).length > 1 ? `<button class="btn sm" data-ag-delvb="${esc(h.id)}">Excluir</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
+  $$('[data-ag-mudar]').forEach(b=>b.onclick = async ()=>{
+    const v = b.dataset.agMudar, tr = b.closest('tr'), base_id = $('[data-f="base"]', tr).value, desde = $('[data-f="desde"]', tr).value;
+    if(!desde){ toast('Informe a data em que a base passa a valer.', true); return; }
+    const ja = DB.ht_vb.find(x=>x.veic === v && String(x.desde) === desde);
+    try{
+      if(ja){ await dbUpdate('ht_veiculo_base', { base_id, criado_por:USER || 'Escritório' }, 'id', ja.id); ja.base_id = base_id; ja.criado_por = USER; }
+      else { const row = { id:uid('vb'), veic:v, desde, base_id, criado_por:USER || 'Escritório' }; await dbInsert('ht_veiculo_base', [row]); DB.ht_vb.push(row); }
+      toast(`${v}: base ${nomeBase(base_id)} a partir de ${dBR(desde)}.`); agDesenha();
+    }catch(e){ toast('Erro: ' + e.message, true); }
+  });
+  $$('[data-ag-delvb]').forEach(b=>b.onclick = async ()=>{ if(!confirm('Excluir este registro de mudança de base?')) return;
+    try{ await dbDelete('ht_veiculo_base', 'id', b.dataset.agDelvb); DB.ht_vb = DB.ht_vb.filter(x=>x.id !== b.dataset.agDelvb); agDesenha(); }catch(e){ toast('Erro: ' + e.message, true); } });
+  $$('[data-ag-base]').forEach(b=>b.onclick = ()=>agEditarBase(b.dataset.agBase));
+  $('#ag-nova-base').onclick = ()=>agEditarBase(null);
+  $('#ag-nova-cidade').onclick = async ()=>{ const nome = (prompt('Nome da cidade (ex.: Campo Mourão):') || '').trim(); if(!nome) return; const uf = (prompt('Estado (sigla):', 'PR') || 'PR').trim().toUpperCase();
+    try{ toast('Localizando a cidade e calculando as distâncias…'); const c = await agAdicionarCidade(nome, uf); toast(`${c} adicionada.`); agDesenha(); }catch(e){ toast(e.message, true); } };
   $$('#ag-corpo [data-c]').forEach(el=>el.onchange = async ()=>{
-    const v = el.closest('tr').dataset.v, campo = el.dataset.c, cur = { ...agVeic(TODAY, v).cfg };
-    cur[campo] = campo === 'ativo' ? el.checked : campo === 'max_ciclos' ? Math.max(1, parseInt(el.value, 10) || 3) : (el.value.trim() || (campo === 'operador' ? null : cur[campo]));
+    const v = el.closest('tr').dataset.v, campo = el.dataset.c, cur = { ...agCfgVeic(v) };
+    cur[campo] = campo === 'ativo' ? el.checked : campo === 'max_ciclos' ? Math.max(1, parseInt(el.value, 10) || 3) : campo === 'eixos' ? +el.value : campo === 'volta_max_km' ? Math.max(0, parseInt(el.value, 10) || 0) : (el.value.trim() || (campo === 'operador' ? null : cur[campo]));
     try{ await dbUpsert('ht_veiculos', [cur]); DB.ht_vei = [...DB.ht_vei.filter(x=>x.veic !== v), cur]; toast('Veículo atualizado.'); }catch(e){ toast('Erro: ' + e.message, true); }
+  });
+}
+function agEditarBase(id){
+  const b = id ? DB.ht_bases.find(x=>x.id === id) : { ativo:true }; if(!b) return;
+  const d = agDialogo(), cidades = (DB.ht_cid||[]).map(c=>c.nome).sort((a,b)=>a.localeCompare(b));
+  d.innerHTML = `<form id="form-agb" method="dialog" autocomplete="off"><h3>${id ? 'Base' : 'Nova base'}</h3><div class="fgrid">
+    <div class="field full"><label>Nome</label><input name="nome" value="${esc(b.nome || '')}" placeholder="Ex.: Casa do operador, Filial Maringá" required></div>
+    <div class="field full"><label>Cidade</label><select name="cidade" required><option value="">–</option>${cidades.map(x=>`<option ${x === b.cidade ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></div>
+    <div class="field full"><label>Endereço</label><input name="endereco" value="${esc(b.endereco || '')}"></div>
+    <div class="field full"><label>Localização (cole o link ou as coordenadas do Google Maps)</label><input name="local" value="${b.lat != null ? b.lat + ', ' + b.lon : ''}" placeholder="-25.4284, -49.2733"></div>
+    <div class="field full"><label class="checkrow"><input type="checkbox" name="ativo" ${b.ativo !== false ? 'checked' : ''}> Base em uso</label></div>
+    <div class="hint full">A cidade não está na lista? Feche e use “+ Adicionar cidade”.</div>
+    <div class="hintbox bad full" id="agb-erro" hidden></div></div>
+    <div class="dlg-actions"><button type="button" class="btn" id="agb-fechar">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div></form>`;
+  const f = $('#form-agb'); $('#agb-fechar').onclick = ()=>d.close();
+  f.onsubmit = async e=>{
+    e.preventDefault();
+    const erro = t=>{ const x = $('#agb-erro'); x.textContent = t; x.hidden = false; };
+    const loc = agLerLocal(f.local.value); if(loc === false){ erro('Não entendi a localização. Copie os dois números do Google Maps.'); return; }
+    if(!f.nome.value.trim() || !f.cidade.value){ erro('Informe o nome e a cidade.'); return; }
+    const row = { nome:f.nome.value.trim(), cidade:f.cidade.value, endereco:f.endereco.value.trim() || null, lat:loc ? loc.lat : null, lon:loc ? loc.lon : null, ativo:f.ativo.checked };
+    try{
+      if(id){ await dbUpdate('ht_bases', { ...row, ...carimbo() }, 'id', id); Object.assign(b, row); }
+      else { const novo = { id:uid('bs'), ...row }; await dbInsert('ht_bases', [novo]); DB.ht_bases.push(novo); }
+      d.close(); toast('Base salva.'); agDesenha();
+    }catch(err){ erro('Não foi possível salvar: ' + err.message); }
+  };
+  d.showModal();
+}
+// nova cidade atendida: localiza no OpenStreetMap e calcula distâncias e pedágios até as demais (só o nome e o ponto da cidade são enviados)
+async function agAdicionarCidade(nome, uf){
+  if(agCidade(nome)) return agCidade(nome).nome;
+  const ESTADOS = { PR:'Paraná', SC:'Santa Catarina', SP:'São Paulo', RS:'Rio Grande do Sul', MS:'Mato Grosso do Sul' };
+  const busca = async url => { const r = await fetch(url); if(!r.ok) throw new Error('O serviço de mapas não respondeu. Tente de novo em instantes.'); return r.json(); };
+  const g = await busca('https://nominatim.openstreetmap.org/search?' + new URLSearchParams({ city:nome, state:ESTADOS[uf] || uf, country:'Brasil', format:'json', limit:'1' }));
+  if(!g.length) throw new Error(`Não encontrei a cidade “${nome}” em ${uf}. Confira a grafia.`);
+  const oficial = g[0].name || String(g[0].display_name).split(',')[0], lat = +(+g[0].lat).toFixed(5), lon = +(+g[0].lon).toFixed(5);
+  if(agCidade(oficial)) return agCidade(oficial).nome;
+  const M = JSON.parse(JSON.stringify(agCfg('matriz'))), D = JSON.parse(JSON.stringify(agCfg('dist_pedagio')));
+  const coord = n => { const c = DB.ht_cid.find(x=>x.nome === n); return `${c.lon},${c.lat}`; };
+  const tabela = (lista, extra) => busca(`https://router.project-osrm.org/table/v1/driving/${lista.join(';')}?${extra}`);
+  const aqui = `${lon},${lat}`, todas = [...M.cidades.map(coord), aqui], n = M.cidades.length, km = v => v == null ? null : Math.round(v / 10) / 100;
+  const ida = await tabela(todas, `annotations=distance,duration&sources=${n}`), vol = await tabela(todas, `annotations=distance,duration&destinations=${n}`);
+  M.km.forEach((l, i)=>l.push(km(vol.distances[i][0]))); M.min.forEach((l, i)=>l.push(Math.round(vol.durations[i][0] / 60)));
+  M.km.push(ida.distances[0].map(km)); M.min.push(ida.durations[0].map(v=>Math.round(v / 60))); M.cidades.push(oficial);
+  const paraPraca = [], daPraca = [];
+  for(let i = 0; i < D.pontos.length; i += 90){
+    const lote = [aqui, ...D.pontos.slice(i, i + 90).map(p=>`${p[2]},${p[1]}`)];
+    const a = await tabela(lote, 'annotations=distance&sources=0'), b = await tabela(lote, 'annotations=distance&destinations=0');
+    paraPraca.push(...a.distances[0].slice(1).map(km)); daPraca.push(...b.distances.slice(1).map(l=>km(l[0])));
+  }
+  D.cidades.push(oficial); D.ida.push(paraPraca); D.volta.forEach((l, j)=>l.push(daPraca[j]));
+  const cidade = { nome:oficial, uf, lat, lon, apelidos: normHt(oficial) === normHt(nome) ? [] : [nome] };
+  await dbInsert('ht_cidades', [cidade]); await dbUpsert('ht_config', [{ chave:'matriz', valor:M }, { chave:'dist_pedagio', valor:D }]);
+  DB.ht_cid.push(cidade); DB.ht_cfg = [...DB.ht_cfg.filter(x=>x.chave !== 'matriz' && x.chave !== 'dist_pedagio'), { chave:'matriz', valor:M }, { chave:'dist_pedagio', valor:D }];
+  AG.memoPed = new Map(); return oficial;
+}
+function agPedagiosTela(){
+  const lista = (DB.ht_ped||[]).slice().sort((a,b)=>String(a.concessionaria).localeCompare(String(b.concessionaria)) || a.nome.localeCompare(b.nome));
+  $('#ag-corpo').innerHTML = `<p class="hint" style="margin:0 0 10px">Tarifa para carro/caminhonete, sem desconto de TAG. O sistema multiplica pela categoria de cada veículo. Quando houver reajuste, altere o valor e a data aqui.</p>
+  <div class="table-wrap"><table><thead><tr><th>Praça</th><th>Rodovia</th><th>Concessionária</th><th>Valor (R$)</th><th>Vigente desde</th><th>Fonte</th><th>Considerar</th></tr></thead><tbody>
+  ${lista.map(p=>`<tr data-p="${esc(p.id)}"><td><b>${esc(p.nome)}</b></td><td>${esc(p.rodovia || '')}</td><td>${esc(p.concessionaria || '')}</td><td><input type="number" step="0.01" min="0" data-f="valor" value="${(+p.valor).toFixed(2)}" style="width:100px"></td>
+    <td><input type="date" data-f="vigencia" value="${esc(p.vigencia || '')}"></td><td>${/^https:\/\//.test(p.fonte || '') ? `<a href="${esc(p.fonte)}" target="_blank" rel="noopener">ver ↗</a>` : '–'}</td><td><input type="checkbox" data-f="ativo" ${p.ativo !== false ? 'checked' : ''} style="width:auto"></td></tr>`).join('')}</tbody></table></div>`;
+  $$('#ag-corpo [data-f]').forEach(el=>el.onchange = async ()=>{
+    const p = DB.ht_ped.find(x=>x.id === el.closest('tr').dataset.p), f = el.dataset.f, v = f === 'ativo' ? el.checked : f === 'valor' ? parseFloat(el.value) : (el.value || null);
+    if(f === 'valor' && !(v >= 0)){ toast('Valor inválido.', true); return; }
+    try{ await dbUpdate('ht_pedagios', { [f]:v, ...carimbo() }, 'id', p.id); p[f] = v; AG.memoPed = new Map(); toast('Pedágio atualizado.'); }catch(e){ toast('Erro: ' + e.message, true); }
   });
 }
 
@@ -2060,7 +2222,10 @@ function agEditar(id, pre){
     const erro = t=>{ const b = $('#ag-erro'); b.textContent = t; b.hidden = false; };
     const nome = f.cliente.value.trim(); if(!nome || !f.data.value){ erro('Informe o cliente e a data.'); return; }
     const cidTxt = f.cidade.value.trim(), cid = agCidade(cidTxt), cidade = cid ? cid.nome : (cidTxt || null);
-    if(!cid && !f.dataset.avisou){ f.dataset.avisou = '1'; erro((cidTxt ? 'Não tenho a localização desta cidade' : 'Sem a cidade') + ', então a distância não entra no cálculo da rota. Toque em Salvar de novo para gravar assim mesmo.'); return; }
+    if(!cid && !f.dataset.avisou){ f.dataset.avisou = '1';
+      if(cidTxt){ erro('Cidade nova. Localizando para calcular distância e pedágio…');
+        try{ f.cidade.value = await agAdicionarCidade(cidTxt, 'PR'); erro(`${f.cidade.value} adicionada. Toque em Salvar de novo.`); return; }catch(err){ erro(err.message + ' Toque em Salvar de novo para gravar sem calcular a distância.'); return; } }
+      erro('Sem a cidade, a distância não entra no cálculo da rota. Toque em Salvar de novo para gravar assim mesmo.'); return; }
     try{
       let c = agCliente({ cliente:nome });
       if(!c){ c = { id:uid('hc'), nome, chave:normHt(nome), apelidos:[nome], cidade, cidade_manual:!!cidade, ativo:true, duracao_min:240 }; await dbInsert('ht_clientes', [c]); DB.ht_cli.push(c); }
