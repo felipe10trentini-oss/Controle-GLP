@@ -391,7 +391,7 @@ iframe.embed.com-abas{height:calc(100vh - 200px);}
 .ag-data input[type=date]{width:auto;}
 .ag-dsem{font:700 18px var(--font-display);text-transform:uppercase;letter-spacing:.03em;margin-left:6px;}
 .ag-colunas{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:12px;align-items:start;margin-bottom:14px;}
-.ag-col{border-top:5px solid var(--cor);padding:12px;display:flex;flex-direction:column;gap:9px;}
+.ag-col{border:3px solid var(--cor);border-top-width:7px;padding:12px;display:flex;flex-direction:column;gap:9px;}
 .ag-col.off{opacity:.6;}
 .ag-soltos{margin-bottom:14px;border-style:dashed;}
 .ag-soltos .ag-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:8px;}
@@ -401,12 +401,19 @@ iframe.embed.com-abas{height:calc(100vh - 200px);}
 .ag-cod{font:700 26px var(--font-display);letter-spacing:.02em;color:var(--cor);}
 .ag-cfg{display:grid;gap:6px;}
 .ag-cfg input,.ag-cfg select{padding:5px 8px;font-size:12.5px;}
-.ag-lista{display:flex;flex-direction:column;gap:8px;}
+.ag-lista{display:flex;flex-direction:column;gap:12px;}
 .ag-item{border:1px solid var(--border);border-radius:9px;padding:9px 10px;background:var(--surface);display:flex;flex-direction:column;gap:3px;cursor:grab;overflow-wrap:anywhere;}
 .ag-topo{display:flex;justify-content:space-between;align-items:center;gap:6px;}
 .ag-hora{font:600 15px var(--font-mono);}
 .ag-acoes{display:flex;gap:5px;margin-top:5px;}
 .ag-acoes select{padding:4px 6px;font-size:12px;flex:1;min-width:0;}
+.ag-item.forte{border:3px solid var(--cor,var(--border));box-shadow:0 2px 6px rgba(0,0,0,.10);}
+.ag-ordinal{font:700 13px var(--font-display);text-transform:uppercase;letter-spacing:.05em;color:var(--cor);border-bottom:2px solid var(--cor);padding-bottom:3px;margin-bottom:3px;}
+.ag-trats{display:flex;flex-direction:column;gap:7px;margin:5px 0 3px;}
+.ag-trat{border:3px solid var(--cor,var(--border));border-radius:8px;padding:6px 8px;}
+.ag-trat>b{font:700 13.5px var(--font-display);text-transform:uppercase;letter-spacing:.04em;margin-right:6px;}
+.ag-nome{font-size:14px;font-weight:700;color:var(--text);}
+.ag-cor{width:52px;height:34px;padding:2px;cursor:pointer;}
 .ag-vazio{border:1px dashed var(--border);border-radius:9px;padding:18px 8px;text-align:center;color:var(--text-muted);font-size:12.5px;}
 .ag-pe{border-top:1px solid var(--border);padding-top:9px;font-size:12.5px;display:flex;flex-direction:column;gap:6px;align-items:flex-start;}
 .ag-aviso{white-space:normal;border-radius:7px;}
@@ -1655,7 +1662,7 @@ $('#form-sup-out').addEventListener('submit', async e=>{
 /* ============================ AGENDAMENTO HT (agenda diária e rotas por veículo) ============================ */
 const AG = { memoPed:new Map(), memoCli:null, memoPonto:null, data:'', tab:'dia', desfazer:null, busca:'', antigos:false, sincronizado:false, mapa:null };
 const AG_COR = { RHV:'#c00000', ATU:'#1f5ea8', JCV:'#2f8f5b', RIX:'#b8790f', TQV:'#7a5ea8' };
-const corVeic = v => AG_COR[v] || '#666';
+const corVeic = v => { const c = (DB.ht_vei||[]).find(x=>x.veic === v); return c && /^#[0-9a-f]{6}$/i.test(c.cor || '') ? c.cor : (AG_COR[v] || '#666666'); };
 const AG_ST = { agendado:['Agendado','info'], confirmado:['Confirmado','warn'], realizado:['Realizado','good'], cancelado:['Cancelado','bad'] };
 const AG_SEMANA = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
 const diaSem = iso => AG_SEMANA[new Date(iso + 'T12:00:00Z').getUTCDay()];
@@ -1726,7 +1733,8 @@ function agPracas(a, b){
 
 /* ---- veículos no dia ---- */
 const agDoDia = data => (DB.ht_ag||[]).filter(j=>String(j.data) === data && j.status !== 'cancelado');
-const agDoVeic = (data, v)=> agDoDia(data).filter(j=>j.veic === v).sort((a,b)=>(a.ordem||99) - (b.ordem||99) || String(a.hora_real||a.hora_marcada||'99').localeCompare(String(b.hora_real||b.hora_marcada||'99')));
+// dia já executado (todos com horário real) segue o relógio; os demais seguem a ordem da rota
+const agDoVeic = (data, v)=>{ const l = agDoDia(data).filter(j=>j.veic === v), real = l.every(j=>j.hora_real); return l.sort((a,b)=>(real ? a.hora_real.localeCompare(b.hora_real) : 0) || (a.ordem||99) - (b.ordem||99) || String(a.hora_real||a.hora_marcada||'99').localeCompare(String(b.hora_real||b.hora_marcada||'99'))); };
 // base do veículo numa data: cada mudança de base fica registrada com o dia em que passa a valer
 function agBaseEm(data, v){
   const reg = (DB.ht_vb||[]).filter(x=>x.veic === v && String(x.desde) <= data).sort((a,b)=>String(b.desde).localeCompare(String(a.desde)))[0];
@@ -1908,15 +1916,24 @@ function agLigaData(){
   $$('[data-ag-ir]').forEach(b=>b.onclick = ()=>{ AG.data = b.dataset.agIr; agDesenha(); });
   $('#ag-data').onchange = e=>{ if(e.target.value){ AG.data = e.target.value; agDesenha(); } };
 }
-function agCartao(j, it, vi){
-  const st = AG_ST[j.status] || AG_ST.agendado, c = agCliente(j);
-  return `<div class="ag-item" draggable="true" data-id="${esc(j.id)}">
+function agCartao(j, it, vi, num, forte){
+  const st = AG_ST[j.status] || AG_ST.agendado, c = agCliente(j), n = j.ciclos || 1;
+  const horas = String(j.hora_ciclos || '').split(','), quants = String(j.quant || '').split(' + '), avisos = /^Aviso /.test(j.obs || '') ? j.obs.slice(6).split(' · ')[0].split(', ') : [];
+  // um bloco por tratamento quando o mesmo cliente tem mais de um
+  const blocos = n > 1 ? `<div class="ag-trats">${Array.from({ length:n }, (_, k)=>{
+      const hora = horas[k] || (j.status !== 'realizado' && it ? paraHora(it.ini + k * (j.duracao_min || 240)) : '');
+      return `<div class="ag-trat"><b>${num ? num + k : k + 1}º tratamento</b>${hora ? ` <span class="mono">${esc(hora)}</span>` : ''}<div class="mini">${[quants.length === n ? esc(quants[k]) : '', avisos.length === n ? 'Aviso ' + esc(avisos[k]) : ''].filter(Boolean).join(' · ')}</div></div>`; }).join('')}</div>` : '';
+  const resto = n > 1 ? [quants.length === n ? '' : esc(j.quant), esc(j.material)].filter(Boolean).join(' · ') : [esc(j.quant), esc(j.material)].filter(Boolean).join(' · ');
+  const obs = avisos.length === n && n > 1 ? String(j.obs).split(' · ').slice(1).join(' · ') : j.obs;
+  return `<div class="ag-item ${forte ? 'forte' : ''}" draggable="true" data-id="${esc(j.id)}" ${j.veic ? `style="--cor:${corVeic(j.veic)}"` : ''}>
+    ${forte && n === 1 && num ? `<div class="ag-ordinal">${num}º tratamento</div>` : ''}
     <div class="ag-topo"><span class="ag-hora">${it ? paraHora(it.ini) : (j.hora_real || j.hora_marcada || '—')}</span><span class="badge ${st[1]}">${st[0]}</span></div>
     <b>${esc(j.cliente)}</b>
     <div class="mini">${esc(j.cidade || (c && c.cidade) || 'cidade não informada')}${it && it.km >= 1 ? ` · ${N0(it.km)} km do anterior` : ''}${it && it.ped ? ` · pedágio R$ ${BRL(it.ped)}` : ''}</div>
-    <div class="mini">${[(j.ciclos||1) > 1 ? j.ciclos + ' ciclos' : '', esc(j.quant), esc(j.material)].filter(Boolean).join(' · ')}</div>
+    ${blocos}
+    <div class="mini">${resto}</div>
     ${j.hora_marcada ? `<div class="mini"><span class="badge warn">hora marcada ${esc(j.hora_marcada)}</span>${it && it.atraso ? ' <span class="badge bad">chega atrasado</span>' : ''}</div>` : ''}
-    ${j.obs ? `<div class="mini">${esc(j.obs)}</div>` : ''}
+    ${obs ? `<div class="mini">${esc(obs)}</div>` : ''}
     <div class="ag-acoes">
       <select data-ag-veic="${esc(j.id)}" aria-label="Veículo"><option value="">A distribuir</option>${HT.map(v=>`<option ${j.veic === v ? 'selected' : ''}>${v}</option>`).join('')}</select>
       ${vi ? `<button class="btn sm" data-ag-sobe="${esc(j.id)}" aria-label="Subir">↑</button><button class="btn sm" data-ag-desce="${esc(j.id)}" aria-label="Descer">↓</button>` : ''}
@@ -1950,19 +1967,19 @@ function agDia(){
     if(!vi.disponivel && per.itens.length) avisos.push('veículo marcado como indisponível');
     const link = agMapsLink(vi, per);
     return `<div class="card ag-col ${vi.disponivel ? '' : 'off'}" data-drop="${vi.v}" style="--cor:${corVeic(vi.v)}">
-      <div class="ag-cab"><span class="ag-cod">${vi.v}</span><span class="mini">${per.itens.length ? per.itens.length + ' serviço(s)' : 'livre'}</span>
+      <div class="ag-cab"><span class="ag-cod">${vi.v}</span><span class="mini">${per.itens.length ? per.ciclos + (per.ciclos > 1 ? ' tratamentos' : ' tratamento') : 'livre'}</span>
         <label class="checkrow mini"><input type="checkbox" data-ag-disp="${vi.v}" ${vi.disponivel ? 'checked' : ''}> disponível</label></div>
       <div class="ag-cfg"><input list="ag-ops" data-ag-op="${vi.v}" value="${esc(vi.operador)}" placeholder="Operador" aria-label="Operador">
         <select data-ag-origem="${vi.v}" aria-label="Sai de"><option value="">Sai de ${esc(vi.origem ? (vi.origem.nome || vi.origem.cidade) : '?')}${vi.daVespera ? ' (véspera)' : ''}</option><optgroup label="Bases">${(DB.ht_bases||[]).filter(b=>b.ativo !== false).map(b=>`<option value="base:${esc(b.id)}" ${vi.dia.origem === 'base:' + b.id ? 'selected' : ''}>Sai de ${esc(b.nome)}</option>`).join('')}</optgroup><optgroup label="Cidades">${cidades.map(c=>`<option value="${esc(c)}" ${vi.dia.origem === c ? 'selected' : ''}>Sai de ${esc(c)}</option>`).join('')}</optgroup></select>
         <select data-ag-volta="${vi.v}" aria-label="Fim do dia"><option value="">Auto: ${per.volta ? 'volta à base' : 'pernoita fora'}</option><option value="1" ${vi.dia.volta === true ? 'selected' : ''}>Volta à base</option><option value="0" ${vi.dia.volta === false ? 'selected' : ''}>Pernoita fora</option></select></div>
-      <div class="ag-lista">${per.itens.map(it=>agCartao(it.j, it, vi)).join('') || '<div class="ag-vazio">Arraste um serviço para cá</div>'}</div>
+      <div class="ag-lista">${(()=>{ let n = 1; return per.itens.map(it=>{ const h = agCartao(it.j, it, vi, n, per.ciclos > 1); n += it.j.ciclos || 1; return h; }).join(''); })() || '<div class="ag-vazio">Arraste um serviço para cá</div>'}</div>
       ${per.itens.length ? `<div class="ag-pe"><div><b>${N0(per.kmDia)} km no dia</b><br><span class="mini">${per.volta ? `ida ${N0(per.km)} + volta ${N0(per.kmVolta)} km` : `pernoita em ${esc(per.pernoite ? per.pernoite.cidade : '?')}`} · termina ${paraHora(per.fim)}</span></div>
         <div><b>Pedágio R$ ${BRL(per.pedagio)}</b>${per.pracas.length ? `<details><summary class="mini">${per.pracas.length} passagem(ns)${per.eixos !== 1 ? ` · tarifa × ${String(per.eixos).replace('.', ',')}` : ''}</summary>${per.pracas.map(x=>`<div class="mini">${esc(x.nome)} (${esc(x.rodovia||'')}) · R$ ${BRL(+x.valor * per.eixos)}</div>`).join('')}</details>` : ''}</div>
         ${avisos.map(a=>`<div class="badge warn ag-aviso">${esc(a)}</div>`).join('')}
         <div class="ag-links">${link ? `<a class="btn sm" href="${esc(link)}" target="_blank" rel="noopener">Rota no Google Maps ↗</a>` : ''}<button class="btn sm" data-ag-copia="${vi.v}">Copiar</button></div></div>` : ''}
     </div>`; }).join('')}</div>
   <datalist id="ag-ops">${OPERADORES.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>
-  <div class="sechead">Mapa do dia</div><div id="ag-mapa" class="ag-mapa"><div class="empty">${doDia.length ? 'Carregando o mapa…' : 'Nenhum serviço neste dia.'}</div></div>
+  <div class="sechead">Mapa do dia</div><div id="ag-mapa" class="ag-mapa"><div class="empty">${doDia.length ? 'Carregando o mapa…' : 'Nenhum serviço neste dia.'}</div></div><p class="hint" id="ag-mapa-aviso"></p>
   ${data >= TODAY ? agSugestoes(data, rotas) : ''}`;
   agLigaData();
   if($('#ag-desfazer')) $('#ag-desfazer').onclick = async ()=>{ try{ await agGrava(AG.desfazer.itens); AG.desfazer = null; toast('Organização anterior restaurada.'); agDesenha(); }catch(e){ toast('Erro: ' + e.message, true); } };
@@ -2020,6 +2037,37 @@ async function agCopiar(rotas){
   try{ await navigator.clipboard.writeText(txt); toast('Programação copiada. Cole no WhatsApp.'); }
   catch(e){ prompt('Copie o texto da programação:', txt); }
 }
+// caminho pela estrada entre os pontos (OpenStreetMap/OSRM); só as coordenadas são enviadas, e o resultado fica guardado
+const _tracados = new Map();
+async function agTracado(pontos){
+  const p = pontos.filter((x, i)=>x && (!i || x.lat !== pontos[i-1].lat || x.lon !== pontos[i-1].lon));
+  if(p.length < 2) return [];
+  const chave = p.map(x=>`${(+x.lon).toFixed(5)},${(+x.lat).toFixed(5)}`).join(';');
+  if(_tracados.has(chave)) return _tracados.get(chave);
+  const salvo = LS.get('ag-rota:' + chave, null); if(salvo){ _tracados.set(chave, salvo); return salvo; }
+  const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${chave}?overview=full&geometries=geojson`, { signal: AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined });
+  if(!r.ok) throw new Error('traçado indisponível');
+  const j = await r.json(); if(!j.routes || !j.routes.length) throw new Error('traçado indisponível');
+  // guarda um ponto a cada ~100 m, o suficiente para acompanhar a rodovia
+  const todos = j.routes[0].geometry.coordinates, linha = [];
+  todos.forEach(([lon, lat], i)=>{ const u = linha[linha.length - 1]; if(!u || i === todos.length - 1 || Math.abs(u[0] - lat) + Math.abs(u[1] - lon) > 0.001) linha.push([+lat.toFixed(5), +lon.toFixed(5)]); });
+  _tracados.set(chave, linha); LS.set('ag-rota:' + chave, linha); return linha;
+}
+async function agDesenhaTracados(mapa, trechos){
+  let falhou = 0, ordem = 0;
+  const idas = trechos.filter(t=>!t.volta);
+  for(const t of [...idas, ...trechos.filter(t=>t.volta)]){
+    // linhas cada vez mais finas: quando dois veículos usam a mesma rodovia, as duas cores aparecem
+    const peso = t.volta ? 3 : Math.max(3, 9 - 1.5 * ordem++);
+    let linha;
+    try{ linha = await agTracado(t.pontos); }
+    catch(e){ falhou++; linha = null; }
+    if(AG.mapa !== mapa) return;   // a tela mudou enquanto carregava
+    if(linha && linha.length) L.polyline(linha, { color:t.cor, weight:peso, opacity: t.volta ? .65 : .85, dashArray: t.volta ? '4 8' : null }).addTo(mapa).bringToBack();
+    else if(!linha) L.polyline(t.pontos.map(p=>[p.lat, p.lon]), { color:t.cor, weight:2, opacity:.45, dashArray:'2 8' }).addTo(mapa);
+  }
+  const aviso = $('#ag-mapa-aviso'); if(aviso && AG.mapa === mapa) aviso.textContent = falhou ? 'Não foi possível obter o caminho pela estrada de algum trecho agora (aparece em linha reta pontilhada). Reabra o dia para tentar de novo.' : 'Linha cheia: ida pela rodovia. Linha tracejada: volta à base.';
+}
 async function agMapa(rotas, soltos){
   try{
     if(!window.L){ if(!$('#ag-leaflet-css')){ const l = document.createElement('link'); l.id = 'ag-leaflet-css'; l.rel = 'stylesheet'; l.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'; document.head.appendChild(l); }
@@ -2029,18 +2077,20 @@ async function agMapa(rotas, soltos){
   if(AG.mapa){ AG.mapa.remove(); AG.mapa = null; }
   div.innerHTML = ''; const mapa = AG.mapa = L.map(div, { scrollWheelZoom:false });
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:18, attribution:'© OpenStreetMap' }).addTo(mapa);
-  const todos = [], vistos = {};
+  const todos = [], vistos = {}, trechos = [];
   const desloca = p=>{ const k = p.lat + ',' + p.lon, n = vistos[k] = (vistos[k] || 0) + 1; return n === 1 ? [p.lat, p.lon] : [p.lat + 0.012 * Math.cos(n * 2.1), p.lon + 0.012 * Math.sin(n * 2.1)]; };
   const marca = (pos, cor, txt, dica)=>L.marker(pos, { icon:L.divIcon({ className:'ag-pino', html:`<span style="background:${cor}">${txt}</span>`, iconSize:[24,24], iconAnchor:[12,12] }) }).addTo(mapa).bindTooltip(dica);
   rotas.forEach(({ vi, per })=>{
     if(!per.itens.length) return; const cor = corVeic(vi.v), linha = [[vi.origem.lat, vi.origem.lon]];
     L.circleMarker(linha[0], { radius:6, color:cor, fillColor:'#fff', fillOpacity:1, weight:3 }).addTo(mapa).bindTooltip(`${vi.v} sai de ${esc(vi.origem.cidade)}`); todos.push(linha[0]);
     per.itens.forEach((it, i)=>{ if(!it.p) return; const pos = desloca(it.p); linha.push(pos); todos.push(pos); marca(pos, cor, i + 1, `${vi.v} · ${paraHora(it.ini)} · ${esc(it.j.cliente)} (${esc(it.p.cidade)})`); });
-    if(per.volta){ L.polyline([linha[linha.length - 1], [vi.base.lat, vi.base.lon]], { color:cor, weight:2, opacity:.35, dashArray:'2 7' }).addTo(mapa); }
-    L.polyline(linha, { color:cor, weight:3, opacity:.75, dashArray:'6 6' }).addTo(mapa);
+    // pontos reais (sem o deslocamento dos marcadores) para pedir o caminho pela estrada
+    trechos.push({ cor, pontos:[vi.origem, ...per.itens.filter(i=>i.p).map(i=>i.p)], volta:false });
+    if(per.volta && per.itens.some(i=>i.p)) trechos.push({ cor, pontos:[per.itens.filter(i=>i.p).pop().p, vi.base], volta:true });
   });
   soltos.forEach(j=>{ const p = agPonto(j); if(!p) return; const pos = desloca(p); todos.push(pos); marca(pos, '#555', '?', `A distribuir · ${esc(j.cliente)} (${esc(p.cidade)})`); });
   if(todos.length) mapa.fitBounds(todos, { padding:[30,30], maxZoom:11 }); else mapa.setView([-25.2, -50.5], 7);
+  agDesenhaTracados(mapa, trechos);
 }
 function agSemana(){
   const d = new Date(AG.data + 'T12:00:00Z').getUTCDay(), seg = addDias(AG.data, d === 0 ? -6 : 1 - d);
@@ -2051,7 +2101,7 @@ function agSemana(){
   ${linhas.map(([v, nome])=>{ let km = 0, ped = 0, qt = 0;
     const cels = dias.map(x=>{ const l = v ? agDoVeic(x, v) : agDoDia(x).filter(j=>!j.veic); const vi = v ? agVeic(x, v) : null; let rod = '';
       if(vi && l.length){ const r = agPercorre(vi, l); km += r.kmDia; ped += r.pedagio; qt += l.length; rod = `<div class="mini mono">${N0(r.kmDia)} km${r.pedagio ? ' · R$ ' + BRL(r.pedagio) : ''}</div>`; }
-      return `<td class="ag-cel" data-ag-diaw="${x}">${l.map(j=>`<div><span class="mono">${esc(j.hora_real || j.hora_prevista || j.hora_marcada || '')}</span> ${esc(j.cliente)}<span class="mini"> ${esc(j.cidade||'')}</span></div>`).join('') + rod || `<span class="muted">${vi && !vi.disponivel ? 'indisponível' : '·'}</span>`}</td>`; }).join('');
+      return `<td class="ag-cel" data-ag-diaw="${x}">${l.map(j=>`<div><span class="mono">${esc(j.hora_real || j.hora_prevista || j.hora_marcada || '')}</span> <b class="ag-nome">${esc(j.cliente)}</b><span class="mini"> ${esc(j.cidade||'')}</span></div>`).join('') + rod || `<span class="muted">${vi && !vi.disponivel ? 'indisponível' : '·'}</span>`}</td>`; }).join('');
     return `<tr><td><b style="color:${v ? corVeic(v) : 'inherit'}">${nome}</b></td>${cels}<td class="mono">${v ? `<b>${N0(km)} km</b><div class="mini">pedágio R$ ${BRL(ped)}</div><div class="mini">${qt} serviço(s)</div>` : ''}</td></tr>`; }).join('')}</tbody></table></div>
   <p class="hint">Toque em um dia para abrir a agenda dele.</p>`;
   agLigaData();
@@ -2089,8 +2139,9 @@ function agVeiculos(){
   ${bases.map(b=>`<tr><td><b>${esc(b.nome)}</b>${b.ativo === false ? ' <span class="badge bad">inativa</span>' : ''}</td><td>${esc(b.cidade)}</td><td class="wrap">${esc(b.endereco || '–')}</td><td>${b.lat != null ? '<span class="badge good">endereço exato</span>' : '<span class="mini">pela cidade</span>'}</td><td><button class="btn sm" data-ag-base="${esc(b.id)}">Editar</button></td></tr>`).join('')}</tbody></table></div>
   <div class="ag-links" style="margin-top:8px"><button class="btn sm" id="ag-nova-base">+ Nova base</button><button class="btn sm" id="ag-nova-cidade">+ Adicionar cidade</button></div>
   <div class="sechead">Regras de cada veículo</div>
-  <div class="table-wrap"><table><thead><tr><th>Veículo</th><th>Saída</th><th>Fim do dia</th><th>Máx. ciclos/dia</th><th>Pedágio (categoria)</th><th>Volta à base até (km)</th><th>Operador padrão</th><th>Na agenda</th></tr></thead><tbody>
+  <div class="table-wrap"><table><thead><tr><th>Veículo</th><th>Cor</th><th>Saída</th><th>Fim do dia</th><th>Máx. ciclos/dia</th><th>Pedágio (categoria)</th><th>Volta à base até (km)</th><th>Operador padrão</th><th>Na agenda</th></tr></thead><tbody>
   ${HT.map(v=>{ const c = agCfgVeic(v); return `<tr data-v="${v}"><td><b style="color:${corVeic(v)}">${v}</b></td>
+    <td><input type="color" data-c="cor" value="${corVeic(v)}" class="ag-cor" aria-label="Cor do ${v}"></td>
     <td><input type="time" data-c="saida" value="${esc(c.saida)}"></td><td><input type="time" data-c="fim" value="${esc(c.fim)}"></td>
     <td><input type="number" min="1" max="8" data-c="max_ciclos" value="${c.max_ciclos}" style="width:70px"></td>
     <td><select data-c="eixos">${[[1,'Carro / caminhonete (1×)'],[1.5,'Com reboque de 1 eixo (1,5×)'],[2,'Caminhão 2 eixos (2×)'],[3,'3 eixos (3×)'],[4,'4 eixos (4×)']].map(([n, t])=>`<option value="${n}" ${+c.eixos === n ? 'selected' : ''}>${t}</option>`).join('')}</select></td>
@@ -2121,7 +2172,7 @@ function agVeiculos(){
   $$('#ag-corpo [data-c]').forEach(el=>el.onchange = async ()=>{
     const v = el.closest('tr').dataset.v, campo = el.dataset.c, cur = { ...agCfgVeic(v) };
     cur[campo] = campo === 'ativo' ? el.checked : campo === 'max_ciclos' ? Math.max(1, parseInt(el.value, 10) || 3) : campo === 'eixos' ? +el.value : campo === 'volta_max_km' ? Math.max(0, parseInt(el.value, 10) || 0) : (el.value.trim() || (campo === 'operador' ? null : cur[campo]));
-    try{ await dbUpsert('ht_veiculos', [cur]); DB.ht_vei = [...DB.ht_vei.filter(x=>x.veic !== v), cur]; toast('Veículo atualizado.'); }catch(e){ toast('Erro: ' + e.message, true); }
+    try{ await dbUpsert('ht_veiculos', [cur]); DB.ht_vei = [...DB.ht_vei.filter(x=>x.veic !== v), cur]; toast('Veículo atualizado.'); if(campo === 'cor') agDesenha(); }catch(e){ toast('Erro: ' + e.message, true); }
   });
 }
 function agEditarBase(id){
@@ -2229,7 +2280,7 @@ function agLerPlanilha(buffer, desde){
     const quant = xs.map(x=>x.quant).filter(Boolean).join(' + ').slice(0,400) || null;
     return { importado, data:p.data, veic:p.veic, k:p.k, cliente:p.cli, local:(xs.find(x=>x.local) || {}).local || null, material:(xs.find(x=>x.material) || {}).material || null,
       quant, ciclos:Math.min(10, xs.length), operador:(xs.find(x=>x.op) || {}).op || null, status: feito ? 'realizado' : 'agendado', hora_real: feito ? (horas[0] || null) : null,
-      hora_prevista:horas[0] || null, obs: avisos.length ? 'Aviso ' + avisos.join(', ') : AG_SEM_AVISO };
+      hora_prevista:horas[0] || null, hora_ciclos: horas.length ? xs.map(x=>x.hora || '').join(',').slice(0,200) : null, obs: avisos.length ? 'Aviso ' + avisos.join(', ') : AG_SEM_AVISO };
   });
   return { cartoes, fora, ultima, linhas:linhas.length };
 }
@@ -2251,13 +2302,13 @@ function agComparaPlanilha(lido, desde){
   pares.forEach(([c, j])=>{
     if(!j){ novos.push(c); return; }
     let campos = [];
-    if(c.status === 'realizado') campos = ['status','veic','hora_real','ciclos','quant','material','operador','obs'];   // serviço feito: vale a planilha
-    else if(j.status === 'agendado' && j.importado && !j.editado_em) campos = ['ciclos','quant','material','operador','hora_prevista'];   // programado que ninguém mexeu no sistema
+    if(c.status === 'realizado') campos = ['status','veic','hora_real','hora_ciclos','ciclos','quant','material','operador','obs'];   // serviço feito: vale a planilha
+    else if(j.status === 'agendado' && j.importado && !j.editado_em) campos = ['ciclos','quant','material','operador','hora_prevista','hora_ciclos'];   // programado que ninguém mexeu no sistema
     else if(j.status !== 'realizado'){ mantidos++; return; }
     const novo = {};
     campos.forEach(f=>{ const v = f === 'obs' && j.obs && !/^(Aviso |Importado)/.test(j.obs) ? j.obs + ' · ' + c.obs : c[f];
       if(f === 'obs' && String(j.obs || '').includes(c.obs)) return;
-      if(['quant','material','operador','hora_real','hora_prevista'].includes(f) && (v == null || v === '')) return;   // célula vazia não apaga o que já existe
+      if(['quant','material','operador','hora_real','hora_prevista','hora_ciclos'].includes(f) && (v == null || v === '')) return;   // célula vazia não apaga o que já existe
       if(!igual(j[f], v)) novo[f] = v; });
     if(Object.keys(novo).length){ if(!j.importado && !porChave.has(c.importado)) novo.importado = c.importado; mudancas.push({ c, j, novo }); } else iguais++;
   });
@@ -2277,7 +2328,7 @@ async function agAplicarPlanilha(lido, plano, arquivo, remover, passo){
   DB.ht_ag.forEach(j=>{ if(j.veic){ const k = j.data + j.veic; ordens[k] = Math.max(ordens[k] || 0, j.ordem || 0); } });
   const linhas = plano.novos.map(c=>{ const cli = agBuscaCliente({ cliente:c.cliente }), cid = agCidade(c.local), k = c.data + c.veic; ordens[k] = (ordens[k] || 0) + 1;
     return { id:uid('ag'), data:c.data, veic:c.veic, ordem:ordens[k], cliente_id: cli ? cli.id : null, cliente:c.cliente, cidade: cid ? cid.nome : (c.local || (cli && cli.cidade) || null), material:c.material, quant:c.quant, ciclos:c.ciclos,
-      operador:c.operador, status:c.status, hora_real:c.hora_real, hora_prevista:c.hora_prevista, obs:c.obs, importado:c.importado, fixo:true, criado_por:'Planilha · ' + (USER || 'envio') }; });
+      operador:c.operador, status:c.status, hora_real:c.hora_real, hora_prevista:c.hora_prevista, hora_ciclos:c.hora_ciclos, obs:c.obs, importado:c.importado, fixo:true, criado_por:'Planilha · ' + (USER || 'envio') }; });
   for(let i = 0; i < linhas.length; i += 200){ passo(`Gravando serviços novos… ${Math.min(i + 200, linhas.length)} de ${linhas.length}`); await dbInsert('ht_agendamentos', linhas.slice(i, i + 200)); }
   let n = 0;
   for(const m of plano.mudancas){ if(n++ % 10 === 0) passo(`Atualizando… ${n} de ${plano.mudancas.length}`); await dbUpdate('ht_agendamentos', m.novo, 'id', m.j.id); }
@@ -2317,7 +2368,7 @@ function agEnviarPlanilha(){
       res.innerHTML = `<div class="hintbox">${lido.linhas} linha(s) lidas, até ${dBR(lido.ultima)}.<br><b>${plano.novos.length}</b> serviço(s) novo(s) · <b>${plano.mudancas.length}</b> atualização(ões) · ${plano.iguais} sem mudança${plano.mantidos ? ` · ${plano.mantidos} programado(s) ajustado(s) no sistema, mantidos como estão` : ''}.
         ${lido.fora.semAviso ? `<br>${lido.fora.semAviso} linha(s) de dias passados sem número de aviso ficaram de fora.` : ''}${lido.fora.semVeiculo ? `<br>${lido.fora.semVeiculo} linha(s) sem veículo HT reconhecido.` : ''}</div>
         ${lista('Ver novos', plano.novos, c=>`${dBR(c.data)} · ${c.veic} · ${esc(c.cliente)}${c.status === 'realizado' ? ' · realizado' : ' · programado'}`)}
-        ${lista('Ver atualizações', plano.mudancas, m=>`${dBR(m.j.data)} · ${esc(m.j.cliente)} · muda ${Object.keys(m.novo).filter(k=>k !== 'importado').map(k=>({ status:'situação', veic:'veículo', hora_real:'horário', hora_prevista:'horário', ciclos:'ciclos', quant:'quantidade', material:'material', operador:'operador', obs:'aviso' })[k]).join(', ')}`)}
+        ${lista('Ver atualizações', plano.mudancas, m=>`${dBR(m.j.data)} · ${esc(m.j.cliente)} · muda ${Object.keys(m.novo).filter(k=>k !== 'importado').map(k=>({ status:'situação', veic:'veículo', hora_real:'horário', hora_prevista:'horário', ciclos:'ciclos', quant:'quantidade', material:'material', operador:'operador', obs:'aviso', hora_ciclos:'horários' })[k]).join(', ')}`)}
         ${plano.sumiram.length ? `<label class="checkrow" style="margin-top:8px"><input type="checkbox" name="remover"> Remover ${plano.sumiram.length} serviço(s) que não estão mais na planilha</label>${lista('Ver quais são', plano.sumiram, j=>`${dBR(j.data)} · ${j.veic || '–'} · ${esc(j.cliente)}`)}` : ''}`;
       ok.disabled = nada && !plano.sumiram.length;
       ok.textContent = nada && !plano.sumiram.length ? 'A agenda já está em dia' : 'Atualizar agenda';
@@ -2358,7 +2409,8 @@ function agFichaCliente(id, receita){
       ${campo('Telefone', c.telefone ? `<a href="tel:${tel}">${esc(c.telefone)}</a>${tel.length >= 10 ? ` · <a href="https://wa.me/${tel.length <= 11 ? '55' + tel : tel}" target="_blank" rel="noopener">WhatsApp ↗</a>` : ''}` : '')}
       ${campo('Contato', esc(c.contato))}
       ${campo('E-mail', c.email ? `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '')}
-      ${campo('Endereço', esc(c.endereco), true)}
+      ${campo('Endereço do tratamento', esc(c.endereco), true)}
+      ${c.endereco_escritorio ? campo('Endereço do escritório', esc(c.endereco_escritorio), true) : ''}
       ${campo('Cidade', esc(c.cidade))}
       ${campo('CEP', esc(c.cep))}
       ${campo('Localização', (c.endereco || c.cidade || c.lat != null) ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(onde)}" target="_blank" rel="noopener">Abrir no mapa ↗</a> <span class="mini">${c.lat != null ? 'ponto exato' : 'pelo endereço'}</span>` : '')}
@@ -2483,7 +2535,8 @@ function agEditarCliente(id){
     <div class="field"><label>CEP</label><input name="cep" inputmode="numeric" value="${esc(c.cep || '')}"></div>
     <div class="field"><label>Cidade</label><select name="cidade"><option value="">–</option>${[...new Set([...cidades, c.cidade].filter(Boolean))].map(x=>`<option ${x === c.cidade ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></div>
     <div class="field"><label>Veículo preferido</label><select name="veic_preferido"><option value="">Qualquer um</option>${HT.map(v=>`<option ${c.veic_preferido === v ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
-    <div class="field full"><label>Endereço</label><input name="endereco" value="${esc(c.endereco || '')}"></div>
+    <div class="field full"><label>Endereço do tratamento</label><input name="endereco" value="${esc(c.endereco || '')}"></div>
+    <div class="field full"><label>Endereço do escritório</label><input name="endereco_escritorio" value="${esc(c.endereco_escritorio || '')}"></div>
     <div class="field full"><label>Localização (cole o link ou as coordenadas do Google Maps)</label><input name="local" value="${c.lat != null ? c.lat + ', ' + c.lon : ''}" placeholder="-25.4284, -49.2733"></div>
     <div class="field"><label>Contato</label><input name="contato" value="${esc(c.contato || '')}"></div>
     <div class="field"><label>Telefone</label><input name="telefone" value="${esc(c.telefone || '')}"></div>
@@ -2504,7 +2557,7 @@ function agEditarCliente(id){
     if(dig && !(dig.length === 11 || (dig.length === 14 && cnpjValido(dig))) && !f.dataset.docAvisado){ f.dataset.docAvisado = '1'; erro('Este CNPJ/CPF não parece válido (confira os dígitos). Toque em Salvar de novo para gravar assim mesmo.'); return; }
     const cnpj = dig.length === 14 ? fmtCnpj(dig) : (f.cnpj.value.trim() || null);
     const corrigido = cnpj !== (c.cnpj || null) && /parece errado/.test(c.cadastro_fonte || '');
-    const row = { nome, razao_social:f.razao_social.value.trim() || null, cnpj, cep:f.cep.value.trim() || null, email:f.email.value.trim() || null, ...(corrigido ? { cadastro_fonte:'Informado no sistema' } : {}), cidade:f.cidade.value || null, cidade_manual: c.cidade_manual || (f.cidade.value || null) !== (c.cidade || null), veic_preferido:f.veic_preferido.value || null, endereco:f.endereco.value.trim() || null, lat:loc ? loc.lat : null, lon:loc ? loc.lon : null,
+    const row = { nome, razao_social:f.razao_social.value.trim() || null, cnpj, cep:f.cep.value.trim() || null, email:f.email.value.trim() || null, ...(corrigido ? { cadastro_fonte:'Informado no sistema' } : {}), cidade:f.cidade.value || null, cidade_manual: c.cidade_manual || (f.cidade.value || null) !== (c.cidade || null), veic_preferido:f.veic_preferido.value || null, endereco:f.endereco.value.trim() || null, endereco_escritorio:f.endereco_escritorio.value.trim() || null, lat:loc ? loc.lat : null, lon:loc ? loc.lon : null,
       contato:f.contato.value.trim() || null, telefone:f.telefone.value.trim() || null, duracao_min:Math.round((parseFloat(f.horas.value) || 4) * 60), ativo:f.ativo.checked, obs:f.obs.value.trim() || null };
     try{
       if(id){ if(nome !== c.nome) row.apelidos = [...new Set([...(c.apelidos||[]), c.nome])]; await dbUpdate('ht_clientes', { ...row, ...carimbo() }, 'id', id); Object.assign(c, row); }
