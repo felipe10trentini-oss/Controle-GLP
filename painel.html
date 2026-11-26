@@ -444,6 +444,20 @@ table.ag-sem td:first-child{min-width:90px;}
 .agf-serv table{min-width:480px;}
 @media (max-width:640px){ .agf-grade{grid-template-columns:1fr;} }
 .agp-lista{max-height:180px;overflow:auto;border:1px solid var(--border);border-radius:7px;padding:6px 9px;margin-top:4px;}
+#btn-rotina.rot-ok{border-color:var(--good);color:var(--good);}
+#dlg-rotina{width:min(560px,94vw);}
+.rot-lista{display:grid;gap:6px;margin-top:8px;}
+.rot-et{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--border);border-radius:8px;padding:8px 11px;font-size:13.5px;}
+.rot-et.aguardando{opacity:.55;}
+.rot-ic{width:22px;height:22px;flex:none;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;border:1.5px solid var(--border);}
+.rot-et.ok .rot-ic{border-color:var(--good);color:var(--good);}
+.rot-et.atencao .rot-ic{border-color:var(--warn);color:var(--warn);background:var(--warn-bg);}
+.rot-et.erro .rot-ic{border-color:var(--bad);color:var(--bad);}
+.rot-et.executando .rot-ic{animation:rot-gira 1.2s linear infinite;}
+@keyframes rot-gira{to{transform:rotate(360deg);}}
+@media (prefers-reduced-motion:reduce){ .rot-et.executando .rot-ic{animation:none;} }
+.rot-fim{margin-top:12px;font-size:17px;font-weight:700;color:var(--good);}
+.rot-fim.bad{color:var(--bad);}
 </style>
 </head>
 <body>
@@ -466,6 +480,7 @@ table.ag-sem td:first-child{min-width:90px;}
   <div class="brand"><h1>Controle Geral</h1><span>Frota · Tratamentos · Dedetização · Suportes</span></div>
   <div class="top-right">
     <div class="crumb" id="crumb"></div>
+    <button type="button" class="btn" id="btn-rotina" hidden title="Atualiza o sistema com as planilhas. Use antes de sair do escritório.">⟳ Atualizar o dia</button>
     <a class="btn primary" id="btn-lancar" href="#/lancar" style="text-decoration:none" hidden>+ Lançar</a>
     <button class="sync-pill" id="btn-logout" title="Clique para sair"><span class="sync-dot"></span><span id="user-label">sair</span></button>
   </div>
@@ -825,12 +840,128 @@ async function startApp(){
   USER = PERFIL.nome || ((await sb.auth.getUser()).data.user || {}).email || '';
   $('#auth-gate').hidden = true; $('#app-shell').hidden = false; setUserLabel();
   $('#btn-lancar').hidden = !CAPS.some(c=>podeLancar(c[0])) || soOperador();
+  rotinaPreparar();
   go();
 }
 (async function initAuth(){
   const { data } = await sb.auth.getSession();
   if(data && data.session) startApp();
 })();
+
+/* ============================ botão "Atualizar o dia" ============================
+   O clique grava um pedido; o computador do escritório (tarefa do Windows) lê as planilhas e grava o andamento.
+   A agenda é atualizada aqui no navegador, com a mesma regra do "Enviar planilha" (sem remover nada). */
+const ROT = { pedido:null, rodando:false, aviso:'', fim:'', ultimo:null };
+const rotHora = t => { if(!t) return ''; const d = new Date(t), hoje = new Date().toDateString() === d.toDateString(); return (hoje ? 'hoje às ' : d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }) + ' às ') + d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }); };
+const ROT_COLS = 'id,pedido_em,pedido_por,status,terminado_em,etapas,agenda_aplicada_em,agenda_resumo';
+async function rotinaUltimo(){
+  const { data, error } = await sb.from('rotina_pedidos').select(ROT_COLS).order('pedido_em', { ascending:false }).limit(1);
+  if(error) throw new Error(error.message);
+  return (data || [])[0] || null;
+}
+function rotinaMarca(){
+  const b = $('#btn-rotina'), u = ROT.ultimo;
+  const feitoHoje = u && u.status === 'concluido' && u.agenda_aplicada_em && new Date(u.agenda_aplicada_em).toDateString() === new Date().toDateString();
+  b.textContent = ROT.rodando ? '⟳ Atualizando…' : feitoHoje ? '✓ Dia atualizado' : '⟳ Atualizar o dia';
+  b.classList.toggle('rot-ok', !!feitoHoje && !ROT.rodando);
+}
+async function rotinaPreparar(){
+  const b = $('#btn-rotina'); b.hidden = !(PERFIL && PERFIL.tipo === 'admin' && !PERFIL.legado); if(b.hidden) return;
+  b.onclick = rotinaAbrir;
+  try{ ROT.ultimo = await rotinaUltimo(); rotinaMarca(); }catch(e){ console.warn(e.message); }
+}
+function rotinaDesenha(){
+  const d = $('#dlg-rotina'); if(!d) return;
+  const p = ROT.pedido, ic = { aguardando:'○', executando:'⟳', ok:'✓', atencao:'!', erro:'✕' };
+  const etapas = ((p && p.etapas) || []).slice();
+  if(p) etapas.push({ titulo:'Agenda dos veículos', status: p.agenda_aplicada_em ? 'ok' : ROT.agendaErro ? 'erro' : ROT.agendando ? 'executando' : 'aguardando', texto: ROT.agendaErro || p.agenda_resumo || ROT.passoAgenda || '', detalhes:[] });
+  d.querySelector('#rot-corpo').innerHTML = `${ROT.aviso ? `<div class="hintbox ${ROT.avisoRuim ? 'bad' : ''}">${esc(ROT.aviso)}</div>` : ''}
+    <div class="rot-lista">${etapas.map(e=>`<div class="rot-et ${e.status}"><span class="rot-ic">${ic[e.status] || '○'}</span><div><b>${esc(e.titulo)}</b>${e.texto ? `<div class="mini">${esc(e.texto)}</div>` : ''}${(e.detalhes || []).map(x=>`<div class="mini">• ${esc(x)}</div>`).join('')}</div></div>`).join('')}</div>
+    ${ROT.fim ? `<div class="rot-fim ${ROT.fimRuim ? 'bad' : ''}">${esc(ROT.fim)}</div>` : ''}`;
+  d.querySelector('#rot-de-novo').hidden = ROT.rodando;
+}
+function rotinaAbrir(){
+  let d = $('#dlg-rotina');
+  if(!d){ d = document.createElement('dialog'); d.id = 'dlg-rotina'; document.body.appendChild(d); }
+  d.innerHTML = `<h3>Atualizar o dia</h3>
+    <p class="hint" style="margin:0 0 10px">Salve a planilha de serviços antes. Deixe esta página aberta até aparecer <b>Concluído</b>.${ROT.ultimo && ROT.ultimo.terminado_em ? `<br>Última atualização: ${esc(rotHora(ROT.ultimo.terminado_em))}${ROT.ultimo.pedido_por ? ' por ' + esc(ROT.ultimo.pedido_por) : ''}.` : ''}</p>
+    <div id="rot-corpo"></div>
+    <div class="dlg-actions"><button type="button" class="btn" id="rot-de-novo" hidden>Atualizar de novo</button><button type="button" class="btn primary" id="rot-fechar">Fechar</button></div>`;
+  $('#rot-fechar').onclick = ()=>d.close();
+  $('#rot-de-novo').onclick = ()=>rotinaExecutar();
+  d.showModal();
+  if(ROT.rodando || (ROT.fim && !ROT.fimRuim)) rotinaDesenha(); else rotinaExecutar();
+}
+async function rotinaExecutar(){
+  if(ROT.rodando) return;
+  Object.assign(ROT, { rodando:true, pedido:null, aviso:'Chamando o computador do escritório…', avisoRuim:false, fim:'', fimRuim:false, agendando:false, agendaErro:'', passoAgenda:'' });
+  rotinaMarca(); rotinaDesenha();
+  try{
+    // usa o pedido em andamento (ou o que terminou há pouco sem a agenda ser gravada); senão cria um novo
+    let u = await rotinaUltimo();
+    const aberto = x => x && (x.status === 'pendente' || x.status === 'executando');
+    const faltaAgenda = x => x && x.status === 'concluido' && !x.agenda_aplicada_em && Date.now() - new Date(x.terminado_em) < 30 * 60000;
+    if(!aberto(u) && !faltaAgenda(u)){
+      const novo = { id:uid('rt'), pedido_por:USER || 'Escritório', status:'pendente' };
+      const { error } = await sb.from('rotina_pedidos').insert(novo);
+      if(error && !/duplicate|unique/i.test(error.message)) throw new Error(error.message);
+      u = await rotinaUltimo();
+    }
+    const inicio = Date.now();
+    while(aberto(u)){
+      ROT.pedido = u; ROT.aviso = ''; ROT.avisoRuim = false;
+      if(u.status === 'pendente'){
+        ROT.aviso = 'Aguardando o computador do escritório. Costuma começar em poucos segundos (no máximo um minuto).';
+        if(Date.now() - inicio > 75000){
+          const { data } = await sb.from('rotina_agente').select('visto_em').limit(1);
+          ROT.aviso = `O computador do escritório não está respondendo${data && data[0] ? ' (último sinal ' + rotHora(data[0].visto_em) + ')' : ''}. Ele precisa estar ligado, com a internet funcionando e o usuário do Windows conectado.`; ROT.avisoRuim = true;
+        }
+      }
+      rotinaDesenha();
+      if(Date.now() - inicio > 12 * 60000) throw new Error('Passou do tempo esperado. Confira se o computador do escritório está ligado e clique em “Atualizar de novo”.');
+      await new Promise(r=>setTimeout(r, 2500));
+      const { data, error } = await sb.from('rotina_pedidos').select(ROT_COLS).eq('id', u.id).limit(1);
+      if(error){ console.warn(error.message); continue; }   // queda de internet passageira: tenta de novo
+      u = data[0] || u;
+    }
+    ROT.pedido = u; ROT.aviso = '';
+    await rotinaAgenda(u);
+    const ruim = u.status !== 'concluido' || ROT.agendaErro;
+    const semResposta = u.status === 'falhou' && !(u.etapas || []).length;
+    ROT.fim = semResposta ? 'O computador do escritório não atendeu este pedido.' : ruim ? 'Terminou com problema em um dos itens. Veja acima o que faltou.' : 'Concluído. Pode sair do escritório.';
+    ROT.fimRuim = !!ruim;
+  }catch(e){ console.error(e); ROT.aviso = ''; ROT.fim = e.message || String(e); ROT.fimRuim = true; }
+  ROT.rodando = false; ROT.agendando = false;
+  try{ ROT.ultimo = await rotinaUltimo(); }catch(e){ console.warn(e.message); }
+  rotinaMarca(); rotinaDesenha();
+  // descarta os dados em memória para as telas mostrarem o que acabou de entrar
+  ['serv','folhas','sup_ent','sup_sai','sup_cic','sup_cont','ht_ag','ht_cli','ht_imp'].forEach(n=>delete DB[n]);
+  const tela = location.hash.replace(/^#\/?/, '').split(/[/?]/)[0];
+  if(['','agendamento','tratamentos','suportes','utilizacao'].includes(tela) && !document.querySelector('dialog[open]:not(#dlg-rotina)')) go();
+  if(!$('#dlg-rotina').open) toast(ROT.fim, ROT.fimRuim);
+}
+async function rotinaAgenda(u){
+  if(u.agenda_aplicada_em) return;
+  const { data, error } = await sb.from('rotina_pedidos').select('agenda').eq('id', u.id).limit(1);
+  if(error) throw new Error(error.message);
+  const ag = data[0] && data[0].agenda;
+  if(!ag){ ROT.agendaErro = 'A planilha não foi lida, então a agenda ficou como estava.'; return; }
+  ROT.agendando = true; ROT.passoAgenda = 'Comparando com a planilha…'; rotinaDesenha();
+  try{
+    await reload('veiculos','ht_cli','ht_cid','ht_cfg','ht_vei','ht_dia','ht_ag','ht_bases','ht_vb','ht_ped','ht_imp');
+    const desde = TODAY.slice(0,4) + '-01-01', lido = agLerLinhas(ag.linhas, desde), plano = agComparaPlanilha(lido, desde);
+    let texto = 'A agenda já estava em dia.';
+    if(plano.novos.length || plano.mudancas.length){
+      const r = await agAplicarPlanilha(lido, plano, 'Atualizar o dia · ' + ag.arquivo, false, t=>{ ROT.passoAgenda = t; rotinaDesenha(); });
+      AG.desfazer = null; texto = `${r.novos} serviço(s) novo(s) e ${r.atualizados} atualizado(s).`;
+    }
+    if(plano.sumiram.length) texto += ` ${plano.sumiram.length} serviço(s) não estão mais na planilha e foram mantidos (para remover, use “Enviar planilha”).`;
+    const campos = { agenda:null, agenda_aplicada_em:new Date().toISOString(), agenda_resumo:texto };
+    await dbUpdate('rotina_pedidos', campos, 'id', u.id); Object.assign(u, campos);
+  }catch(e){ console.error(e); ROT.agendaErro = 'Não foi possível atualizar a agenda: ' + (e.message || e); }
+  ROT.agendando = false;
+}
+window.addEventListener('beforeunload', e=>{ if(ROT.rodando){ e.preventDefault(); e.returnValue = ''; } });
 
 /* ============================ roteamento ============================ */
 const NAMES = { orcamentos:'Orçamentos', frota:'Veículos', glp:'Controle GLP', dedetizacao:'Dedetização', custos:'Controle de custos', km:'Quilometragem', manutencao:'Manutenção do veículo', suportes:'Venda de suportes', tratamentos:'Tratamentos HT', agendamento:'Agendamento HT', utilizacao:'Utilização de veículos', lancar:'Lançamento', configuracoes:'Configurações' };
@@ -2268,7 +2399,9 @@ function agLerPlanilha(buffer, desde){
   const wb = XLSX.read(buffer, { type:'array', cellDates:false });
   const nome = wb.SheetNames.find(n=>normHt(n) === 'servicos');
   if(!nome) throw new Error('Não encontrei a aba “Serviços” nesta planilha.');
-  const m = XLSX.utils.sheet_to_json(wb.Sheets[nome], { header:1, raw:true, defval:null, blankrows:false });
+  return agLerLinhas(XLSX.utils.sheet_to_json(wb.Sheets[nome], { header:1, raw:true, defval:null, blankrows:false }), desde);
+}
+function agLerLinhas(m, desde){
   const cab = (m[0] || []).map(normHt);
   const esperado = { 0:'aviso', 1:'data', 3:'cliente', 4:'local', 9:'veiculo' };
   if(Object.entries(esperado).some(([i, n])=>cab[+i] !== n)) throw new Error('As colunas da aba “Serviços” mudaram de lugar. Esperado: Aviso, Data, Horário, Cliente, Local… Veículo.');
