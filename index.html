@@ -140,6 +140,8 @@ nav.tabs button:not(.active):hover{color:var(--text);}
 /* ---------- Última troca ---------- */
 .ultima-troca-card{border-left:4px solid var(--accent);margin-bottom:18px;}
 .ultima-troca-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);font-weight:700;margin-bottom:10px;}
+.ut-todos{width:100%;overflow-x:auto;}
+.ut-todos table{min-width:620px;}
 .ultima-troca-body{display:flex;gap:26px;flex-wrap:wrap;}
 .ut-item{display:flex;flex-direction:column;gap:2px;min-width:110px;}
 .ut-item .ut-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;}
@@ -433,21 +435,21 @@ footer.note{margin-top:34px;font-size:12px;color:var(--text-muted);border-top:1p
   </div>
 
   <div class="card ultima-troca-card" id="ultima-troca">
-    <div class="ultima-troca-label">Última troca</div>
+    <div class="ultima-troca-label" id="ultima-troca-titulo">Última troca</div>
     <div class="ultima-troca-body" id="ultima-troca-body">Sem registros para este caminhão.</div>
   </div>
 
   <div class="grid kpis" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));">
     <div class="card"><div class="kpi-label">Peso instalado atual</div><div class="kpi-value" id="tr-instalado">–</div><div class="kpi-sub" id="tr-instalado-sub">&nbsp;</div></div>
-    <div class="card"><div class="kpi-label">Consumo médio diário</div><div class="kpi-value" id="tr-diario">–</div></div>
-    <div class="card"><div class="kpi-label">Tratamentos (histórico)</div><div class="kpi-value" id="tr-tratamentos">–</div></div>
-    <div class="card"><div class="kpi-label">Consumo médio / tratamento</div><div class="kpi-value" id="tr-portrat">–</div></div>
+    <div class="card"><div class="kpi-label">Consumo médio diário</div><div class="kpi-value" id="tr-diario">–</div><div class="kpi-sub" id="tr-diario-sub" hidden></div></div>
+    <div class="card"><div class="kpi-label">Tratamentos (histórico)</div><div class="kpi-value" id="tr-tratamentos">–</div><div class="kpi-sub" id="tr-tratamentos-sub" hidden></div></div>
+    <div class="card"><div class="kpi-label">Consumo médio / tratamento</div><div class="kpi-value" id="tr-portrat">–</div><div class="kpi-sub" id="tr-portrat-sub" hidden></div></div>
   </div>
 
   <div class="table-wrap">
     <table>
       <thead><tr>
-        <th>Data</th><th>Horário</th><th>Fornecedor</th><th class="num">Cilindros</th><th class="num">Peso instalado</th>
+        <th>Data</th><th>Horário</th><th class="col-veic" hidden>Caminhão</th><th>Fornecedor</th><th class="num">Cilindros</th><th class="num">Peso instalado</th>
         <th class="num">Sobra pesada</th><th class="num">Consumo período</th><th class="num">Consumo/dia</th>
         <th class="num">Tratamentos</th><th class="num">Kg/tratamento</th><th>Lançado por</th><th></th>
       </tr></thead>
@@ -1188,9 +1190,23 @@ document.getElementById('btn-csv-compras').onclick = ()=>{
 };
 
 /* ---------------- rendering: trocas ---------------- */
+const TODOS = 'TODOS';   // visão com as trocas de todos os caminhões juntas
 function renderTruckChips(){
   const host = document.getElementById('truck-chips');
-  host.innerHTML = CONFIG.trucks.map(t=>`<button class="chip ${t.code===currentTruck?'active':''}" data-truck="${t.code}">${t.code}</button>`).join('');
+  const chip = (cod, rot)=>`<button class="chip ${cod===currentTruck?'active':''}" data-truck="${cod}">${rot}</button>`;
+  host.innerHTML = (CONFIG.trucks.length > 1 ? chip(TODOS, 'Todos') : '') + CONFIG.trucks.map(t=>chip(t.code, t.code)).join('');
+}
+// caminhão que vem preenchido nos formulários
+function caminhaoEscolhido(){ return CONFIG.trucks.some(t=>t.code===currentTruck) ? currentTruck : null; }
+function acharTroca(id){ return Object.values(TROCAS).flat().find(t=>t.id===id); }
+// linhas da tela atual (um caminhão ou todos), da mais antiga para a mais nova
+function trocasDaTela(){
+  if(currentTruck !== TODOS){
+    const truck = CONFIG.trucks.find(t=>t.code===currentTruck);
+    return truck ? calcTrocaSeries(TROCAS[truck.code]||[], truck.cylinderWeight, TRATAMENTOS.filter(x=>x.veiculo===truck.code)) : [];
+  }
+  const quando = r => r.dataTroca+"T"+safeHorario(r.horario);
+  return Object.values(allTrocaSeries()).flat().sort((a,b)=> quando(a).localeCompare(quando(b)) || String(a.caminhao).localeCompare(String(b.caminhao)));
 }
 
 function renderUltimaTroca(truck, last){
@@ -1210,33 +1226,66 @@ function renderUltimaTroca(truck, last){
   `;
 }
 
+// visão de todos: uma linha por caminhão com a última troca, quem está há mais tempo sem trocar primeiro
+function renderUltimasTrocas(series){
+  const limite = CONFIG.alertaDiasTroca || 20;
+  const linhas = CONFIG.trucks.map(t=>{
+    const last = (series[t.code]||[]).slice(-1)[0]; if(!last) return { code:t.code, last:null, dias:-1 };
+    const dt = new Date(last.dataTroca+"T"+safeHorario(last.horario));
+    return { code:t.code, last, dias:Math.floor((Date.now()-dt)/86400000), desde:TRATAMENTOS.filter(x=>x.veiculo===t.code && treatmentDT(x)>dt).length };
+  }).sort((a,b)=>b.dias-a.dias);
+  document.getElementById('ultima-troca-body').innerHTML = `<div class="ut-todos"><table>
+    <thead><tr><th>Caminhão</th><th>Última troca</th><th class="num">Dias desde</th><th>Fornecedor</th><th class="num">Cilindros</th><th class="num">Peso instalado</th><th class="num">Tratamentos desde então</th></tr></thead>
+    <tbody>${linhas.map(l=> !l.last ? `<tr><td><b>${esc(l.code)}</b></td><td colspan="6">Sem registros</td></tr>` : `<tr>
+      <td><b>${esc(l.code)}</b></td><td>${fmtDate(l.last.dataTroca)}${l.last.horario?' '+l.last.horario:''}</td>
+      <td class="num">${l.dias >= limite ? `<span class="badge pendente" title="Passou de ${limite} dias">${l.dias}</span>` : l.dias}</td>
+      <td>${esc(l.last.fornecedor)}</td><td class="num">${l.last.cilindrosTrocados}</td><td class="num mono">${KG(l.last.pesoTotalInstalado)} kg</td><td class="num">${l.desde}</td></tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
 function renderTrocas(){
-  if(!currentTruck && CONFIG.trucks.length) currentTruck = CONFIG.trucks[0].code;
+  if((!currentTruck || (currentTruck===TODOS && CONFIG.trucks.length<2)) && CONFIG.trucks.length) currentTruck = CONFIG.trucks[0].code;
   renderTruckChips();
+  const todos = currentTruck === TODOS;
   const truck = CONFIG.trucks.find(t=>t.code===currentTruck);
-  if(!truck){
-    document.getElementById('tbl-trocas').innerHTML = `<tr class="empty-row"><td colspan="11">Cadastre um caminhão em Configurações.</td></tr>`;
+  document.querySelectorAll('#view-trocas .col-veic').forEach(el=>el.hidden = !todos);
+  document.getElementById('ultima-troca-titulo').textContent = todos ? 'Última troca de cada caminhão' : 'Última troca';
+  if(!truck && !todos){
+    document.getElementById('tbl-trocas').innerHTML = `<tr class="empty-row"><td colspan="12">Cadastre um caminhão em Configurações.</td></tr>`;
     renderUltimaTroca(null, null);
     return;
   }
-  const series = calcTrocaSeries(TROCAS[truck.code]||[], truck.cylinderWeight, TRATAMENTOS.filter(x=>x.veiculo===truck.code));
-  const last = series[series.length-1];
-  renderUltimaTroca(truck, last);
-  document.getElementById('tr-instalado').textContent = last ? KG(last.pesoTotalInstalado)+" kg" : "–";
-  document.getElementById('tr-instalado-sub').textContent = last ? "última troca em " + fmtDate(last.dataTroca) : "sem registros";
-  const withDiario = series.filter(r=>r.consumoDiario!=null);
-  const mediaDiaria = withDiario.length ? withDiario.reduce((s,r)=>s+r.consumoDiario,0)/withDiario.length : null;
+  const series = trocasDaTela();
+  const media = l => l.length ? l.reduce((s,x)=>s+x,0)/l.length : null;
+  const mediaDiariaDe = l => media(l.filter(r=>r.consumoDiario!=null).map(r=>r.consumoDiario));
+  let instalado = null, instaladoSub = 'sem registros', mediaDiaria;
+  if(todos){
+    const porCaminhao = allTrocaSeries(), ultimas = Object.values(porCaminhao).map(l=>l[l.length-1]).filter(Boolean);
+    renderUltimasTrocas(porCaminhao);
+    if(ultimas.length){ instalado = ultimas.reduce((s,r)=>s+r.pesoTotalInstalado,0); instaladoSub = `soma de ${ultimas.length} caminhões`; }
+    const diarias = Object.values(porCaminhao).map(mediaDiariaDe).filter(v=>v!=null);
+    mediaDiaria = diarias.length ? diarias.reduce((s,x)=>s+x,0) : null;
+  } else {
+    const last = series[series.length-1];
+    renderUltimaTroca(truck, last);
+    if(last){ instalado = last.pesoTotalInstalado; instaladoSub = "última troca em " + fmtDate(last.dataTroca); }
+    mediaDiaria = mediaDiariaDe(series);
+  }
+  const codigos = new Set(todos ? CONFIG.trucks.map(t=>t.code) : [truck.code]);
+  document.getElementById('tr-instalado').textContent = instalado!=null ? KG(instalado)+" kg" : "–";
+  document.getElementById('tr-instalado-sub').textContent = instaladoSub;
   document.getElementById('tr-diario').textContent = mediaDiaria!=null ? KG(mediaDiaria)+" kg/dia" : "–";
-  document.getElementById('tr-tratamentos').textContent = TRATAMENTOS.filter(x=>x.veiculo===truck.code).length.toLocaleString('pt-BR');
-  const withTrat = series.filter(r=>r.consumoPorTratamento!=null);
-  const mediaTrat = withTrat.length ? withTrat.reduce((s,r)=>s+r.consumoPorTratamento,0)/withTrat.length : null;
+  document.getElementById('tr-tratamentos').textContent = TRATAMENTOS.filter(x=>codigos.has(x.veiculo)).length.toLocaleString('pt-BR');
+  const mediaTrat = media(series.filter(r=>r.consumoPorTratamento!=null).map(r=>r.consumoPorTratamento));
   document.getElementById('tr-portrat').textContent = mediaTrat!=null ? KG(mediaTrat)+" kg" : "–";
+  [['tr-diario-sub','soma das médias de cada caminhão'], ['tr-tratamentos-sub','todos os caminhões'], ['tr-portrat-sub','média de todas as trocas']].forEach(([id,t])=>{
+    const el = document.getElementById(id); el.hidden = !todos; el.textContent = t; });
 
   const tb = document.getElementById('tbl-trocas');
   const rev = [...series].reverse();
   tb.innerHTML = rev.length ? rev.map(r=>`
     <tr>
-      <td>${fmtDate(r.dataTroca)}</td><td>${r.horario||'–'}</td><td>${esc(r.fornecedor)}</td>
+      <td>${fmtDate(r.dataTroca)}</td><td>${r.horario||'–'}</td>${todos ? `<td><b>${esc(r.caminhao)}</b></td>` : ''}<td>${esc(r.fornecedor)}</td>
       <td class="num">${r.cilindrosTrocados}</td><td class="num mono">${KG(r.pesoTotalInstalado)}</td>
       <td class="num mono">${r.sobraPesada!=null && r.sobraPesada!=="" ? KG(Number(r.sobraPesada)) : '–'}</td>
       <td class="num mono">${r.consumoPeriodo!=null ? KG(r.consumoPeriodo) : '–'}</td>
@@ -1245,16 +1294,16 @@ function renderTrocas(){
       <td class="num mono">${r.consumoPorTratamento!=null ? KG(r.consumoPorTratamento) : '–'}</td>
       <td>${esc(r.lancadoPor)||'–'}</td>
       <td><button class="iconbtn" data-edit-troca="${r.id}">Editar</button></td>
-    </tr>`).join('') : `<tr class="empty-row"><td colspan="12">Nenhuma troca registrada para ${truck.code}.</td></tr>`;
+    </tr>`).join('') : `<tr class="empty-row"><td colspan="${todos?13:12}">Nenhuma troca registrada${todos?'':' para '+truck.code}.</td></tr>`;
 }
 
 document.getElementById('btn-csv-trocas').onclick = ()=>{
-  const truck = CONFIG.trucks.find(t=>t.code===currentTruck);
-  if(!truck) return;
-  const series = calcTrocaSeries(TROCAS[truck.code]||[], truck.cylinderWeight, TRATAMENTOS.filter(x=>x.veiculo===truck.code));
-  exportCSV(`trocas_${truck.code}.csv`,
-    ['Data','Horário','Fornecedor','Cilindros','Peso instalado','Sobra pesada','Consumo período','Consumo/dia','Tratamentos','Kg/tratamento','Lançado por'],
-    [...series].reverse().map(r=>[fmtDate(r.dataTroca), r.horario||'', r.fornecedor, r.cilindrosTrocados, r.pesoTotalInstalado, r.sobraPesada, r.consumoPeriodo, r.consumoDiario, r.tratamentosRealizados, r.consumoPorTratamento, r.lancadoPor||''])
+  const todos = currentTruck === TODOS;
+  if(!todos && !caminhaoEscolhido()) return;
+  const veic = r => todos ? [r.caminhao] : [];
+  exportCSV(`trocas_${todos ? 'todos' : currentTruck}.csv`,
+    ['Data','Horário',...(todos?['Caminhão']:[]),'Fornecedor','Cilindros','Peso instalado','Sobra pesada','Consumo período','Consumo/dia','Tratamentos','Kg/tratamento','Lançado por'],
+    [...trocasDaTela()].reverse().map(r=>[fmtDate(r.dataTroca), r.horario||'', ...veic(r), r.fornecedor, r.cilindrosTrocados, r.pesoTotalInstalado, r.sobraPesada, r.consumoPeriodo, r.consumoDiario, r.tratamentosRealizados, r.consumoPorTratamento, r.lancadoPor||''])
   );
 };
 
@@ -1761,10 +1810,12 @@ document.getElementById('fc-delete').onclick = async ()=>{
 /* ---------------- troca modal ---------------- */
 const modalTroca = document.getElementById('modal-troca');
 function openTrocaModal(existing){
-  document.getElementById('ft-caminhao').innerHTML = CONFIG.trucks.map(t=>`<option value="${t.code}">${t.code}</option>`).join('');
+  // na visão de todos, o caminhão começa em branco para ninguém lançar no veículo errado
+  document.getElementById('ft-caminhao').innerHTML = (existing || caminhaoEscolhido() ? '' : '<option value="">Escolha o caminhão</option>') + CONFIG.trucks.map(t=>`<option value="${t.code}">${t.code}</option>`).join('');
+  document.getElementById('ft-caminhao').required = true;
   document.getElementById('modal-troca-title').textContent = existing ? 'Editar troca' : 'Nova troca de gás';
   document.getElementById('ft-delete').style.display = existing ? '' : 'none';
-  const f = existing || {caminhao:currentTruck||CONFIG.trucks[0]?.code, dataTroca:new Date().toISOString().slice(0,10), horario:'', fornecedor:'', cilindrosTrocados:'', botijaoExtra:0, sobraPesada:''};
+  const f = existing || {caminhao:caminhaoEscolhido()||'', dataTroca:new Date().toISOString().slice(0,10), horario:'', fornecedor:'', cilindrosTrocados:'', botijaoExtra:0, sobraPesada:''};
   document.getElementById('ft-id').value = existing ? existing.id : '';
   document.getElementById('ft-caminhao').value = f.caminhao;
   document.getElementById('ft-data').value = f.dataTroca;
@@ -1780,13 +1831,14 @@ document.getElementById('ft-cancel').onclick = ()=>modalTroca.classList.remove('
 document.getElementById('tbl-trocas').addEventListener('click', e=>{
   const btn = e.target.closest('[data-edit-troca]');
   if(!btn) return;
-  openTrocaModal((TROCAS[currentTruck]||[]).find(t=>t.id===btn.dataset.editTroca));
+  const alvo = acharTroca(btn.dataset.editTroca);
+  if(alvo) openTrocaModal(alvo);
 });
 document.getElementById('form-troca').addEventListener('submit', async e=>{
   e.preventDefault();
   const id = document.getElementById('ft-id').value || uid('t');
   const isNew = !document.getElementById('ft-id').value;
-  const existingTroca = isNew ? null : (TROCAS[currentTruck]||[]).find(t=>t.id===id);
+  const existingTroca = isNew ? null : acharTroca(id);
   const data = {
     caminhao: document.getElementById('ft-caminhao').value,
     dataTroca: document.getElementById('ft-data').value,
@@ -1823,7 +1875,7 @@ function openTratamentoModal(existing){
   document.getElementById('tt-veiculo').innerHTML = CONFIG.trucks.map(t=>`<option value="${t.code}">${t.code}</option>`).join('');
   document.getElementById('modal-tratamento-title').textContent = existing ? 'Editar tratamento' : 'Novo tratamento';
   document.getElementById('tt-delete').style.display = existing ? '' : 'none';
-  const f = existing || {data:new Date().toISOString().slice(0,10), horario:'', veiculo:currentTruck||CONFIG.trucks[0]?.code, cliente:'', operador:''};
+  const f = existing || {data:new Date().toISOString().slice(0,10), horario:'', veiculo:caminhaoEscolhido()||CONFIG.trucks[0]?.code, cliente:'', operador:''};
   document.getElementById('tt-id').value = existing ? existing.id : '';
   document.getElementById('tt-data').value = f.data;
   document.getElementById('tt-horario').value = f.horario || '';
